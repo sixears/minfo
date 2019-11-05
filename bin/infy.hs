@@ -9,7 +9,8 @@
 {-# LANGUAGE UnicodeSyntax       #-}
 {-# LANGUAGE ViewPatterns       #-}
 
-import Prelude  ( Int, (-), error, fromIntegral, undefined )
+import Prelude  ( Int, Integer, Integral( toInteger )
+                , (+), (-), error, fromIntegral, undefined )
 
 -- aeson -------------------------------
 
@@ -31,11 +32,12 @@ import Data.Eq                 ( Eq( (==) ) )
 import Data.Foldable           ( Foldable, maximum )
 import Data.Function           ( ($), id )
 import Data.Functor            ( fmap )
-import Data.List               ( length, replicate, sort, zip )
+import Data.List               ( length, replicate, sortOn, zip )
 import Data.Maybe              ( Maybe( Just, Nothing )
                                , catMaybes, fromMaybe, maybe )
-import Data.Monoid             ( mconcat )
+import Data.Ord                ( max )
 import Data.String             ( String )
+import Data.Tuple              ( fst )
 import Data.Typeable           ( Typeable, typeOf )
 import Data.Word               ( Word8 )
 import GHC.Exts                ( toList )
@@ -58,7 +60,8 @@ import Data.ByteString  ( ByteString )
 
 -- containers --------------------------
 
-import Data.Map  ( Map, foldrWithKey, fromList, keys )
+import qualified  Data.Map  as  Map
+import Data.Map  ( Map, foldrWithKey, keys )
 
 -- data-textual ------------------------
 
@@ -98,6 +101,7 @@ import Data.MoreUnicode.Applicative  ( (⊴), (⊵), (∤) )
 import Data.MoreUnicode.Functor      ( (⊲), (⊳), (⩺) )
 import Data.MoreUnicode.Lens         ( (⊣), (⫥) )
 import Data.MoreUnicode.Monad        ( (⪼), (≫) )
+import Data.MoreUnicode.Monoid       ( ю )
 import Data.MoreUnicode.Natural      ( ℕ )
 import Data.MoreUnicode.Tasty        ( (≟) )
 
@@ -164,16 +168,38 @@ yamlText t = let safeInit "" = ""
                  bsToText = Data.ListLike.fromString ∘ Data.ListLike.toString
               in safeInit ∘ bsToText $ encode t
 
+
+spaces ∷ ℕ → Text
+spaces n = Text.replicate (fromIntegral n) " "
+
+indent ∷ ℕ → [Text] → [Text]
+indent n = fmap (spaces n ⊕)
+
+tlength ∷ Text → ℕ
+tlength = fromIntegral ∘ Text.length
+
 instance PYaml Text where
   pYaml t = [ yamlText t ]
 
-instance PYaml (Map Text Text) where
+instance PYaml Integer where
+  pYaml i = [ toText i ]
+
+instance PYaml ℕ where
+  pYaml i = [ toText $ toInteger i ]
+
+instance (PYaml α) ⇒ PYaml [α] where
+  pYaml xs = ю [ ("- " ⊕ t) : (("  " ⊕) ⊳ ts) | x ← xs, let (t:ts) = pYaml x ]
+
+instance PYaml α ⇒ PYaml (Map Text α) where
   pYaml m =
-    let maxLen ∷ Int
-        maxLen = maximum $ Text.length ⊳ keys m
+    let maxLen ∷ ℕ
+        maxLen = fromIntegral (maximum $ Text.length ⊳ keys m)
         pad ∷ Text → Text
-        pad t = t ⊕ Text.replicate (maxLen - Text.length t) " "
-     in foldrWithKey (\ k v ts → [fmt|%t : %t|] (pad k) (yamlText v) : ts) [] m
+        pad t = t ⊕ spaces (fromIntegral (maxLen - tlength t) `max` 0)
+        head ∷ [β] → β
+        head (x:xs) = x
+     in ю [ ( [fmt|%t : %t|] (pad k) t : indent (maxLen+3) ts )
+          | (k,v) ← sortOn fst (Map.toList m), let (t:ts) = pYaml v ]
 
 pYamlTests ∷ TestTree
 pYamlTests =
@@ -191,14 +217,29 @@ pYamlTests =
                 , testCase "'bob"  $ [ "'''bob'" ] ≟ pYaml _bob
                 , testCase "\"bob" $ [ "'\"bob'" ] ≟ pYaml @Text "\"bob"
 
-                , testCase "map0" $ [ ] ≟ pYaml (fromList ([] ∷ [(Text,Text)]))
+                , testCase "7"     $ [ "7" ]       ≟ pYaml (7 ∷ ℕ)
+
+                , testCase "list0" $ [] ≟ pYaml ([]∷[Text])
+                , testCase "list1" $ [ "- 1" ] ≟ pYaml ([ 1 ∷ ℕ ])
+                , testCase "list2" $ [ "- 1", "- 1" ] ≟ pYaml ([ 1∷ℕ,1 ])
+                , testCase "list3" $ [ "- 1","- 1","- 2" ] ≟ pYaml ([ 1∷ℕ,1,2 ])
+
+                , testCase "map0" $ [] ≟ pYaml (Map.fromList ([]∷[(Text,Text)]))
                 , testCase "map1" $
-                    [ "foo : bar" ] ≟ pYaml (fromList [(foo,bar)])
+                    [ "foo : bar" ] ≟ pYaml (Map.fromList [(foo,bar)])
                 , testCase "map1'" $
-                    [ "foo : '''bob'" ] ≟ pYaml (fromList [(foo,_bob)])
+                    [ "foo : '''bob'" ] ≟ pYaml (Map.fromList [(foo,_bob)])
                 , testCase "map2" $
                       [ "foo  : bar", "quux : 'y'", "x    : 'y'" ]
-                    ≟ sort (pYaml (fromList[(foo,bar),(x,y),(quux,y)]))
+                    ≟ pYaml (Map.fromList[(foo,bar),(x,y),(quux,y)])
+
+                , testCase "list of maps" $
+                      [ "- foo  : bar", "  quux : 'y'", "  x    : 'y'"
+                      , "- foo : bar", "  x   : 'y'"
+                      ]
+                    ≟ (pYaml ([ Map.fromList[(foo,bar),(x,y),(quux,y)]
+                              , Map.fromList[(foo,bar),(x,y)]
+                              ]))
                 ]
 
 ------------------------------------------------------------
@@ -233,12 +274,12 @@ instance FromJSON Track where
 
 instance ToJSON Track where
   toJSON (Track t v y l d) =
-    let fields = mconcat [ [ "title" .= t ]
-                         , maybe [] (\ v' → [ "version" .= toJSON v' ]) v
-                         , maybe [] (\ y' → [ "live_type" .= toJSON y' ]) y
-                         , maybe [] (\ l' → [ "live_location" .= toJSON l' ]) l
-                         , maybe [] (\ d' → [ "live_date" .= toJSON d' ]) d
-                         ]
+    let fields = ю [ [ "title" .= t ]
+                   , maybe [] (\ v' → [ "version" .= toJSON v' ]) v
+                   , maybe [] (\ y' → [ "live_type" .= toJSON y' ]) y
+                   , maybe [] (\ l' → [ "live_location" .= toJSON l' ]) l
+                   , maybe [] (\ d' → [ "live_date" .= toJSON d' ]) d
+                   ]
      in object fields
 
 instance Printable Track where
@@ -361,7 +402,7 @@ data Tracks = Tracks [[Track]]
   deriving Show
 
 tracks_ ∷ Tracks → [Track]
-tracks_ (Tracks tss) = mconcat tss
+tracks_ (Tracks tss) = ю tss
 
 instance Printable Tracks where
   print tss = P.text ∘ unlines $ toText ⊳ tracks_ tss
@@ -447,22 +488,22 @@ instance Printable Info where
                       (x : []) → ("- " ⊕ x)
                       (x : xs) → unl $ ("- " ⊕ x) : [indents xs]
 
-     in P.text $ unl (mconcat [ [ "---"
-                                , tot "artist"         a
-                                , tot "catno"          c
-                                , tot "release"        r
-                                ]
-                              , tom "original_release" e
-                              , [ tot "source"         s
-                                , tot "source_version" v
-                                ]
-                              , tom "live_type" y
-                              , tom "live_location" l
-                              , tom "live_date" d
-                              , [ "tracks:"
-                                ]
-                              , [ lindent $ toText ts ]
-                              ])
+     in P.text $ unl (ю [ [ "---"
+                          , tot "artist"         a
+                          , tot "catno"          c
+                          , tot "release"        r
+                          ]
+                        , tom "original_release" e
+                        , [ tot "source"         s
+                          , tot "source_version" v
+                          ]
+                        , tom "live_type" y
+                        , tom "live_location" l
+                        , tom "live_date" d
+                        , [ "tracks:"
+                          ]
+                        , [ lindent $ toText ts ]
+                        ])
 
 blankReleaseInfo ∷ ReleaseInfo
 blankReleaseInfo = ReleaseInfo Nothing Nothing Nothing Nothing
