@@ -9,7 +9,7 @@
 {-# LANGUAGE UnicodeSyntax       #-}
 {-# LANGUAGE ViewPatterns       #-}
 
-import Prelude  ( error, fromIntegral, undefined )
+import Prelude  ( Int, (-), error, fromIntegral, undefined )
 
 -- aeson -------------------------------
 
@@ -28,10 +28,10 @@ import Control.Monad.IO.Class  ( MonadIO, liftIO )
 import Data.Bifunctor          ( first )
 import Data.Either             ( Either( Left, Right ) )
 import Data.Eq                 ( Eq( (==) ) )
-import Data.Foldable           ( Foldable )
+import Data.Foldable           ( Foldable, maximum )
 import Data.Function           ( ($), id )
 import Data.Functor            ( fmap )
-import Data.List               ( length, replicate, zip )
+import Data.List               ( length, replicate, sort, zip )
 import Data.Maybe              ( Maybe( Just, Nothing )
                                , catMaybes, fromMaybe, maybe )
 import Data.Monoid             ( mconcat )
@@ -51,6 +51,14 @@ import Text.Show               ( Show( show ) )
 import Data.Eq.Unicode        ( (≡) )
 import Data.Function.Unicode  ( (∘) )
 import Data.Monoid.Unicode    ( (⊕) )
+
+-- bytestring --------------------------
+
+import Data.ByteString  ( ByteString )
+
+-- containers --------------------------
+
+import Data.Map  ( Map, foldrWithKey, fromList, keys )
 
 -- data-textual ------------------------
 
@@ -74,6 +82,10 @@ import FPath.RelFile        ( RelFile, relfile )
 import Control.Lens.Lens    ( Lens', lens )
 import Control.Lens.Prism   ( Prism', prism )
 import Control.Lens.Review  ( (#) )
+
+-- ListLike ----------------------------
+
+import qualified Data.ListLike
 
 -- monaderror-io -----------------------
 
@@ -118,7 +130,9 @@ import TastyPlus  ( assertListEqR, assertListEq, propInvertibleText, runTestsP
 
 -- text --------------------------------
 
-import Data.Text     ( Text, dropEnd, intercalate, lines, pack, replace
+import qualified  Data.Text  as  Text
+
+import Data.Text     ( Text, dropEnd, init, intercalate, lines, pack, replace
                      , unpack, unlines )
 import Data.Text.IO  ( hPutStrLn, putStrLn )
 
@@ -133,9 +147,61 @@ import Text.Fmt  ( fmt, fmtT )
 -- yaml --------------------------------
 
 import Data.Yaml  ( FromJSON( parseJSON ), ParseException, ToJSON( toJSON )
-                  , (.=), decodeFileEither, object )
+                  , (.=), decodeFileEither, encode, object )
 
 --------------------------------------------------------------------------------
+
+{- | Translate a value into yaml lines; somewhat nicer output to my eyes than
+     Data.Yaml gives.
+ -}
+class PYaml α where
+  pYaml ∷ α → [Text]
+
+yamlText ∷ Text → Text
+yamlText t = let safeInit "" = ""
+                 safeInit t  = init t
+                 bsToText ∷ ByteString → Text
+                 bsToText = Data.ListLike.fromString ∘ Data.ListLike.toString
+              in safeInit ∘ bsToText $ encode t
+
+instance PYaml Text where
+  pYaml t = [ yamlText t ]
+
+instance PYaml (Map Text Text) where
+  pYaml m =
+    let maxLen ∷ Int
+        maxLen = maximum $ Text.length ⊳ keys m
+        pad ∷ Text → Text
+        pad t = t ⊕ Text.replicate (maxLen - Text.length t) " "
+     in foldrWithKey (\ k v ts → [fmt|%t : %t|] (pad k) (yamlText v) : ts) [] m
+
+pYamlTests ∷ TestTree
+pYamlTests =
+  let foo  = "foo" ∷ Text
+      _bob = "'bob" ∷ Text
+      bar  = "bar" ∷ Text
+      x    = "x" ∷ Text
+      y    = "y" ∷ Text
+      quux = "quux" ∷ Text
+   in testGroup "pYaml"
+                [ testCase "foo"   $ [ foo ]       ≟ pYaml foo
+                  -- I would like to fix this, but not today
+                , testCase "y"     $ [ "'y'" ]     ≟ pYaml y
+                , testCase "bo'b"  $ [ "bo'b" ]    ≟ pYaml @Text "bo'b"
+                , testCase "'bob"  $ [ "'''bob'" ] ≟ pYaml _bob
+                , testCase "\"bob" $ [ "'\"bob'" ] ≟ pYaml @Text "\"bob"
+
+                , testCase "map0" $ [ ] ≟ pYaml (fromList ([] ∷ [(Text,Text)]))
+                , testCase "map1" $
+                    [ "foo : bar" ] ≟ pYaml (fromList [(foo,bar)])
+                , testCase "map1'" $
+                    [ "foo : '''bob'" ] ≟ pYaml (fromList [(foo,_bob)])
+                , testCase "map2" $
+                      [ "foo  : bar", "quux : 'y'", "x    : 'y'" ]
+                    ≟ sort (pYaml (fromList[(foo,bar),(x,y),(quux,y)]))
+                ]
+
+------------------------------------------------------------
 
 data Track = Track { __title         ∷ Maybe Text
                    , __version       ∷ Maybe Text
@@ -291,28 +357,14 @@ mp3Names inf =
 
 ------------------------------------------------------------
 
-data Trackss = ATrack Track | ManyTracks [Track]
-  deriving Show
-
-trackss ∷ Trackss → [Track]
-trackss (ATrack     t)  = [t]
-trackss (ManyTracks ts) = ts
-
-instance FromJSON Trackss where
-  parseJSON v@(Object _) = ATrack ⊳ parseJSON v
-  parseJSON (Array v)    = ManyTracks ⊳ (sequence $ parseJSON ⊳ toList v)
-  parseJSON invalid      = typeMismatch "Trackss" invalid
-
-------------------------------------------------------------
-
-data Tracks = Tracks [Trackss]
+data Tracks = Tracks [[Track]]
   deriving Show
 
 tracks_ ∷ Tracks → [Track]
-tracks_ (Tracks tss) = mconcat $ trackss ⊳ tss
+tracks_ (Tracks tss) = mconcat tss
 
 instance Printable Tracks where
-  print (Tracks tss) = P.text "hello!" -- $ unlines $ toText ⊳ tss
+  print tss = P.text ∘ unlines $ toText ⊳ tracks_ tss
 
 instance FromJSON Tracks where
   parseJSON (Array ts) = Tracks ⊳ (sequence $ parseJSON ⊳ toList ts)
@@ -412,10 +464,13 @@ instance Printable Info where
                               , [ lindent $ toText ts ]
                               ])
 
+blankReleaseInfo ∷ ReleaseInfo
+blankReleaseInfo = ReleaseInfo Nothing Nothing Nothing Nothing
+                               Nothing Nothing Nothing Nothing Nothing
+
 blankInfo ∷ Natural → Info
-blankInfo n =
-  Info (ReleaseInfo Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing)
-       (Tracks $ replicate (fromIntegral n) (ATrack blankTrack))
+blankInfo n = 
+  Info blankReleaseInfo $ Tracks [replicate (fromIntegral n) (blankTrack)]
 
 ------------------------------------------------------------
 
@@ -682,7 +737,8 @@ releaseInfol = ReleaseInfo (Just "simon") (Just "124XX") (Just "1979-12-31")
                            (Just "Live") (Just "Sweden") (Just "1990")
 
 tests ∷ TestTree
-tests = testGroup "infy" [ lNameTests, liveNameTests, fileNameTests ]
+tests = testGroup "infy" [ pYamlTests, lNameTests
+                         , liveNameTests, fileNameTests ]
 
 ----------------------------------------
 
