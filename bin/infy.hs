@@ -155,6 +155,15 @@ import Data.Yaml  ( FromJSON( parseJSON ), ParseException, ToJSON( toJSON )
 
 --------------------------------------------------------------------------------
 
+{- | Wrapped data ready for printing with PYaml.  We wrap it so that we can
+     pass heterogeneous values to pYaml, e.g., as a Map Text PValue, without
+     re-printing those values (which causes them to be quoted as Text twice. -}
+
+data PValue = PValue [Text]
+  deriving Show
+
+pValue x = PValue (pYaml x)
+
 {- | Translate a value into yaml lines; somewhat nicer output to my eyes than
      Data.Yaml gives.
  -}
@@ -178,6 +187,9 @@ indent n = fmap (spaces n ⊕)
 tlength ∷ Text → ℕ
 tlength = fromIntegral ∘ Text.length
 
+instance PYaml PValue where
+  pYaml (PValue ts) = ts
+
 instance PYaml Text where
   pYaml t = [ yamlText t ]
 
@@ -186,6 +198,11 @@ instance PYaml Integer where
 
 instance PYaml ℕ where
   pYaml i = [ toText $ toInteger i ]
+
+instance PYaml α ⇒ PYaml (Maybe α) where
+  pYaml Nothing = [ "~" ]
+  pYaml (Just x) = pYaml x
+
 
 instance (PYaml α) ⇒ PYaml [α] where
   pYaml xs = ю [ ("- " ⊕ t) : (("  " ⊕) ⊳ ts) | x ← xs, let (t:ts) = pYaml x ]
@@ -233,6 +250,24 @@ pYamlTests =
                       [ "foo  : bar", "quux : 'y'", "x    : 'y'" ]
                     ≟ pYaml (Map.fromList[(foo,bar),(x,y),(quux,y)])
 
+                , testCase "list of lists" $
+                      [ "- - 1", "  - 1", "  - 2", "- - 3", "  - 5", "- - 8" ]
+                    ≟ (pYaml ([ [1∷ℕ,1,2],[3,5],[8] ]))
+
+
+                , testCase "map of maps" $
+                      [ "one : foo  : bar", "      quux : 'y'"
+                      , "      x    : 'y'"
+                      , "two : foo : bar", "      x   : 'y'"
+                      ]
+                    ≟ (pYaml (Map.fromList [ ("one"∷Text,Map.fromList[(foo,bar)
+                                                                     ,(x,y)
+                                                                     ,(quux,y)])
+                                           , ("two",Map.fromList[(foo,bar)
+                                                                ,(x,y)])
+                                           ]
+                             ))
+
                 , testCase "list of maps" $
                       [ "- foo  : bar", "  quux : 'y'", "  x    : 'y'"
                       , "- foo : bar", "  x   : 'y'"
@@ -240,6 +275,13 @@ pYamlTests =
                     ≟ (pYaml ([ Map.fromList[(foo,bar),(x,y),(quux,y)]
                               , Map.fromList[(foo,bar),(x,y)]
                               ]))
+
+                , testCase "map of lists" $
+                      [ "foo  : - 1", "       - 1", "       - 2"
+                      , "quux : - 8", "x    : - 3", "       - 5"
+                      ]
+                    ≟ (pYaml (Map.fromList [ (foo,[1∷ℕ,1,2])
+                                           , (x,[3,5]) ,(quux,[8]) ]))
                 ]
 
 ------------------------------------------------------------
@@ -295,6 +337,9 @@ instance Printable Track where
                                              ⊕ (tom "live_type" y)
                                              ⊕ (tom "live_location" l)
                                              ⊕ (tom "live_date" d)
+
+instance PYaml Track where
+  pYaml (Track t v _ _ _) = pYaml (Map.fromList [("title"∷Text,t),("version",v)])
 
 blankTrack ∷ Track
 blankTrack = Track Nothing Nothing Nothing Nothing Nothing
@@ -473,8 +518,18 @@ instance FromJSON Info where
       )
     ⊵ v .: "tracks"
 
+
 instance Printable Info where
   print (Info (ReleaseInfo a c r e s v y l d) ts) =
+    P.text ∘ unlines ∘ ("---" :) ∘ pYaml $
+    Map.fromList [ ("artist" ∷ Text , pValue a)
+                 , ("catno"         , pValue c)
+                 , ("release"       , pValue r)
+                 , ("source"        , pValue s)
+                 , ("source_version", pValue v)
+                 , ("tracks", PValue ∘ pYaml $ pValue ⊳ tracks_ ts)
+                 ]
+{-
     let toj Nothing  = "~"
         toj (Just x) = toText (show $ toJSON x)
         tot t x = t ⊕ ": " ⊕ toj x
@@ -504,6 +559,7 @@ instance Printable Info where
                           ]
                         , [ lindent $ toText ts ]
                         ])
+-}
 
 blankReleaseInfo ∷ ReleaseInfo
 blankReleaseInfo = ReleaseInfo Nothing Nothing Nothing Nothing
@@ -512,6 +568,29 @@ blankReleaseInfo = ReleaseInfo Nothing Nothing Nothing Nothing
 blankInfo ∷ Natural → Info
 blankInfo n = 
   Info blankReleaseInfo $ Tracks [replicate (fromIntegral n) (blankTrack)]
+
+
+infoPrintableTests ∷ TestTree
+infoPrintableTests =
+  let exp = unlines [ "---"
+                    , "artist         : ~"
+                    , "catno          : ~"
+                    , "release        : ~"
+                    , "source         : ~"
+                    , "source_version : ~"
+                    , "tracks         : - title   : ~"
+                    , "                   version : ~"
+                    , "                 - title   : ~"
+                    , "                   version : ~"
+                    ]
+   in testGroup "Printable" [ testCase "2" $
+                              exp ≟ (toText $ blankInfo 2)
+                            ]
+-- Info Printable Tests
+
+infoTests ∷ TestTree
+infoTests = testGroup "Info" [ infoPrintableTests ]
+
 
 ------------------------------------------------------------
 
@@ -778,7 +857,7 @@ releaseInfol = ReleaseInfo (Just "simon") (Just "124XX") (Just "1979-12-31")
                            (Just "Live") (Just "Sweden") (Just "1990")
 
 tests ∷ TestTree
-tests = testGroup "infy" [ pYamlTests, lNameTests
+tests = testGroup "infy" [ pYamlTests, lNameTests, infoTests
                          , liveNameTests, fileNameTests ]
 
 ----------------------------------------
