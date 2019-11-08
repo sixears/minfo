@@ -5,9 +5,10 @@ let
   inherit (nixpkgs) pkgs;
 
   f = { mkDerivation, aeson, base, base-unicode-symbols
-      , data-textual, exited, fpath, lens, mid, monaderror-io
-      , more-unicode, mtl, optparse-applicative, path, stdenv, tasty
-      , tasty-hunit, tasty-plus, text, text-printer, tfmt, yaml
+      , data-textual, exited, fpath, lens, ListLike, mid, monaderror-io
+      , more-unicode, mtl, optparse-applicative, path, scientific, stdenv
+      , tasty, tasty-hunit, tasty-plus, text, text-printer, tfmt
+      , unordered-containers, vector, yaml
       }:
       mkDerivation {
         pname = "infy";
@@ -18,8 +19,9 @@ let
         libraryHaskellDepends = [ base path ];
         executableHaskellDepends = [
           aeson base base-unicode-symbols data-textual exited fpath lens
-          monaderror-io more-unicode mtl optparse-applicative tasty
-          tasty-hunit tasty-plus text text-printer tfmt yaml
+          ListLike monaderror-io more-unicode mtl optparse-applicative
+          scientific tasty tasty-hunit tasty-plus text text-printer tfmt
+          unordered-containers vector yaml
         ];
         testHaskellDepends = [ base mid tasty tasty-hunit ];
         doHaddock = false;

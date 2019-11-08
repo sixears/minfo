@@ -9,9 +9,7 @@
 {-# LANGUAGE UnicodeSyntax       #-}
 {-# LANGUAGE ViewPatterns       #-}
 
-import Prelude  ( Int, Integer, Integral( toInteger )
-                , (+), (-), error, fromIntegral, undefined )
-import Debug.Trace  ( trace, traceShow )
+import Prelude  ( (-), error, fromIntegral )
 
 -- aeson -------------------------------
 
@@ -36,7 +34,7 @@ import Data.Function           ( ($), id )
 import Data.Functor            ( fmap )
 import Data.List               ( length, replicate, sortOn, zip )
 import Data.Maybe              ( Maybe( Just, Nothing )
-                               , catMaybes, fromMaybe, maybe )
+                               , catMaybes, maybe )
 import Data.Ord                ( max )
 import Data.String             ( String )
 import Data.Tuple              ( fst )
@@ -45,7 +43,7 @@ import Data.Word               ( Word8 )
 import GHC.Exts                ( fromList, toList )
 import GHC.Generics            ( Generic )
 import Numeric.Natural         ( Natural )
-import System.Exit             ( ExitCode( ExitFailure ) )
+import System.Exit             ( ExitCode )
 import System.IO               ( FilePath, IO, stderr )
 import Text.Printf             ( printf )
 import Text.Show               ( Show( show ) )
@@ -56,10 +54,6 @@ import Data.Eq.Unicode        ( (≡) )
 import Data.Function.Unicode  ( (∘) )
 import Data.Monoid.Unicode    ( (⊕) )
 
--- bytestring --------------------------
-
-import Data.ByteString  ( ByteString )
-
 -- data-textual ------------------------
 
 import Data.Textual  ( Parsed( Malformed, Parsed ), Printable( print ), Textual
@@ -67,7 +61,7 @@ import Data.Textual  ( Parsed( Malformed, Parsed ), Printable( print ), Textual
 
 -- exited ------------------------------
 
-import Exited  ( doMain, exitWith )
+import Exited  ( doMain )
 
 -- fpath -------------------------------
 
@@ -89,15 +83,14 @@ import qualified Data.ListLike
 
 -- monaderror-io -----------------------
 
-import MonadError           ( ѥ, fromRight )
-import MonadError.IO.Error  ( AsIOError, IOError, userE )
+import MonadError  ( ѥ, fromRight )
 
 -- more-unicode ------------------------
 
 import Data.MoreUnicode.Applicative  ( (⊴), (⊵), (∤) )
 import Data.MoreUnicode.Functor      ( (⊲), (⊳), (⩺) )
 import Data.MoreUnicode.Lens         ( (⊣), (⫥) )
-import Data.MoreUnicode.Monad        ( (⪼), (≫) )
+import Data.MoreUnicode.Monad        ( (≫) )
 import Data.MoreUnicode.Monoid       ( ю )
 import Data.MoreUnicode.Natural      ( ℕ )
 import Data.MoreUnicode.Tasty        ( (≟) )
@@ -113,7 +106,7 @@ import Options.Applicative  ( ArgumentFields, CommandFields, Mod, Parser, ReadM
                             , customExecParser, eitherReader, failureCode
                             , fullDesc, helper, info, listCompleter, metavar
                             , prefs, progDesc, showHelpOnEmpty, showHelpOnError
-                            , strArgument, subparser, value
+                            , subparser, value
                             )
 
 -- scientific --------------------------
@@ -130,15 +123,14 @@ import Test.Tasty.HUnit  ( testCase )
 
 -- tasty-plus --------------------------
 
-import TastyPlus  ( assertListEqR, assertListEq, propInvertibleText, runTestsP
-                  , runTestsReplay, runTestTree )
+import TastyPlus  ( runTestsP, runTestsReplay, runTestTree )
 
 -- text --------------------------------
 
 import qualified  Data.Text  as  Text
 
 import Data.Text     ( Text, dropEnd, init, intercalate, lines, pack, replace
-                     , unpack, unlines )
+                     , unlines )
 import Data.Text.IO  ( hPutStrLn, putStrLn )
 
 -- text-printer ------------------------
@@ -156,12 +148,11 @@ import qualified  Data.HashMap.Strict  as  HashMap
 -- vector ------------------------------
 
 import qualified  Data.Vector  as  Vector
-import Data.Vector  ( empty )
 
 -- yaml --------------------------------
 
 import Data.Yaml  ( FromJSON( parseJSON ), ParseException, ToJSON( toJSON )
-                  , (.=), decodeEither, decodeFileEither, encode, object )
+                  , (.=), decodeEither', decodeFileEither, encode, object )
 
 --------------------------------------------------------------------------------
 
@@ -184,8 +175,6 @@ pyaml_ (Object m) =
         maxLen = fromIntegral (maximum $ Text.length ⊳ HashMap.keys m)
         pad ∷ Text → Text
         pad t = t ⊕ spaces (fromIntegral (maxLen - tlength t) `max` 0)
-        head ∷ [β] → β
-        head (x:xs) = x
      in case length m of
           0 → "{}"
           _ → intercalate "\n" $
@@ -219,13 +208,13 @@ pyamlTests =
       tlist = [] ∷ [Text]
 
       decodeText ∷ Text → Either String Value
-      decodeText = decodeEither ∘ convStringLike
+      decodeText = first show ∘ decodeEither' ∘ convStringLike
 
       check ∷ TestName → Text → Value → TestTree
-      check name expect value =
+      check name expect val =
         testGroup name
-                  [ testCase "expect" $ expect ≟ pyaml value
-                  , testCase "parse"  $ Right value ≟ decodeText (pyaml value)]
+                  [ testCase "expect" $ expect ≟ pyaml val
+                  , testCase "parse"  $ Right val ≟ decodeText (pyaml val)]
 
 
 {-
@@ -310,9 +299,9 @@ convStringLike ∷ (Data.ListLike.StringLike α,Data.ListLike.StringLike β) ⇒
 convStringLike = Data.ListLike.fromString ∘ Data.ListLike.toString
 
 yamlText ∷ Text → Text
-yamlText t = let safeInit "" = ""
-                 safeInit t  = init t
-              in safeInit ∘ convStringLike $ encode t
+yamlText = let safeInit "" = ""
+               safeInit t  = init t
+            in safeInit ∘ convStringLike ∘ encode
 
 
 spaces ∷ ℕ → Text
@@ -323,161 +312,6 @@ indent n = fmap (spaces n ⊕)
 
 tlength ∷ Text → ℕ
 tlength = fromIntegral ∘ Text.length
-
-instance PYaml PValue where
-  pYaml (PValue ts) = ts
-
-instance PYaml Text where
-  pYaml t = [ yamlText t ]
-
-instance PYaml Integer where
-  pYaml i = [ toText i ]
-
-instance PYaml ℕ where
-  pYaml i = [ toText $ toInteger i ]
-
-instance PYaml α ⇒ PYaml (Maybe α) where
-  pYaml Nothing = [ "~" ]
-  pYaml (Just x) = pYaml x
-
-
-instance (PYaml α) ⇒ PYaml [α] where
-  pYaml xs = ю [ ("- " ⊕ t) : (("  " ⊕) ⊳ ts) | x ← xs, let (t:ts) = pYaml x ]
-
-{-
-instance PYaml α ⇒ PYaml (Map Text α) where
-  pYaml m =
-    let maxLen ∷ ℕ
-        maxLen = fromIntegral (maximum $ Text.length ⊳ keys m)
-        pad ∷ Text → Text
-        pad t = t ⊕ spaces (fromIntegral (maxLen - tlength t) `max` 0)
-        head ∷ [β] → β
-        head (x:xs) = x
-     in ю [ if ts ≡ []
-            then [ [fmt|%t : %t|] (pad k) t ]
-            else ( [fmt|%t :|] (pad k) : indent 2 (t:ts) )
-          | (k,v) ← sortOn fst (Map.toList m), let (t:ts) = pYaml v ]
--}
-
-instance PYaml Value where
-  pYaml (String t) = pYaml t
-  pYaml (Number n) = pYaml (pack $ show n)
-
-pYamlTests ∷ TestTree
-pYamlTests =
-  let foo  = "foo" ∷ Text
-      _bob = "'bob" ∷ Text
-      bar  = "bar" ∷ Text
-      x    = "x" ∷ Text
-      y    = "y" ∷ Text
-      quux = "quux" ∷ Text
-      tlist = [] ∷ [Text]
-
-      decodeTexts ∷ [Text] → Either String Value
-      decodeTexts = decodeEither ∘ convStringLike ∘ unlines
-
-      check ∷ TestName → Text → Value → TestTree
-      check name expect value =
-        testGroup name
-                  [ testCase "expect" $ [ expect ] ≟ pYaml value
-                  , testCase "parse"  $ Right value ≟ decodeTexts (pYaml value)]
-
-      check' ∷ TestName → [Text] → Value → TestTree
-      check' name expect value =
-        testGroup name
-                  [ testCase "expect" $ expect ≟ pYaml value
-                  , testCase "parse"  $ Right value ≟ decodeTexts (pYaml value)]
-
-   in testGroup "pYaml"
-                [ check "foo"  foo       (String foo)
-                  -- I would like to fix this, but not today
-                , check "y"     "'y'"     (String y)
-                , check "bo'b"  "bo'b"    (String "bo'b")
-                , check "'bob"  "'''bob'" (String _bob)
-                , check "\"bob" "'\"bob'" (String "\"bob")
-
-                , check "7" "7" (Number 7)
-                , testCase "7"     $ [ "7" ]       ≟ pYaml (7 ∷ ℕ)
-
-                , check' "list0" tlist (Array $ Vector.fromList (String ⊳ tlist))
-                , testCase "list0" $ [] ≟ pYaml tlist
-                , testCase "list1" $ [ "- 1" ] ≟ pYaml ([ 1 ∷ ℕ ])
-                , testCase "list2" $ [ "- 1", "- 1" ] ≟ pYaml ([ 1∷ℕ,1 ])
-                , testCase "list3" $ [ "- 1","- 1","- 2" ] ≟ pYaml ([ 1∷ℕ,1,2 ])
-
-{-
-                , testCase "map0" $
-                    [] ≟ pYaml (HashMap.fromList ([]∷[(Text,Text)]))
-                , testCase "map1" $
-                    [ "foo : bar" ] ≟ pYaml (HashMap.fromList [(foo,bar)])
-                , testCase "map1'" $
-                    [ "foo : '''bob'" ] ≟ pYaml (HashMap.fromList [(foo,_bob)])
-                , testCase "map2" $
-                      [ "foo  : bar", "quux : 'y'", "x    : 'y'" ]
-                    ≟ pYaml (HashMap.fromList[(foo,bar),(x,y),(quux,y)])
--}
-
-                , testCase "list of lists" $
-                      [ "- - 1"
-                      , "  - 1"
-                      , "  - 2"
-                      , "- - 3"
-                      , "  - 5"
-                      , "- - 8" ]
-                    ≟ (pYaml ([ [1∷ℕ,1,2],[3,5],[8] ]))
-
-
-{-
-                , testCase "map of maps" $
-                      [ "one :"
-                      , "  foo  : bar"
-                      , "  quux : 'y'"
-                      , "  x    : 'y'"
-                      , "two :"
-                      , "  foo : bar"
-                      , "  x   : 'y'"
-                      ]
-                    ≟ (pYaml (HashMap.fromList [ ("one"∷Text,
-                                                  HashMap.fromList[(foo,bar)
-                                                                  ,(x,y)
-                                                                  ,(quux,y)])
-                                               , ("two",
-                                                  HashMap.fromList[(foo,bar)
-                                                                  ,(x,y)])
-                                               ]
-                             ))
-
-                , testCase "list of maps" $
-                      [ "- foo  : bar"
-                      , "  quux : 'y'"
-                      , "  x    : 'y'"
-                      , "- foo : bar"
-                      , "  x   : 'y'"
-                      ]
-                    ≟ (pYaml ([ HashMap.fromList[(foo,bar),(x,y),(quux,y)]
-                              , HashMap.fromList[(foo,bar),(x,y)]
-                              ]))
-
-                , testCase "map of lists" $
-                      [ "foo  :"
-                      , "  - 1"
-                      , "  - 1"
-                      , "  - 2"
-                      , "quux : - 8"
-                      , "x    :"
-                      , "  - 3"
-                      , "  - 5"
-                      ]
-                    ≟ (pYaml (HashMap.fromList [ (foo,[1∷ℕ,1,2])
-                                               , (x,[3,5]) ,(quux,[8]) ]))
-
-                , testCase "decode map of lists" $
-                    Right (String "")
-                    ≟ (decodeEither @Value ∘ convStringLike ∘ unlines)
-                        (pYaml (HashMap.fromList [ (foo,[1∷ℕ,1,2])
-                                                 , (x,[3,5]) ,(quux,[8]) ]))
--}
-                ]
 
 ------------------------------------------------------------
 
@@ -586,20 +420,20 @@ liveNameTests = testGroup "liveName"
 
 fileName ∷ (AsInfoError ε, MonadError ε η) ⇒
            Natural → ReleaseInfo → Track → η RelFile
-fileName n r t =
-  let gone = replace "/" "-" (go t)
+fileName num relnfo trck =
+  let gone = replace "/" "-" (go trck)
       encompass  l r t = l ⊕ t ⊕ r
       parens   = encompass "(" ")"
       brackets = encompass "[" "]"
       go t = case t ⊣ trackTitle of
-               Nothing → pack $ printf "%02d" n
+               Nothing → pack $ printf "%02d" num
                Just ti → let vv = parens   ⊳ t ⊣ trackVersion
-                             ll = brackets ⊳ liveName' r t
+                             ll = brackets ⊳ liveName' relnfo t
                           in [fmt|%02d-%t|]
-                             n (intercalate "  " $ catMaybes [Just ti,vv,ll])
+                             num (intercalate "  " $ catMaybes [Just ti,vv,ll])
    in case fromText gone of
         Nothing → throwIllegalFileName $ [fmt|illegal file name '%t'|] gone
-        Just f  -> return f
+        Just f  → return f
 
 fileNameTests ∷ TestTree
 fileNameTests =
@@ -722,11 +556,6 @@ tracks ∷ Info → [Track]
 tracks i = tracks_ (_tracks i)
 
 instance FromJSON Info where
-{-
-  parseJSON = let drop_ (_ : s) = s
-                  drop_ s       = s
-               in genericParseJSON defaultOptions { fieldLabelModifier = drop_ }
--}
   parseJSON = withObject "Info" $ \ v → Info
     ⊳ (ReleaseInfo ⊳ v .:? "artist"
                    ⊵ v .:? "catno"
@@ -744,51 +573,7 @@ instance ToJSON Info where
   toJSON (Info r ts) = object (("tracks",toJSON ts) : releaseInfoFields r)
 
 instance Printable Info where
-  print i@(Info (ReleaseInfo a c r e s v y l d) ts) =
-    P.text $ pyaml i
---    P.text "unimplemented"
-{-
-    P.text ∘ unlines ∘ ("---" :) ∘ pYaml $
-    HashMap.fromList [ ("artist" ∷ Text , pValue a)
-                     , ("catno"         , pValue c)
-                     , ("release"       , pValue r)
-                     , ("source"        , pValue s)
-                     , ("source_version", pValue v)
-                     , ("tracks", PValue ∘ pYaml $ pValue ⊳ tracks_ ts)
-                     ]
--}
-
-{-
-    let toj Nothing  = "~"
-        toj (Just x) = toText (show $ toJSON x)
-        tot t x = t ⊕ ": " ⊕ toj x
-        tom _ Nothing  = []
-        tom i (Just x) = [ tot i (Just x) ]
-        unl ∷ [Text] → Text
-        unl = dropEnd 1 ∘ unlines
-        indents xs = unl (("  " ⊕) ⊳ xs)
-        lindent t = case lines t of
-                      []       → ""
-                      (x : []) → ("- " ⊕ x)
-                      (x : xs) → unl $ ("- " ⊕ x) : [indents xs]
-
-     in P.text $ unl (ю [ [ "---"
-                          , tot "artist"         a
-                          , tot "catno"          c
-                          , tot "release"        r
-                          ]
-                        , tom "original_release" e
-                        , [ tot "source"         s
-                          , tot "source_version" v
-                          ]
-                        , tom "live_type" y
-                        , tom "live_location" l
-                        , tom "live_date" d
-                        , [ "tracks:"
-                          ]
-                        , [ lindent $ toText ts ]
-                        ])
--}
+  print i = P.text $ pyaml i
 
 blankInfo ∷ Natural → Info
 blankInfo n =
