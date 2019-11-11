@@ -1,17 +1,20 @@
 {-# OPTIONS_GHC -Wall #-}
 
-{-# LANGUAGE DeriveGeneric       #-}
-{-# LANGUAGE LambdaCase          #-}
-{-# LANGUAGE NoImplicitPrelude   #-}
-{-# LANGUAGE OverloadedStrings   #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeApplications    #-}
-{-# LANGUAGE UnicodeSyntax       #-}
-{-# LANGUAGE ViewPatterns       #-}
+{-# LANGUAGE DeriveGeneric              #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE LambdaCase                 #-}
+{-# LANGUAGE NoImplicitPrelude          #-}
+{-# LANGUAGE OverloadedStrings          #-}
+{-# LANGUAGE ScopedTypeVariables        #-}
+{-# LANGUAGE TypeApplications           #-}
+{-# LANGUAGE UnicodeSyntax              #-}
+{-# LANGUAGE ViewPatterns               #-}
 
 import Prelude  ( (-), error, fromIntegral )
 
 -- aeson -------------------------------
+
+import qualified  Data.Aeson.Types  as  AesonT
 
 import Data.Aeson.Types  ( Value( Array, Bool, Null, Number, Object, String )
                          , (.:?), (.:)
@@ -40,7 +43,7 @@ import Data.String             ( String )
 import Data.Tuple              ( fst )
 import Data.Typeable           ( Typeable, typeOf )
 import Data.Word               ( Word8 )
-import GHC.Exts                ( fromList, toList )
+import GHC.Exts                ( IsString, fromList, toList )
 import GHC.Generics            ( Generic )
 import Numeric.Natural         ( Natural )
 import System.Exit             ( ExitCode )
@@ -53,6 +56,11 @@ import Text.Show               ( Show( show ) )
 import Data.Eq.Unicode        ( (≡) )
 import Data.Function.Unicode  ( (∘) )
 import Data.Monoid.Unicode    ( (⊕) )
+
+-- bytestring --------------------------
+
+import qualified  Data.ByteString  as  BS
+import Data.ByteString  ( ByteString )
 
 -- data-textual ------------------------
 
@@ -148,11 +156,18 @@ import qualified  Data.HashMap.Strict  as  HashMap
 -- vector ------------------------------
 
 import qualified  Data.Vector  as  Vector
+import Data.Vector  ( (!?) )
 
 -- yaml --------------------------------
 
 import Data.Yaml  ( FromJSON( parseJSON ), ParseException, ToJSON( toJSON )
                   , (.=), decodeEither', decodeFileEither, encode, object )
+
+------------------------------------------------------------
+--                     local imports                      --
+------------------------------------------------------------
+
+import qualified  Infy.T.TestData  as  TestData
 
 --------------------------------------------------------------------------------
 
@@ -189,7 +204,7 @@ pyaml ∷ ToJSON α ⇒ α → Text
 pyaml = pyaml_ ∘ toJSON
 
 array ∷ [Value] → Value
-array = Array ∘ fromList 
+array = Array ∘ fromList
 
 arrayN ∷ [Scientific] → Value
 arrayN = array ∘ fmap Number
@@ -315,13 +330,14 @@ tlength = fromIntegral ∘ Text.length
 
 ------------------------------------------------------------
 
-data Track = Track { __title         ∷ Maybe Text
+data Track = Track { __artist        ∷ Maybe Artist
+                   , __title         ∷ Maybe Text
                    , __version       ∷ Maybe Text
                    , __live_type     ∷ Maybe Text
                    , __live_location ∷ Maybe Text
                    , __live_date     ∷ Maybe Text
                    }
-  deriving (Generic, Show)
+  deriving (Eq, Generic, Show)
 
 trackTitle ∷ Lens' Track (Maybe Text)
 trackTitle = lens __title (\ r t → r { __title = t })
@@ -343,9 +359,24 @@ instance FromJSON Track where
                   drop_ s           = s
                in genericParseJSON defaultOptions { fieldLabelModifier = drop_ }
 
+trackFromJSONTests ∷ TestTree
+trackFromJSONTests =
+  let t1 ∷ ByteString
+      t1 = BS.intercalate "\n" [ "title: Judas"
+                               , "live_type: Live"
+                               , "live_date: 1993-07-29"
+                               ]
+      e1 ∷ Track
+      e1 = Track Nothing (Just "Judas") Nothing (Just "Live") Nothing
+                 (Just "1993-07-29")
+   in testGroup "trackFromJSON"
+                [ testCase "t1" $ Right e1 ≟ unYaml @ParseError t1
+                ]
+
 instance ToJSON Track where
-  toJSON (Track t v y l d) =
-    let fields = ю [ [ "title" .= t ]
+  toJSON (Track a t v y l d) =
+    let fields = ю [ maybe [] (\ a' → [ "artist" .= toJSON a' ]) a
+                   , [ "title" .= t ]
                    , maybe [] (\ v' → [ "version" .= toJSON v' ]) v
                    , maybe [] (\ y' → [ "live_type" .= toJSON y' ]) y
                    , maybe [] (\ l' → [ "live_location" .= toJSON l' ]) l
@@ -354,29 +385,44 @@ instance ToJSON Track where
      in object fields
 
 instance Printable Track where
-  print (Track t v y l d) = let toj Nothing  = "~"
-                                toj (Just x) = toText (show x)
-                                tot i x = i ⊕ ": " ⊕ toj x
-                                tom _ Nothing  = []
-                                tom i (Just x) = [ tot i (Just x) ]
-                                unl ∷ [Text] → Text
-                                unl = dropEnd 1 ∘ unlines
-                             in P.text ∘ unl $ [tot "title" t]
-                                             ⊕ (tom "version" v)
-                                             ⊕ (tom "live_type" y)
-                                             ⊕ (tom "live_location" l)
-                                             ⊕ (tom "live_date" d)
+  print (Track a t v y l d) = let toj ∷ Show α ⇒ Maybe α → Text
+                                  toj Nothing  = "~"
+                                  toj (Just x) = toText (show x)
+                                  tot ∷ Show α ⇒ Text → Maybe α → Text
+                                  tot i x = i ⊕ ": " ⊕ toj x
+                                  tom ∷ Show α ⇒ Text → Maybe α → [Text]
+                                  tom _ Nothing  = []
+                                  tom i (Just x) = [ tot i (Just x) ]
+                                  unl ∷ [Text] → Text
+                                  unl = dropEnd 1 ∘ unlines
+                               in P.text ∘ unl $ (tom "artist" (toText ⊳ a))
+                                               ⊕ [tot "title" t]
+                                               ⊕ (tom "version" v)
+                                               ⊕ (tom "live_type" y)
+                                               ⊕ (tom "live_location" l)
+                                               ⊕ (tom "live_date" d)
 
-{-
-instance PYaml Track where
-  pYaml (Track t v _ _ _) = pYaml (HashMap.fromList [("title"∷Text,t),("version",v)])
--}
+trackPrintableTests ∷ TestTree
+trackPrintableTests =
+  let e1 = intercalate "\n" [ "artist: \"Depeche Mode\""
+                            , "title: \"Can't Get Enough\""
+                            , "live_type: \"Live\""
+                            , "live_location: \"Hammersmith Odeon\""
+                            ]
+      t1 = Track (Just "Depeche Mode") (Just "Can't Get Enough") Nothing
+                 (Just "Live") (Just "Hammersmith Odeon") Nothing
+   in testGroup "Printable" [ testCase "t1" $ e1 ≟ toText t1
+                            ]
 
 blankTrack ∷ Track
-blankTrack = Track Nothing Nothing Nothing Nothing Nothing
+blankTrack = Track Nothing Nothing Nothing Nothing Nothing Nothing
 
+trackTests ∷ TestTree
+trackTests = testGroup "Track" [ trackPrintableTests, trackFromJSONTests ]
 
--- this looks like a monadic fold, or somesuch
+------------------------------------------------------------
+
+-- this looks like a monadic fold, or somesuch.  Maybe of MaybeT?
 maybeList ∷ [Maybe α] → Maybe α
 maybeList [] = Nothing
 maybeList (Just a : _)   = Just a
@@ -475,7 +521,7 @@ mp3Names inf =
 ------------------------------------------------------------
 
 data Tracks = Tracks [[Track]]
-  deriving Show
+  deriving (Eq,Show)
 
 tracks_ ∷ Tracks → [Track]
 tracks_ (Tracks tss) = ю tss
@@ -484,21 +530,104 @@ instance Printable Tracks where
   print tss = P.text ∘ unlines $ toText ⊳ tracks_ tss
 
 instance FromJSON Tracks where
-  parseJSON (Array ts) = Tracks ⊳ (sequence $ parseJSON ⊳ toList ts)
+  parseJSON (Array ts) =
+    case ts !? 0 of
+      Nothing        → return $ Tracks [[]]
+      Just (Array _) → Tracks ⊳ (sequence $ parseJSON ⊳ toList ts)
+      Just x         → let -- xs' = parseJSON ⊳ x
+                           ts'    ∷ [AesonT.Parser Track]   = parseJSON ⊳ toList ts
+                           ts''   ∷ AesonT.Parser [Track]   = sequence ts'
+                           ts'''  ∷ AesonT.Parser [[Track]] = pure ⊳ sequence ts'
+                           ts'''' = Tracks ⊳ ts'''
+                        in ts'''' -- (Tracks ∘ pure) ⊳ sequence (parseJSON ⊳ ts)
+  parseJSON invalid = typeMismatch "Array" invalid
+
+
+tracksFromJSONTests ∷ TestTree
+tracksFromJSONTests =
+  let t1 ∷ ByteString
+      t1 = BS.intercalate "\n" [ "- title: Judas"
+                               , "  live_type: Live"
+                               , "  live_date: 1993-07-29"
+                               , "- title: Mercy in You"
+                               , "  live_type: Live"
+                               , "  live_date: 1993-07-29"
+                               ]
+      e1 ∷ Track
+      e1 = Track Nothing (Just "Judas") Nothing (Just "Live") Nothing
+                 (Just "1993-07-29")
+      e2 ∷ Track
+      e2 = Track Nothing (Just "Mercy in You") Nothing (Just "Live") Nothing
+                 (Just "1993-07-29")
+      t3 ∷ ByteString
+      t3 = BS.intercalate "\n" [ "-"
+                               , "  - title: Judas"
+                               , "    live_type: Live"
+                               , "    live_date: 1993-07-29"
+                               , "  - title: Mercy in You"
+                               , "    live_type: Live"
+                               , "    live_date: 1993-07-29"
+                               , "-"
+                               , "  - title: I Feel You"
+                               , "    live_type: Live"
+                               , "    live_date: 1993-07-29"
+                               ]
+      e3 ∷ Track
+      e3 = Track Nothing (Just "I Feel You") Nothing (Just "Live") Nothing
+                 (Just "1993-07-29")
+   in testGroup "tracksFromJSON"
+                [ testCase "t1"  $ Right [e1,e2] ≟ unYaml @ParseError t1
+                , testCase "t1'" $
+                    Right (Tracks [[e1,e2]]) ≟ unYaml @ParseError t1
+                , testCase "t3" $
+                    Right (Tracks [[e1,e2],[e3]]) ≟ unYaml @ParseError t3
+                ]
+
+t3 ∷ ByteString
+t3 = BS.intercalate "\n" [ "-"
+                         , "  - title: Judas"
+                         , "    live_type: Live"
+                         , "    live_date: 1993-07-29"
+                         , "  - title: Mercy in You"
+                         , "    live_type: Live"
+                         , "    live_date: 1993-07-29"
+                         , "-"
+                         , "  - title: I Feel You"
+                         , "    live_type: Live"
+                         , "    live_date: 1993-07-29"
+                         ]
+
 {-
     case ts !? 0 of
       Just (Object _) → Tracks  ⊳ (sequence $ parseJSON ⊳ toList ts)
       Just (Array  _) → Trackss ⊳ (sequence $ withArray "Tracks" (\ v → sequence $ parseJSON ⊳ toList v) ⊳ (toList ts))
 --      Just (Array _)  → Trackss ⊳ (sequence $ sequence ⊳ (fmap parseJSON ⊳ toList ⊳ toList ts))
 -}
-  parseJSON invalid = typeMismatch "Array" invalid
 
 instance ToJSON Tracks where
   toJSON = Array ∘ Vector.fromList ∘ fmap toJSON ∘ tracks_
 
+tracksTests ∷ TestTree
+tracksTests = testGroup "Tracks" [ tracksFromJSONTests ]
+
 ------------------------------------------------------------
 
-data ReleaseInfo = ReleaseInfo { _artist           ∷ Maybe Text
+newtype Artist = Artist Text
+  deriving (Eq, IsString, Show)
+
+instance Printable Artist where
+  print (Artist t) = P.text t
+
+instance FromJSON Artist where
+  parseJSON (String t) = return (Artist t)
+  parseJSON invalid    = typeMismatch "String" invalid
+
+instance ToJSON Artist where
+  toJSON (Artist t) = String t
+
+------------------------------------------------------------
+
+data ReleaseInfo = ReleaseInfo { _artist           ∷ Artist
                                , _catno            ∷ Maybe Text
                                , _release          ∷ Maybe Text
                                , _original_release ∷ Maybe Text
@@ -508,7 +637,7 @@ data ReleaseInfo = ReleaseInfo { _artist           ∷ Maybe Text
                                , _live_location    ∷ Maybe Text
                                , _live_date        ∷ Maybe Text
                                }
-  deriving Show
+  deriving (Eq,Show)
 
 
 live_type ∷ Lens' ReleaseInfo (Maybe Text)
@@ -539,7 +668,7 @@ releaseInfoFields (ReleaseInfo a c r o s v t l d) =
 
 
 blankReleaseInfo ∷ ReleaseInfo
-blankReleaseInfo = ReleaseInfo Nothing Nothing Nothing Nothing
+blankReleaseInfo = ReleaseInfo "" Nothing Nothing Nothing
                                Nothing Nothing Nothing Nothing Nothing
 
 ------------------------------------------------------------
@@ -547,7 +676,7 @@ blankReleaseInfo = ReleaseInfo Nothing Nothing Nothing Nothing
 data Info = Info { _releaseInfo ∷ ReleaseInfo
                  , _tracks      ∷ Tracks
                  }
-  deriving (Generic, Show)
+  deriving (Generic, Eq, Show)
 
 releaseInfo ∷ Lens' Info ReleaseInfo
 releaseInfo = lens _releaseInfo (\ i r → i { _releaseInfo = r })
@@ -557,7 +686,7 @@ tracks i = tracks_ (_tracks i)
 
 instance FromJSON Info where
   parseJSON = withObject "Info" $ \ v → Info
-    ⊳ (ReleaseInfo ⊳ v .:? "artist"
+    ⊳ (ReleaseInfo ⊳ v .: "artist"
                    ⊵ v .:? "catno"
                    ⊵ v .:? "release"
                    ⊵ v .:? "original_release"
@@ -567,7 +696,52 @@ instance FromJSON Info where
                    ⊵ v .:? "live_location"
                    ⊵ v .:? "live_date"
       )
-    ⊵ v .: "tracks"
+   ⊵ v .: "tracks"
+--    ⊵ (Tracks ⊳ v .: "tracks")
+--      ⊵ return (Tracks [] {- ⊳ parseJSON (v .: "tracks") -})
+
+info1 ∷ Info
+info1 = Info (ReleaseInfo ("Depeche Mode") Nothing Nothing Nothing
+                          (Just "World We Live in and Live in Hamburg,The")
+                          Nothing
+                          (Just "Live")
+                          (Just "Alsterdorfer Sporthalle, Hamburg")
+                          (Just "1984-12-14")
+             )
+             (Tracks [ [ Track Nothing (Just "Something to Do") Nothing
+                               Nothing Nothing Nothing
+                       , Track Nothing (Just "Two Minute Warning") Nothing
+                               Nothing Nothing Nothing
+                       ]
+                     ])
+
+infos ∷ Info
+infos = Info (ReleaseInfo ("Depeche Mode") Nothing (Just "2009-04-17")
+                          Nothing (Just "Sounds of the Universe")
+                          (Just "Deluxe Box Set") Nothing Nothing Nothing)
+             (Tracks [ [ Track Nothing (Just "In Chains") Nothing
+                               Nothing Nothing Nothing
+                       , Track Nothing (Just "Hole to Feed") Nothing
+                               Nothing Nothing Nothing
+                       ]
+                     , [ Track Nothing
+                               (Just "Wrong") (Just "Trentemøller Remix")
+                               Nothing Nothing Nothing
+                       , Track Nothing
+                               (Just "Perfect")
+                               (Just "Electronic Periodic Dark Drone Mix")
+                               Nothing Nothing Nothing
+                       ]
+                     ])
+
+infoFromJSONTests ∷ TestTree
+infoFromJSONTests =
+  testGroup "infoFromJSON"
+            [ testCase "info1'" $
+                Right info1 ≟ unYaml @ParseError TestData.info1T
+            , testCase "infos'" $
+                Right infos ≟ unYaml @ParseError TestData.infosT
+            ]
 
 instance ToJSON Info where
   toJSON (Info r ts) = object (("tracks",toJSON ts) : releaseInfoFields r)
@@ -579,10 +753,9 @@ blankInfo ∷ Natural → Info
 blankInfo n =
   Info blankReleaseInfo $ Tracks [replicate (fromIntegral n) (blankTrack)]
 
-
 infoPrintableTests ∷ TestTree
 infoPrintableTests =
-  let exp = intercalate "\n" [ "artist : ~"
+  let exp = intercalate "\n" [ "artist : ''"
                              , "catno  : ~"
                              , "source : ~"
                              , "tracks :"
@@ -593,7 +766,7 @@ infoPrintableTests =
                             ]
 
 infoTests ∷ TestTree
-infoTests = testGroup "Info" [ infoPrintableTests ]
+infoTests = testGroup "Info" [ infoPrintableTests, infoFromJSONTests ]
 
 
 ------------------------------------------------------------
@@ -799,6 +972,10 @@ instance AsInfoError ParseInfoError where
 
 ------------------------------------------------------------
 
+unYaml ∷ ∀ ε α μ . (FromJSON α, MonadError ε μ, AsParseError ε) ⇒
+         ByteString → μ α
+unYaml = fromRight ∘ asParseError ∘ decodeEither'
+
 {- | Decode a yaml file; IO errors (e.g., file not found) are thrown as
      ParseErrors (this is the doing of `Data.Yaml.decodeFileEither`, not me). -}
 unYamlFile ∷ (MonadIO μ, MonadError ε μ, AsParseError ε) ⇒ File → μ Info
@@ -836,33 +1013,34 @@ main = doMain @ParseInfoError @Word8 $ do
 --------------------------------------------------------------------------------
 
 track1 ∷ Track
-track1 = Track (Just "track title") Nothing Nothing Nothing Nothing
+track1 = Track Nothing (Just "track title") Nothing Nothing Nothing Nothing
 
 trackL ∷ Track
-trackL = Track (Just "live track") Nothing
+trackL = Track Nothing (Just "live track") Nothing
                (Just "Live") (Just "Hammersmith Odeon") (Just "1970-01-01")
 
 trackL' ∷ Track
-trackL' = Track (Just "Live Track") Nothing Nothing Nothing (Just "1990-02-02")
+trackL' = Track Nothing (Just "Live Track") Nothing
+                Nothing Nothing (Just "1990-02-02")
 
 trackS ∷ Track
-trackS = Track (Just "Sesh") (Just "Acoustic")
+trackS = Track Nothing (Just "Sesh") (Just "Acoustic")
                (Just "Session") Nothing (Just "1980-01-01")
 
 releaseInfo1 ∷ ReleaseInfo
-releaseInfo1 = ReleaseInfo (Just "artie") (Just "123X") (Just "1979-12-31")
+releaseInfo1 = ReleaseInfo ("artie") (Just "123X") (Just "1979-12-31")
                            Nothing (Just "Elpee") Nothing Nothing Nothing
                            Nothing
 
 releaseInfol ∷ ReleaseInfo
-releaseInfol = ReleaseInfo (Just "simon") (Just "124XX") (Just "1979-12-31")
+releaseInfol = ReleaseInfo ("simon") (Just "124XX") (Just "1979-12-31")
                            Nothing
                            (Just "An LP Title") Nothing
                            (Just "Live") (Just "Sweden") (Just "1990")
 
 tests ∷ TestTree
-tests = testGroup "infy" [ pyamlTests, lNameTests, infoTests
-                         , liveNameTests, fileNameTests ]
+tests = testGroup "infy" [ pyamlTests, trackTests, tracksTests, lNameTests
+                         , infoTests, liveNameTests, fileNameTests ]
 
 ----------------------------------------
 
