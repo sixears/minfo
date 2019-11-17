@@ -35,7 +35,7 @@ import Data.Eq                 ( Eq( (==) ) )
 import Data.Foldable           ( Foldable, maximum )
 import Data.Function           ( ($), id )
 import Data.Functor            ( fmap )
-import Data.List               ( length, replicate, sortOn, zip )
+import Data.List               ( replicate, sortOn, zip )
 import Data.Maybe              ( Maybe( Just, Nothing )
                                , catMaybes, maybe )
 import Data.Ord                ( max )
@@ -70,6 +70,10 @@ import Data.Textual  ( Parsed( Malformed, Parsed ), Printable( print ), Textual
 -- exited ------------------------------
 
 import Exited  ( doMain )
+
+-- fluffy ------------------------------
+
+import Fluffy.Foldable  ( length )
 
 -- fpath -------------------------------
 
@@ -168,6 +172,8 @@ import Data.Yaml  ( FromJSON( parseJSON ), ParseException, ToJSON( toJSON )
 ------------------------------------------------------------
 
 import qualified  Infy.T.TestData  as  TestData
+
+import Infy.Types  ( Artist )
 
 --------------------------------------------------------------------------------
 
@@ -534,9 +540,8 @@ instance FromJSON Tracks where
     case ts !? 0 of
       Nothing        → return $ Tracks [[]]
       Just (Array _) → Tracks ⊳ (sequence $ parseJSON ⊳ toList ts)
-      Just x         → let -- xs' = parseJSON ⊳ x
+      Just _         → let -- xs' = parseJSON ⊳ x
                            ts'    ∷ [AesonT.Parser Track]   = parseJSON ⊳ toList ts
-                           ts''   ∷ AesonT.Parser [Track]   = sequence ts'
                            ts'''  ∷ AesonT.Parser [[Track]] = pure ⊳ sequence ts'
                            ts'''' = Tracks ⊳ ts'''
                         in ts'''' -- (Tracks ∘ pure) ⊳ sequence (parseJSON ⊳ ts)
@@ -583,20 +588,6 @@ tracksFromJSONTests =
                     Right (Tracks [[e1,e2],[e3]]) ≟ unYaml @ParseError t3
                 ]
 
-t3 ∷ ByteString
-t3 = BS.intercalate "\n" [ "-"
-                         , "  - title: Judas"
-                         , "    live_type: Live"
-                         , "    live_date: 1993-07-29"
-                         , "  - title: Mercy in You"
-                         , "    live_type: Live"
-                         , "    live_date: 1993-07-29"
-                         , "-"
-                         , "  - title: I Feel You"
-                         , "    live_type: Live"
-                         , "    live_date: 1993-07-29"
-                         ]
-
 {-
     case ts !? 0 of
       Just (Object _) → Tracks  ⊳ (sequence $ parseJSON ⊳ toList ts)
@@ -612,24 +603,41 @@ tracksTests = testGroup "Tracks" [ tracksFromJSONTests ]
 
 ------------------------------------------------------------
 
-newtype Artist = Artist Text
+newtype Catno = Catno Text
   deriving (Eq, IsString, Show)
 
-instance Printable Artist where
-  print (Artist t) = P.text t
+instance Printable Catno where
+  print (Catno t) = P.text t
 
-instance FromJSON Artist where
-  parseJSON (String t) = return (Artist t)
+instance FromJSON Catno where
+  parseJSON (String t) = return (Catno t)
+  parseJSON (Number n) = return (Catno $ pack $ show n)
   parseJSON invalid    = typeMismatch "String" invalid
 
-instance ToJSON Artist where
-  toJSON (Artist t) = String t
+instance ToJSON Catno where
+  toJSON (Catno t) = String t
+
+------------------------------------------------------------
+
+newtype Release = Release Text
+  deriving (Eq, IsString, Show)
+
+instance Printable Release where
+  print (Release t) = P.text t
+
+instance FromJSON Release where
+  parseJSON (String t) = return (Release t)
+  parseJSON (Number n) = return (Release $ pack $ show n)
+  parseJSON invalid    = typeMismatch "String" invalid
+
+instance ToJSON Release where
+  toJSON (Release t) = String t
 
 ------------------------------------------------------------
 
 data ReleaseInfo = ReleaseInfo { _artist           ∷ Artist
-                               , _catno            ∷ Maybe Text
-                               , _release          ∷ Maybe Text
+                               , _catno            ∷ Maybe Catno
+                               , _release          ∷ Maybe Release
                                , _original_release ∷ Maybe Text
                                , _source           ∷ Maybe Text
                                , _source_version   ∷ Maybe Text
@@ -765,8 +773,29 @@ infoPrintableTests =
    in testGroup "Printable" [ testCase "blank 2" $ exp ≟ (toText $ blankInfo 2)
                             ]
 
+trackCount ∷ Info → ℕ
+trackCount = length ∘ tracks
+
+trackCountTests ∷ TestTree
+trackCountTests =
+  testGroup "trackCount"
+            [ testCase "info1" $
+                Right  2 ≟ trackCount ⊳ (unYaml @ParseError TestData.info1T)
+            , testCase "info2" $
+                Right 19 ≟ trackCount ⊳ (unYaml @ParseError TestData.info2T)
+            , testCase "info3" $
+                Right 12 ≟ trackCount ⊳ (unYaml @ParseError TestData.info3T)
+            , testCase "info4" $
+                Right 39 ≟ trackCount ⊳ (unYaml @ParseError TestData.info4T)
+            , testCase "info5" $
+                Right 65 ≟ trackCount ⊳ (unYaml @ParseError TestData.info5T)
+            , testCase "infos" $
+                Right  4 ≟ trackCount ⊳ (unYaml @ParseError TestData.infosT)
+            ]
+
 infoTests ∷ TestTree
-infoTests = testGroup "Info" [ infoPrintableTests, infoFromJSONTests ]
+infoTests = testGroup "Info" [ infoPrintableTests, infoFromJSONTests
+                             , trackCountTests ]
 
 
 ------------------------------------------------------------
@@ -1004,7 +1033,7 @@ main = doMain @ParseInfoError @Word8 $ do
 
   case opts ⊣ runMode of
     ModeWrite      tc → say $ blankInfo tc
-    ModeTrackCount fn → pInfo (pure ∘ length ∘ tracks) fn
+    ModeTrackCount fn → pInfo ((:[]) ∘ show ∘ trackCount) fn
     ModeFlacList   fn → pInfo' flacNames fn
     ModeMp3List    fn → pInfo' mp3Names fn
 
@@ -1037,6 +1066,8 @@ releaseInfol = ReleaseInfo ("simon") (Just "124XX") (Just "1979-12-31")
                            Nothing
                            (Just "An LP Title") Nothing
                            (Just "Live") (Just "Sweden") (Just "1990")
+
+------------------------------------------------------------
 
 tests ∷ TestTree
 tests = testGroup "infy" [ pyamlTests, trackTests, tracksTests, lNameTests
