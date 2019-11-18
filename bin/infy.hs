@@ -135,7 +135,7 @@ import Test.Tasty.HUnit  ( testCase )
 
 -- tasty-plus --------------------------
 
-import TastyPlus  ( runTestsP, runTestsReplay, runTestTree )
+import TastyPlus  ( assertListEq, runTestsP, runTestsReplay, runTestTree )
 
 -- text --------------------------------
 
@@ -471,8 +471,8 @@ liveNameTests = testGroup "liveName"
 ----------------------------------------
 
 fileName ∷ (AsInfoError ε, MonadError ε η) ⇒
-           Natural → ReleaseInfo → Track → η RelFile
-fileName num relnfo trck =
+           ReleaseInfo → Natural → Track → η RelFile
+fileName relnfo num trck =
   let gone = replace "/" "-" (go trck)
       encompass  l r t = l ⊕ t ⊕ r
       parens   = encompass "(" ")"
@@ -489,35 +489,47 @@ fileName num relnfo trck =
 
 fileNameTests ∷ TestTree
 fileNameTests =
-  testGroup "fileName"
-            [ testCase "track1" $
-                  Right [relfile|02-track title|]
-                ≟ fileName @InfoError 2 releaseInfo1 track1
-            , testCase "trackL" $
-                  Right [relfile|10-live track  [Live Hammersmith Odeon 1970-01-01]|]
-                ≟ fileName @InfoError 10 releaseInfo1 trackL
-            , testCase "trackS" $
-                  Right [relfile|100-Sesh  (Acoustic)  [Session 1980-01-01]|]
-                ≟ fileName @InfoError 100 releaseInfo1 trackS
-            , testCase "trackL'-rl" $
-                  Right [relfile|11-Live Track  [Live Sweden 1990-02-02]|]
-                ≟ fileName @ParseInfoError 11 releaseInfol trackL'
-            ]
+  let liveT = [relfile|10-live track  [Live Hammersmith Odeon 1970-01-01]|]
+      seshT = [relfile|100-Sesh  (Acoustic)  [Session 1980-01-01]|]
+   in testGroup "fileName"
+                [ testCase "track1" $
+                      Right [relfile|02-track title|]
+                    ≟ fileName @InfoError releaseInfo1 2 track1
+                , testCase "trackL" $
+                      Right liveT ≟ fileName @InfoError releaseInfo1 10 trackL
+                , testCase "trackS" $
+                      Right seshT ≟ fileName @InfoError releaseInfo1 100 trackS
+                , testCase "trackL'-rl" $
+                      Right [relfile|11-Live Track  [Live Sweden 1990-02-02]|]
+                    ≟ fileName @ParseInfoError releaseInfol 11 trackL'
+                ]
 
 
 -- ADD TESTS
 
 flacName ∷ (AsInfoError ε, MonadError ε η) ⇒
            ReleaseInfo → Natural → Track → η RelFile
-flacName r n t = fileName n r t ⊲ (⊙ [pc|flac|])
+flacName r n t = fileName r n t ⊲ (⊙ [pc|flac|])
 
 flacNames ∷ (AsInfoError ε, MonadError ε η) ⇒ Info → η [RelFile]
 flacNames inf =
   sequence [ flacName (inf ⊣ releaseInfo) i t | (t,i) ← zip (tracks inf) [1..] ]
 
+flacNameTests ∷ TestTree
+flacNameTests =
+  let info1Tr1 = [relfile|01-Something to Do  [Live Alsterdorfer Sporthalle, Hamburg 1984-12-14].flac|]
+      info1Tr2 = [relfile|02-Two Minute Warning  [Live Alsterdorfer Sporthalle, Hamburg 1984-12-14].flac|]
+   in testGroup "flacName"
+                [ testCase "track1" $
+                      Right [relfile|02-track title.flac|]
+                    ≟ flacName @InfoError releaseInfo1 2 track1
+                , testCase "info1" $
+                      Right [ info1Tr1, info1Tr2 ] ≟ flacNames @InfoError info1
+                ]
+
 mp3Name ∷ (AsInfoError ε, MonadError ε η) ⇒
           ReleaseInfo → Natural → Track → η RelFile
-mp3Name r n t = fileName n r t ⊲ (⊙ [pc|mp3|])
+mp3Name r n t = fileName r n t ⊲ (⊙ [pc|mp3|])
 
 mp3Names ∷ (AsInfoError ε, MonadError ε η) ⇒ Info → η [RelFile]
 mp3Names inf =
@@ -526,7 +538,7 @@ mp3Names inf =
 
 ------------------------------------------------------------
 
-data Tracks = Tracks [[Track]]
+newtype Tracks = Tracks { unTracks ∷ [[Track]] }
   deriving (Eq,Show)
 
 tracks_ ∷ Tracks → [Track]
@@ -708,6 +720,7 @@ instance FromJSON Info where
 --    ⊵ (Tracks ⊳ v .: "tracks")
 --      ⊵ return (Tracks [] {- ⊳ parseJSON (v .: "tracks") -})
 
+
 info1 ∷ Info
 info1 = Info (ReleaseInfo ("Depeche Mode") Nothing Nothing Nothing
                           (Just "World We Live in and Live in Hamburg,The")
@@ -722,6 +735,40 @@ info1 = Info (ReleaseInfo ("Depeche Mode") Nothing Nothing Nothing
                                Nothing Nothing Nothing
                        ]
                      ])
+
+releaseInfo2 ∷ ReleaseInfo
+releaseInfo2 = ReleaseInfo ("Depeche Mode") (Just "DMDVD4") Nothing
+                           Nothing (Just "Devotional")
+                           Nothing Nothing Nothing Nothing
+tracks2 ∷ Tracks
+tracks2 = let mkTrack t = Track Nothing (Just t) Nothing
+                           (Just "Live")
+                           (Just "Stade Couvert Régional, Liévin, France") 
+                           (Just "1993-07-29")
+           in Tracks [ mkTrack ⊳ [ "Higher Love"
+                                 , "World in my Eyes"
+                                 , "Walking in my Shoes"
+                                 , "Behind the Wheel"
+                                 , "Stripped"
+                                 , "Condemnation"
+                                 , "Judas"
+                                 , "Mercy in You"
+                                 , "I Feel You"
+                                 , "Never Let Me Down Again"
+                                 , "Rush"
+                                 , "In your Room"
+                                 , "Personal Jesus"
+                                 , "Enjoy the Silence"
+                                 , "Fly on the Windscreen"
+                                 , "Everything Counts"
+                                 , "Credits - Death's Door"
+                                 , "Halo"
+                                 , "Policy of Truth"
+                                 ]
+                     ]
+
+info2 ∷ Info
+info2 = Info releaseInfo2 tracks2
 
 infos ∷ Info
 infos = Info (ReleaseInfo ("Depeche Mode") Nothing (Just "2009-04-17")
@@ -742,15 +789,30 @@ infos = Info (ReleaseInfo ("Depeche Mode") Nothing (Just "2009-04-17")
                        ]
                      ])
 
+instance Printable [Track] where
+  print ts = P.text $ intercalate "\n" (toText ⊳ ts)
+
 infoFromJSONTests ∷ TestTree
 infoFromJSONTests =
-  testGroup "infoFromJSON"
-            [ testCase "info1'" $
-                Right info1 ≟ unYaml @ParseError TestData.info1T
-            , testCase "infos'" $
-                Right infos ≟ unYaml @ParseError TestData.infosT
-            ]
-
+  let splitInfo ∷ Info → (ReleaseInfo,Tracks)
+      splitInfo (Info ri tr) = (ri,tr)
+      (Right (ri2,tr2)) = splitInfo ⊳ unYaml @ParseError TestData.info2T
+   in testGroup "infoFromJSON"
+                (ю [ [ testCase "info1'" $
+                         Right info1 ≟ unYaml @ParseError TestData.info1T
+                     , testCase "ReleaseInfo 2" $
+                         ri2 ≟ releaseInfo2
+                     ]
+                   , assertListEq "Tracks 2" (tracks_ tr2) (tracks_ tracks2)
+                   , assertListEq "Tracks 2" (unTracks tr2) (unTracks tracks2)
+                   , [ testCase "info2'" $
+                         Right info2 ≟ unYaml @ParseError TestData.info2T
+                     , testCase "infos'" $
+                         Right infos ≟ unYaml @ParseError TestData.infosT
+                     ]
+                   ]
+                )
+                
 instance ToJSON Info where
   toJSON (Info r ts) = object (("tracks",toJSON ts) : releaseInfoFields r)
 
@@ -1071,7 +1133,9 @@ releaseInfol = ReleaseInfo ("simon") (Just "124XX") (Just "1979-12-31")
 
 tests ∷ TestTree
 tests = testGroup "infy" [ pyamlTests, trackTests, tracksTests, lNameTests
-                         , infoTests, liveNameTests, fileNameTests ]
+                         , infoTests, liveNameTests, fileNameTests
+                         , flacNameTests
+                         ]
 
 ----------------------------------------
 
