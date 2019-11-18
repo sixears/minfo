@@ -135,7 +135,7 @@ import Test.Tasty.HUnit  ( testCase )
 
 -- tasty-plus --------------------------
 
-import TastyPlus  ( assertListEq, runTestsP, runTestsReplay, runTestTree )
+import TastyPlus  ( assertListEqR, runTestsP, runTestsReplay, runTestTree )
 
 -- text --------------------------------
 
@@ -796,18 +796,29 @@ infoFromJSONTests ∷ TestTree
 infoFromJSONTests =
   let splitInfo ∷ Info → (ReleaseInfo,Tracks)
       splitInfo (Info ri tr) = (ri,tr)
-      (Right (ri2,tr2)) = splitInfo ⊳ unYaml @ParseError TestData.info2T
+      splitEPair ∷ Either ε (α,β) → (Either ε α, Either ε β)
+      splitEPair (Left l) = (Left l,Left l)
+      splitEPair (Right (a,b)) = (Right a, Right b)
+      checkInfo name inf expected =
+        let (rinfo,trcks) = splitEPair (splitInfo ⊳ unYaml @ParseError inf)
+            Info erinfo etrcks = expected
+            nme t = name ⊕ ": " ⊕ t
+         in ю [ [ testCase      (nme "release info") $ rinfo ≟ Right erinfo ] 
+                , assertListEqR (nme "tracks")
+                                (tracks_ ⊳ trcks) (tracks_ etrcks)
+                , assertListEqR (nme "flat tracks")
+                                (unTracks ⊳trcks) (unTracks etrcks)
+                , [ testCase (nme "info") $
+                      Right info2 ≟ unYaml @ParseError TestData.info2T
+                  ]
+                ]
+
    in testGroup "infoFromJSON"
                 (ю [ [ testCase "info1'" $
                          Right info1 ≟ unYaml @ParseError TestData.info1T
-                     , testCase "ReleaseInfo 2" $
-                         ri2 ≟ releaseInfo2
                      ]
-                   , assertListEq "Tracks 2" (tracks_ tr2) (tracks_ tracks2)
-                   , assertListEq "Tracks 2" (unTracks tr2) (unTracks tracks2)
-                   , [ testCase "info2'" $
-                         Right info2 ≟ unYaml @ParseError TestData.info2T
-                     , testCase "infos'" $
+                   , checkInfo "info2" TestData.info2T info2
+                   , [ testCase "infos'" $
                          Right infos ≟ unYaml @ParseError TestData.infosT
                      ]
                    ]
