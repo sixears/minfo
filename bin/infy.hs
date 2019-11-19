@@ -10,7 +10,7 @@
 {-# LANGUAGE UnicodeSyntax              #-}
 {-# LANGUAGE ViewPatterns               #-}
 
-import Prelude  ( (-), error, fromIntegral )
+import Prelude  ( Float, Int, (-), error, fromIntegral )
 
 -- aeson -------------------------------
 
@@ -30,7 +30,7 @@ import Control.Monad           ( forM_, join, mapM_, return, sequence )
 import Control.Monad.IO.Class  ( MonadIO, liftIO )
 import Data.Bifunctor          ( first, second )
 import Data.Bool               ( Bool( True, False ) )
-import Data.Either             ( Either( Left, Right ) )
+import Data.Either             ( Either( Left, Right ), either )
 import Data.Eq                 ( Eq( (==) ) )
 import Data.Foldable           ( Foldable, maximum )
 import Data.Function           ( ($), id )
@@ -123,7 +123,7 @@ import Options.Applicative  ( ArgumentFields, CommandFields, Mod, Parser, ReadM
 
 -- scientific --------------------------
 
-import Data.Scientific  ( Scientific )
+import Data.Scientific  ( Scientific, floatingOrInteger )
 
 -- tasty -------------------------------
 
@@ -623,7 +623,8 @@ instance Printable Catno where
 
 instance FromJSON Catno where
   parseJSON (String t) = return (Catno t)
-  parseJSON (Number n) = return (Catno $ pack $ show n)
+  parseJSON (Number n) =
+    return (Catno ∘ pack $ either show show (floatingOrInteger @Float @Int n))
   parseJSON invalid    = typeMismatch "String" invalid
 
 instance ToJSON Catno where
@@ -639,7 +640,8 @@ instance Printable Release where
 
 instance FromJSON Release where
   parseJSON (String t) = return (Release t)
-  parseJSON (Number n) = return (Release $ pack $ show n)
+  parseJSON (Number n) = 
+    return (Release ∘ pack $ either show show (floatingOrInteger @Float @Int n))
   parseJSON invalid    = typeMismatch "String" invalid
 
 instance ToJSON Release where
@@ -742,9 +744,9 @@ releaseInfo2 = ReleaseInfo ("Depeche Mode") (Just "DMDVD4") Nothing
                            Nothing Nothing Nothing Nothing
 tracks2 ∷ Tracks
 tracks2 = let mkTrack t = Track Nothing (Just t) Nothing
-                           (Just "Live")
-                           (Just "Stade Couvert Régional, Liévin, France") 
-                           (Just "1993-07-29")
+                          (Just "Live")
+                          (Just "Stade Couvert Régional, Liévin, France") 
+                          (Just "1993-07-29")
            in Tracks [ mkTrack ⊳ [ "Higher Love"
                                  , "World in my Eyes"
                                  , "Walking in my Shoes"
@@ -769,6 +771,33 @@ tracks2 = let mkTrack t = Track Nothing (Just t) Nothing
 
 info2 ∷ Info
 info2 = Info releaseInfo2 tracks2
+
+releaseInfo3 ∷ ReleaseInfo
+releaseInfo3 = ReleaseInfo ("Depeche Mode") (Just "12345")
+                           (Just "1993") Nothing
+                           (Just "Radio 1 in Concert") Nothing
+                           (Just "Live") (Just "Crystal Palace")
+                           (Just "1993-07-31")
+tracks3 ∷ Tracks
+tracks3 = let mkTrack t = Track Nothing (Just t) Nothing
+                          Nothing Nothing Nothing
+           in Tracks [ mkTrack ⊳ [ "Walking in my Shoes"
+                                 , "Halo"
+                                 , "Stripped"
+                                 , "Condemnation"
+                                 , "Judas"
+                                 , "I Feel You"
+                                 , "Never Let Me Down Again"
+                                 , "Rush"
+                                 , "In your Room"
+                                 , "Personal Jesus"
+                                 , "Enjoy the Silence"
+                                 , "Everything Counts"
+                                 ]
+                     ]
+
+info3 ∷ Info
+info3 = Info releaseInfo3 tracks3
 
 infos ∷ Info
 infos = Info (ReleaseInfo ("Depeche Mode") Nothing (Just "2009-04-17")
@@ -818,9 +847,8 @@ infoFromJSONTests =
                          Right info1 ≟ unYaml @ParseError TestData.info1T
                      ]
                    , checkInfo "info2" TestData.info2T info2
-                   , [ testCase "infos'" $
-                         Right infos ≟ unYaml @ParseError TestData.infosT
-                     ]
+                   , checkInfo "info3" TestData.info3T info3
+                   , checkInfo "infos" TestData.infosT infos
                    ]
                 )
                 
