@@ -738,6 +738,8 @@ info1 = Info (ReleaseInfo ("Depeche Mode") Nothing Nothing Nothing
                        ]
                      ])
 
+--------------------
+
 releaseInfo2 ∷ ReleaseInfo
 releaseInfo2 = ReleaseInfo ("Depeche Mode") (Just "DMDVD4") Nothing
                            Nothing (Just "Devotional")
@@ -772,6 +774,8 @@ tracks2 = let mkTrack t = Track Nothing (Just t) Nothing
 info2 ∷ Info
 info2 = Info releaseInfo2 tracks2
 
+--------------------
+
 releaseInfo3 ∷ ReleaseInfo
 releaseInfo3 = ReleaseInfo ("Depeche Mode") (Just "12345")
                            (Just "1993") Nothing
@@ -779,8 +783,7 @@ releaseInfo3 = ReleaseInfo ("Depeche Mode") (Just "12345")
                            (Just "Live") (Just "Crystal Palace")
                            (Just "1993-07-31")
 tracks3 ∷ Tracks
-tracks3 = let mkTrack t = Track Nothing (Just t) Nothing
-                          Nothing Nothing Nothing
+tracks3 = let mkTrack t = Track Nothing (Just t) Nothing Nothing Nothing Nothing
            in Tracks [ mkTrack ⊳ [ "Walking in my Shoes"
                                  , "Halo"
                                  , "Stripped"
@@ -798,6 +801,173 @@ tracks3 = let mkTrack t = Track Nothing (Just t) Nothing
 
 info3 ∷ Info
 info3 = Info releaseInfo3 tracks3
+
+--------------------
+
+releaseInfo4 ∷ ReleaseInfo
+releaseInfo4 = ReleaseInfo ("Depeche Mode") (Just "BX Stumm 300")
+                           (Just "2009-04-17") Nothing
+                           (Just "Sounds of the Universe  (Deluxe Box Set)")
+                             Nothing
+                           Nothing Nothing Nothing
+tracks4 ∷ Tracks
+tracks4 = let mkTrack t = Track Nothing (Just t) Nothing Nothing Nothing Nothing
+              mkTrack' (t,v) = Track Nothing (Just t) (Just v)
+                                     Nothing Nothing Nothing
+              mkTrackD t = Track Nothing (Just t) Nothing
+                                 (Just "Demo") Nothing Nothing
+           in Tracks [ mkTrack ⊳ [ "In Chains"
+                                 , "Hole to Feed"
+                                 , "Wrong"
+                                 , "Fragile Tension"
+                                 , "Little Soul"
+                                 , "In Sympathy"
+                                 , "Peace"
+                                 , "Come Back"
+                                 , "Spacewalker"
+                                 , "Perfect"
+                                 , "Miles Away - the Truth is"
+                                 , "Jezebel"
+                                 , "Corrupt"
+                                 , "Interlude #5"
+                                 ]
+                     ,   (mkTrack ⊳ [ "Light"
+                                    , "Sun and the Moon and the Stars,The"
+                                    , "Ghost"
+                                    , "Esque"
+                                    , "Oh Well"
+                                    ]
+                         )
+                       ⊕ (mkTrack' ⊳ [ ("Corrupt","Efdemin Remix")
+                                     , ("In Chains","Minilogue's Earth Remix")
+                                     , ("Little Soul",
+                                        "Thomas Fehlmann Flowing Ambient Mix")
+                                     , ("Jezebel","SixToes Remix")
+                                     , ("Perfect",
+                                        "Electronic Periodic Dark Drone Mix")
+                                     , ("Wrong","Caspa Remix")
+                                     ]
+                         )
+                     ,   (mkTrackD ⊳ [ "Little 15"
+                                     , "Clean"
+                                     , "Sweetest Perfection"
+                                     , "Walking in my Shoes"
+                                     , "I Feel You"
+                                     , "Judas"
+                                     , "Surrender"
+                                     , "Only When I Lose Myself"
+                                     , "Nothing's Impossible"
+                                     , "Corrupt"
+                                     , "Peace"
+                                     , "Jezebel"
+                                     , "Come Back"
+                                     , "In Chains"
+                                     ]
+                         )
+                     ]
+
+info4 ∷ Info
+info4 = Info releaseInfo4 tracks4
+
+--------------------
+
+releaseInfo5 ∷ ReleaseInfo
+releaseInfo5 = ReleaseInfo ("Depeche Mode") Nothing (Just "2009-04-17") Nothing
+                           (Just "Sounds of the Universe  (Deluxe Box Set)")
+                             Nothing
+                           Nothing Nothing Nothing
+tracks5 ∷ Tracks
+tracks5 = let mkTrack t = Track Nothing (Just t) Nothing Nothing Nothing Nothing
+              mkTrack' (t,v) = Track Nothing (Just t) (Just v)
+                                     Nothing Nothing Nothing
+              mkTrackD t = Track Nothing (Just t) (Just "Demo")
+                                 Nothing Nothing Nothing
+              mkTrackS t = Track Nothing (Just t) Nothing
+                                 (Just "Session") Nothing (Just "2008-12-08")
+           in Tracks [ mkTrack ⊳ [ "In Chains"
+                                 , "Hole to Feed"
+                                 , "Wrong"
+                                 , "Fragile Tension"
+                                 , "Little Soul"
+                                 , "In Sympathy"
+                                 , "Peace"
+                                 , "Come Back"
+                                 , "Spacewalker"
+                                 , "Perfect"
+                                 , "Miles Away / The Truth Is"
+                                 , "Jezebel"
+                                 , "Corrupt"
+                                 , "Interlude #5"
+                                 , "Light"
+                                 , "Sun and the Moon and the Stars,The"
+                                 , "Ghost"
+                                 , "Esque"
+                                 , "Oh Well"
+                                 ]
+                     ,   (mkTrackD ⊳ [ "Little 15"
+                                     , "Clean"
+                                     , "Sweetest Perfection"
+                                     , "Walking in my Shoes"
+                                     , "I Feel You"
+                                     , "Judas"
+                                     , "Surrender"
+                                     , "Only When I Lose Myself"
+                                     , "Nothing's Impossible"
+                                     , "Corrupt"
+                                     , "Peace"
+                                     , "Jezebel"
+                                     , "Come Back"
+                                     , "In Chains"
+                                     ]
+                         )
+                     ,   (mkTrack' ⊳ [ ("Oh Well","Single Edit")
+                                     , ("Wrong","Studio Session Mix")
+                                     , ("Come Back","Studio Session Mix")
+                                     , ("Corrupt","Studio Session Mix")
+                                     , ("Miles Away / The Truth is",
+                                        "Lagos Boys Choir Remix")
+                                     , ("Sun and the Moon and the Stars,The",
+                                        "Electronic Periodic's Microdrum Mix")
+                                     , ("Ghost","Le Weekend Remix")
+                                     , ("In Chains",
+                                        "Minilogue's Air Extend Remix")
+                                     , ("Martyr","Sound for the Universe Mix")
+                                     , ("Hole to Feed","Demo")
+                                     , ("Wrong","Extended Remix Edit")
+                                     , ("Wrong","Frankie's Bromantic Club Mix")
+                                     , ("Come Back","Studio Session 2 Mix")
+                                     , ("Wrong","Thin White Duke Remix")
+                                     , ("Come Back","Vinyl Mix")
+                                     , ("Wrong","D.I.M. vs. Boys Noize Remix")
+                                     , ("Corrupt","Efdemin Remix")
+                                     , ("Wrong","Peter Rauhofer Vocal Mix")
+                                     , ("In Chains","Minilogue's Earth Remix")
+                                     , ("Little Soul",
+                                        "Thomas Fehlman Ambient Mix")
+                                     , ("Wrong","Magda's Scallop Funk Remix")
+                                     , ("Jezebel","SixTøes Remix")
+                                     , ("Wrong","Trentemøller Remix")
+                                     , ("Perfect",
+                                        "Electronic Periodic Dark Drone Mix")
+                                     , ("Wrong","Caspa Remix")
+                                     , ("Oh Well","Black Light Odyssey Dub")
+                                     , ("Sun and the Moon and the Stars,The",
+                                        "Electronic Periodic's Microdrum Mix")
+                                     , ("Oh Well","Black Light Odyssey Remix")
+                                     ]
+                         )
+                     ,   (mkTrackS ⊳ [ "Corrupt"
+                                     , "Little Soul"
+                                     , "Stories of Old"
+                                     , "Come Back"
+                                     ]
+                         )
+                     ]
+
+info5 ∷ Info
+info5 = Info releaseInfo5 tracks5
+
+--------------------
 
 infos ∷ Info
 infos = Info (ReleaseInfo ("Depeche Mode") Nothing (Just "2009-04-17")
@@ -817,6 +987,8 @@ infos = Info (ReleaseInfo ("Depeche Mode") Nothing (Just "2009-04-17")
                                Nothing Nothing Nothing
                        ]
                      ])
+
+--------------------
 
 instance Printable [Track] where
   print ts = P.text $ intercalate "\n" (toText ⊳ ts)
@@ -848,6 +1020,8 @@ infoFromJSONTests =
                      ]
                    , checkInfo "info2" TestData.info2T info2
                    , checkInfo "info3" TestData.info3T info3
+                   , checkInfo "info4" TestData.info4T info4
+                   , checkInfo "info5" TestData.info5T info5
                    , checkInfo "infos" TestData.infosT infos
                    ]
                 )
