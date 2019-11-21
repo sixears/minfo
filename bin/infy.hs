@@ -1,16 +1,18 @@
 {-# OPTIONS_GHC -Wall #-}
 
 {-# LANGUAGE DeriveGeneric              #-}
+{-# LANGUAGE FlexibleInstances          #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE LambdaCase                 #-}
 {-# LANGUAGE NoImplicitPrelude          #-}
 {-# LANGUAGE OverloadedStrings          #-}
+{-# LANGUAGE QuasiQuotes                #-}
 {-# LANGUAGE ScopedTypeVariables        #-}
 {-# LANGUAGE TypeApplications           #-}
 {-# LANGUAGE UnicodeSyntax              #-}
 {-# LANGUAGE ViewPatterns               #-}
 
-import Prelude  ( Float, Int, (-), error, fromIntegral )
+import Prelude  ( Float, Int, (-), error, fromIntegral, undefined )
 
 -- aeson -------------------------------
 
@@ -36,8 +38,10 @@ import Data.Foldable           ( Foldable, maximum )
 import Data.Function           ( ($), id )
 import Data.Functor            ( fmap )
 import Data.List               ( replicate, sortOn, zip )
+import Data.List.NonEmpty      ( NonEmpty( (:|) ) )
 import Data.Maybe              ( Maybe( Just, Nothing )
                                , catMaybes, maybe )
+import Data.Monoid             ( mconcat )
 import Data.Ord                ( max )
 import Data.String             ( String )
 import Data.Tuple              ( fst )
@@ -47,13 +51,13 @@ import GHC.Exts                ( IsString, fromList, toList )
 import GHC.Generics            ( Generic )
 import Numeric.Natural         ( Natural )
 import System.Exit             ( ExitCode )
-import System.IO               ( FilePath, IO, stderr )
+import System.IO               ( FilePath, IO )
 import Text.Printf             ( printf )
 import Text.Show               ( Show( show ) )
 
 -- base-unicode-symbols ----------------
 
-import Data.Eq.Unicode        ( (≡) )
+import Data.Eq.Unicode        ( (≡), (≢) )
 import Data.Function.Unicode  ( (∘) )
 import Data.Monoid.Unicode    ( (⊕) )
 
@@ -77,11 +81,14 @@ import Fluffy.Foldable  ( length )
 
 -- fpath -------------------------------
 
-import FPath.AsFilePath     ( filepath )
-import FPath.File           ( File( FileR ) )
-import FPath.FileLike       ( (⊙) )
-import FPath.PathComponent  ( pc )
-import FPath.RelFile        ( RelFile, relfile )
+import FPath.AsFilePath       ( filepath )
+import FPath.Error.FPathComponentError
+                              ( AsFPathComponentError( _FPathComponentError )
+                              , FPathComponentError )
+import FPath.File             ( File( FileR ) )
+import FPath.FileLike         ( (⊙) )
+import FPath.PathComponent    ( PathComponent, parsePathC, pc )
+import FPath.RelFile          ( RelFile, relfile )
 
 -- lens --------------------------------
 
@@ -110,6 +117,10 @@ import Data.MoreUnicode.Tasty        ( (≟) )
 -- mtl ---------------------------------
 
 import Control.Monad.Except  ( MonadError, throwError )
+
+-- non-empty-containers ----------------
+
+import NonEmptyContainers.IsNonEmpty  ( fromNonEmpty )
 
 -- optparse-applicative ----------------
 
@@ -143,7 +154,7 @@ import qualified  Data.Text  as  Text
 
 import Data.Text     ( Text, dropEnd, init, intercalate, lines, pack, replace
                      , unlines )
-import Data.Text.IO  ( hPutStrLn, putStrLn )
+import Data.Text.IO  ( putStrLn )
 
 -- text-printer ------------------------
 
@@ -449,29 +460,24 @@ lNameTests =
                         (Just "1970-01-01")
             ]
 
-liveName ∷ Maybe Text → Maybe Text → Maybe Text → Track → Maybe Text
-liveName lTypeY lLocY lDateY t =
-  lName (t ⊣ trackLiveType ∤ lTypeY) (t ⊣ trackLiveLocation ∤ lLocY)
-        (t ⊣ trackLiveDate ∤ lDateY)
-
-liveName' ∷ ReleaseInfo → Track → Maybe Text
-liveName' r t = lName (t ⊣ trackLiveType ∤ r ⊣ live_type)
+liveName ∷ ReleaseInfo → Track → Maybe Text
+liveName r t = lName (t ⊣ trackLiveType ∤ r ⊣ live_type)
                       (t ⊣ trackLiveLocation ∤ r ⊣ live_location)
                       (t ⊣ trackLiveDate ∤ r ⊣ live_date)
 
 liveNameTests ∷ TestTree
 liveNameTests = testGroup "liveName"
                           [ testCase "track1" $
-                              Nothing ≟ liveName' releaseInfo1 track1
+                              Nothing ≟ liveName releaseInfo1 track1
                           , testCase "trackL" $
                                 Just "Live Hammersmith Odeon 1970-01-01"
-                              ≟ liveName' releaseInfo1 trackL
+                              ≟ liveName releaseInfo1 trackL
                           ]
 
 ----------------------------------------
 
 fileName ∷ (AsInfoError ε, MonadError ε η) ⇒
-           ReleaseInfo → Natural → Track → η RelFile
+           ReleaseInfo → Natural → Track → η PathComponent
 fileName relnfo num trck =
   let gone = replace "/" "-" (go trck)
       encompass  l r t = l ⊕ t ⊕ r
@@ -480,7 +486,7 @@ fileName relnfo num trck =
       go t = case t ⊣ trackTitle of
                Nothing → pack $ printf "%02d" num
                Just ti → let vv = parens   ⊳ t ⊣ trackVersion
-                             ll = brackets ⊳ liveName' relnfo t
+                             ll = brackets ⊳ liveName relnfo t
                           in [fmt|%02d-%t|]
                              num (intercalate "  " $ catMaybes [Just ti,vv,ll])
    in case fromText gone of
@@ -489,51 +495,82 @@ fileName relnfo num trck =
 
 fileNameTests ∷ TestTree
 fileNameTests =
-  let liveT = [relfile|10-live track  [Live Hammersmith Odeon 1970-01-01]|]
-      seshT = [relfile|100-Sesh  (Acoustic)  [Session 1980-01-01]|]
+  let liveT = [pc|10-live track  [Live Hammersmith Odeon 1970-01-01]|]
+      seshT = [pc|100-Sesh  (Acoustic)  [Session 1980-01-01]|]
    in testGroup "fileName"
                 [ testCase "track1" $
-                      Right [relfile|02-track title|]
+                      Right [pc|02-track title|]
                     ≟ fileName @InfoError releaseInfo1 2 track1
                 , testCase "trackL" $
                       Right liveT ≟ fileName @InfoError releaseInfo1 10 trackL
                 , testCase "trackS" $
                       Right seshT ≟ fileName @InfoError releaseInfo1 100 trackS
                 , testCase "trackL'-rl" $
-                      Right [relfile|11-Live Track  [Live Sweden 1990-02-02]|]
-                    ≟ fileName @ParseInfoError releaseInfol 11 trackL'
+                      Right [pc|11-Live Track  [Live Sweden 1990-02-02]|]
+                    ≟ fileName @ParseInfoFPCError releaseInfol 11 trackL'
                 ]
 
 
 -- ADD TESTS
 
 flacName ∷ (AsInfoError ε, MonadError ε η) ⇒
-           ReleaseInfo → Natural → Track → η RelFile
+           ReleaseInfo → Natural → Track → η PathComponent
 flacName r n t = fileName r n t ⊲ (⊙ [pc|flac|])
 
-flacNames ∷ (AsInfoError ε, MonadError ε η) ⇒ Info → η [RelFile]
-flacNames inf =
-  sequence [ flacName (inf ⊣ releaseInfo) i t | (t,i) ← zip (tracks inf) [1..] ]
+type 𝔹 = Bool
+
+data MultiDisc = MultiDisc | SingleDisc
+
+pcToRF ∷ (AsInfoError ε, AsFPathComponentError ε, MonadError ε η) ⇒
+          ReleaseInfo → MultiDisc → ℕ → ℕ → Track → η RelFile
+pcToRF ri SingleDisc disc i trck = (fromNonEmpty ∘ pure) ⊳ flacName ri i trck
+pcToRF ri MultiDisc disc i trck = do
+  d ← parsePathC $ [fmtT|Disc %02d|] disc
+  f ← flacName ri i trck
+  return $ fromNonEmpty (d :| [f])
+
+flacNames' ∷ (AsInfoError ε, AsFPathComponentError ε, MonadError ε η) ⇒
+             Info → η [RelFile]
+flacNames' inf =
+  let Info rinfo trcks = inf
+      trckss ∷ [[Track]] = unTracks trcks
+      multi = if 1 ≡ length trckss then SingleDisc else MultiDisc
+      index ∷ [α] → [(ℕ,α)]
+      index xs = zip [1..] xs
+   in sequence [ pcToRF rinfo multi discid id trck
+               | (discid,trcks) ← index trckss, (id,trck) ← index trcks ]
 
 flacNameTests ∷ TestTree
 flacNameTests =
-  let info1Tr1 = [relfile|01-Something to Do  [Live Alsterdorfer Sporthalle, Hamburg 1984-12-14].flac|]
-      info1Tr2 = [relfile|02-Two Minute Warning  [Live Alsterdorfer Sporthalle, Hamburg 1984-12-14].flac|]
-   in testGroup "flacName"
+  testGroup "flacName"
                 [ testCase "track1" $
-                      Right [relfile|02-track title.flac|]
+                      Right [pc|02-track title.flac|]
                     ≟ flacName @InfoError releaseInfo1 2 track1
-                , testCase "info1" $
-                      Right [ info1Tr1, info1Tr2 ] ≟ flacNames @InfoError info1
                 ]
 
+flacNames'Tests ∷ TestTree
+flacNames'Tests =
+  let info1Tr1 = [relfile|01-Something to Do  [Live Alsterdorfer Sporthalle, Hamburg 1984-12-14].flac|]
+      info1Tr2 = [relfile|02-Two Minute Warning  [Live Alsterdorfer Sporthalle, Hamburg 1984-12-14].flac|]
+
+      infosTr1 = [relfile|Disc 01/01-In Chains.flac|]
+      infosTr2 = [relfile|Disc 01/02-Hole to Feed.flac|]
+      infosTr3 = [relfile|Disc 02/01-Wrong  (Trentemøller Remix).flac|]
+      infosTr4 = [relfile|Disc 02/02-Perfect  (Electronic Periodic Dark Drone Mix).flac|]
+      check name expect info =
+        assertListEqR name (flacNames' @InfoFPCError info) expect
+   in testGroup "flacNames" $
+                 ю [ check "info1" [info1Tr1,info1Tr2]                   info1
+                   , check "infos" [infosTr1,infosTr2,infosTr3,infosTr4] infos
+                   ]
+
 mp3Name ∷ (AsInfoError ε, MonadError ε η) ⇒
-          ReleaseInfo → Natural → Track → η RelFile
+          ReleaseInfo → Natural → Track → η PathComponent
 mp3Name r n t = fileName r n t ⊲ (⊙ [pc|mp3|])
 
 mp3Names ∷ (AsInfoError ε, MonadError ε η) ⇒ Info → η [RelFile]
 mp3Names inf =
-  sequence [ mp3Name (inf ⊣ releaseInfo) i t | (t,i) ← zip (tracks inf) [1..] ]
+  sequence [ (fromNonEmpty ∘ pure ⊳ (mp3Name (inf ⊣ releaseInfo) i t)) | (t,i) ← zip (tracks inf) [1..] ]
 
 
 ------------------------------------------------------------
@@ -640,7 +677,7 @@ instance Printable Release where
 
 instance FromJSON Release where
   parseJSON (String t) = return (Release t)
-  parseJSON (Number n) = 
+  parseJSON (Number n) =
     return (Release ∘ pack $ either show show (floatingOrInteger @Float @Int n))
   parseJSON invalid    = typeMismatch "String" invalid
 
@@ -747,7 +784,7 @@ releaseInfo2 = ReleaseInfo ("Depeche Mode") (Just "DMDVD4") Nothing
 tracks2 ∷ Tracks
 tracks2 = let mkTrack t = Track Nothing (Just t) Nothing
                           (Just "Live")
-                          (Just "Stade Couvert Régional, Liévin, France") 
+                          (Just "Stade Couvert Régional, Liévin, France")
                           (Just "1993-07-29")
            in Tracks [ mkTrack ⊳ [ "Higher Love"
                                  , "World in my Eyes"
@@ -1004,7 +1041,7 @@ infoFromJSONTests =
         let (rinfo,trcks) = splitEPair (splitInfo ⊳ unYaml @ParseError inf)
             Info erinfo etrcks = expected
             nme t = name ⊕ ": " ⊕ t
-         in ю [ [ testCase      (nme "release info") $ rinfo ≟ Right erinfo ] 
+         in ю [ [ testCase      (nme "release info") $ rinfo ≟ Right erinfo ]
                 , assertListEqR (nme "tracks")
                                 (tracks_ ⊳ trcks) (tracks_ etrcks)
                 , assertListEqR (nme "flat tracks")
@@ -1025,7 +1062,7 @@ infoFromJSONTests =
                    , checkInfo "infos" TestData.infosT infos
                    ]
                 )
-                
+
 instance ToJSON Info where
   toJSON (Info r ts) = object (("tracks",toJSON ts) : releaseInfoFields r)
 
@@ -1202,19 +1239,6 @@ parseOpts = Options ⊳ modeP
 say ∷ (MonadIO μ, Printable τ) ⇒ τ → μ ()
 say = liftIO ∘ putStrLn ∘ toText
 
-warn ∷ (MonadIO μ, Printable τ) ⇒ τ → μ ()
-warn = liftIO ∘ hPutStrLn stderr ∘ toText
-
-{-
-withFile ∷ (MonadIO μ, Printable τ) ⇒ FilePath → (Info → Either τ Text) → μ ()
-withFile fn f = do
-  decodeFileEither fn ≫ \ case
-    Left  e    → warn (show e) ⪼ exitWith (ExitFailure 3)
-    Right infy → case f infy of
-                   Left  e'  → warn e' ⪼ exitWith (ExitFailure 4)
-                   Right txt → say txt
--}
-
 ------------------------------------------------------------
 
 data InfoError = IllegalFileName Text
@@ -1258,22 +1282,51 @@ asParseError = first ((_ParseError #) ∘ ParseError)
 
 ------------------------------------------------------------
 
-data ParseInfoError = PIParseError ParseError | PIInfoError InfoError
+data InfoFPCError = IFPCInfoError             InfoError
+                  | IFPCFPathComponenentError FPathComponentError
   deriving (Eq,Show)
 
-instance Exception ParseInfoError
+instance Exception InfoFPCError
 
-instance Printable ParseInfoError where
-  print (PIParseError e) = print e
-  print (PIInfoError  e) = print e
+instance Printable InfoFPCError where
+  print (IFPCInfoError e)             = print e
+  print (IFPCFPathComponenentError e) = print e
 
-instance AsParseError ParseInfoError where
-  _ParseError = prism PIParseError
-                      (\ case PIParseError e -> Right e; e -> Left e )
+instance AsInfoError InfoFPCError where
+  _InfoError = prism IFPCInfoError
+                     (\ case IFPCInfoError e → Right e; e → Left e)
 
-instance AsInfoError ParseInfoError where
-  _InfoError = prism PIInfoError (\ case PIInfoError e -> Right e; e -> Left e )
+instance AsFPathComponentError InfoFPCError where
+  _FPathComponentError = prism IFPCFPathComponenentError
+                               (\ case IFPCFPathComponenentError e → Right e
+                                       e                           → Left  e)
 
+------------------------------------------------------------
+
+data ParseInfoFPCError = PIFPCParseError   ParseError
+                       | PIFPCInfoFPCError InfoFPCError
+  deriving (Eq,Show)
+
+_PIFPCInfoFPCError ∷ Prism' ParseInfoFPCError InfoFPCError
+_PIFPCInfoFPCError = prism PIFPCInfoFPCError
+                           (\ case PIFPCInfoFPCError e → Right e; e → Left e)
+
+instance Exception ParseInfoFPCError
+
+instance Printable ParseInfoFPCError where
+  print (PIFPCParseError   e) = print e
+  print (PIFPCInfoFPCError e) = print e
+
+instance AsParseError ParseInfoFPCError where
+  _ParseError = prism PIFPCParseError
+                      (\ case PIFPCParseError  e -> Right e; e -> Left e)
+
+instance AsInfoError ParseInfoFPCError where
+  _InfoError = _PIFPCInfoFPCError ∘ _InfoError
+
+instance AsFPathComponentError ParseInfoFPCError where
+  _FPathComponentError = _PIFPCInfoFPCError ∘ _FPathComponentError
+  
 ------------------------------------------------------------
 
 unYaml ∷ ∀ ε α μ . (FromJSON α, MonadError ε μ, AsParseError ε) ⇒
@@ -1303,13 +1356,14 @@ pInfo' f fn = do
 
 
 main ∷ IO ()
-main = doMain @ParseInfoError @Word8 $ do
+main = doMain @ParseInfoFPCError @Word8 $ do
   opts ← optParser "read & write info.yaml" parseOpts
 
   case opts ⊣ runMode of
     ModeWrite      tc → say $ blankInfo tc
-    ModeTrackCount fn → pInfo ((:[]) ∘ show ∘ trackCount) fn
-    ModeFlacList   fn → pInfo' flacNames fn
+    ModeTrackCount fn → pInfo  ((:[]) ∘ show ∘ trackCount) fn
+--    ModeFlacList   fn → pInfo' (mconcat ⩺ flacNames') fn
+    ModeFlacList   fn → pInfo' (flacNames') fn
     ModeMp3List    fn → pInfo' mp3Names fn
 
   return 0
@@ -1347,7 +1401,7 @@ releaseInfol = ReleaseInfo ("simon") (Just "124XX") (Just "1979-12-31")
 tests ∷ TestTree
 tests = testGroup "infy" [ pyamlTests, trackTests, tracksTests, lNameTests
                          , infoTests, liveNameTests, fileNameTests
-                         , flacNameTests
+                         , flacNameTests, flacNames'Tests
                          ]
 
 ----------------------------------------
