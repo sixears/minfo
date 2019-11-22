@@ -523,15 +523,15 @@ data MultiDisc = MultiDisc | SingleDisc
 
 pcToRF ∷ (AsInfoError ε, AsFPathComponentError ε, MonadError ε η) ⇒
           ReleaseInfo → MultiDisc → ℕ → ℕ → Track → η RelFile
-pcToRF ri SingleDisc disc i trck = (fromNonEmpty ∘ pure) ⊳ flacName ri i trck
+pcToRF ri SingleDisc disc i trck = (fromNonEmpty ∘ pure) ⊳ fileName ri i trck
 pcToRF ri MultiDisc disc i trck = do
   d ← parsePathC $ [fmtT|Disc %02d|] disc
-  f ← flacName ri i trck
+  f ← fileName ri i trck
   return $ fromNonEmpty (d :| [f])
 
-flacNames' ∷ (AsInfoError ε, AsFPathComponentError ε, MonadError ε η) ⇒
+fileNames ∷ (AsInfoError ε, AsFPathComponentError ε, MonadError ε η) ⇒
              Info → η [RelFile]
-flacNames' inf =
+fileNames inf =
   let Info rinfo trcks = inf
       trckss ∷ [[Track]] = unTracks trcks
       multi = if 1 ≡ length trckss then SingleDisc else MultiDisc
@@ -539,6 +539,10 @@ flacNames' inf =
       index xs = zip [1..] xs
    in sequence [ pcToRF rinfo multi discid id trck
                | (discid,trcks) ← index trckss, (id,trck) ← index trcks ]
+
+flacNames ∷ (AsInfoError ε, AsFPathComponentError ε, MonadError ε η) ⇒
+             Info → η [RelFile]
+flacNames = fmap (⊙ [pc|flac|]) ⩺ fileNames
 
 flacNameTests ∷ TestTree
 flacNameTests =
@@ -548,8 +552,8 @@ flacNameTests =
                     ≟ flacName @InfoError releaseInfo1 2 track1
                 ]
 
-flacNames'Tests ∷ TestTree
-flacNames'Tests =
+flacNamesTests ∷ TestTree
+flacNamesTests =
   let info1Tr1 = [relfile|01-Something to Do  [Live Alsterdorfer Sporthalle, Hamburg 1984-12-14].flac|]
       info1Tr2 = [relfile|02-Two Minute Warning  [Live Alsterdorfer Sporthalle, Hamburg 1984-12-14].flac|]
 
@@ -558,7 +562,7 @@ flacNames'Tests =
       infosTr3 = [relfile|Disc 02/01-Wrong  (Trentemøller Remix).flac|]
       infosTr4 = [relfile|Disc 02/02-Perfect  (Electronic Periodic Dark Drone Mix).flac|]
       check name expect info =
-        assertListEqR name (flacNames' @InfoFPCError info) expect
+        assertListEqR name (flacNames @InfoFPCError info) expect
    in testGroup "flacNames" $
                  ю [ check "info1" [info1Tr1,info1Tr2]                   info1
                    , check "infos" [infosTr1,infosTr2,infosTr3,infosTr4] infos
@@ -568,10 +572,27 @@ mp3Name ∷ (AsInfoError ε, MonadError ε η) ⇒
           ReleaseInfo → Natural → Track → η PathComponent
 mp3Name r n t = fileName r n t ⊲ (⊙ [pc|mp3|])
 
-mp3Names ∷ (AsInfoError ε, MonadError ε η) ⇒ Info → η [RelFile]
-mp3Names inf =
+mp3Names ∷ (AsInfoError ε, AsFPathComponentError ε, MonadError ε η) ⇒ Info → η [RelFile]
+mp3Names {- inf -} = fmap (⊙ [pc|mp3|]) ⩺ fileNames
+{-
   sequence [ (fromNonEmpty ∘ pure ⊳ (mp3Name (inf ⊣ releaseInfo) i t)) | (t,i) ← zip (tracks inf) [1..] ]
+-}
 
+mp3NamesTests ∷ TestTree
+mp3NamesTests =
+  let info1Tr1 = [relfile|01-Something to Do  [Live Alsterdorfer Sporthalle, Hamburg 1984-12-14].mp3|]
+      info1Tr2 = [relfile|02-Two Minute Warning  [Live Alsterdorfer Sporthalle, Hamburg 1984-12-14].mp3|]
+
+      infosTr1 = [relfile|Disc 01/01-In Chains.mp3|]
+      infosTr2 = [relfile|Disc 01/02-Hole to Feed.mp3|]
+      infosTr3 = [relfile|Disc 02/01-Wrong  (Trentemøller Remix).mp3|]
+      infosTr4 = [relfile|Disc 02/02-Perfect  (Electronic Periodic Dark Drone Mix).mp3|]
+      check name expect info =
+        assertListEqR name (mp3Names @InfoFPCError info) expect
+   in testGroup "mp3Names" $
+                 ю [ check "info1" [info1Tr1,info1Tr2]                   info1
+                   , check "infos" [infosTr1,infosTr2,infosTr3,infosTr4] infos
+                   ]
 
 ------------------------------------------------------------
 
@@ -1362,8 +1383,7 @@ main = doMain @ParseInfoFPCError @Word8 $ do
   case opts ⊣ runMode of
     ModeWrite      tc → say $ blankInfo tc
     ModeTrackCount fn → pInfo  ((:[]) ∘ show ∘ trackCount) fn
---    ModeFlacList   fn → pInfo' (mconcat ⩺ flacNames') fn
-    ModeFlacList   fn → pInfo' (flacNames') fn
+    ModeFlacList   fn → pInfo' flacNames fn
     ModeMp3List    fn → pInfo' mp3Names fn
 
   return 0
@@ -1401,7 +1421,7 @@ releaseInfol = ReleaseInfo ("simon") (Just "124XX") (Just "1979-12-31")
 tests ∷ TestTree
 tests = testGroup "infy" [ pyamlTests, trackTests, tracksTests, lNameTests
                          , infoTests, liveNameTests, fileNameTests
-                         , flacNameTests, flacNames'Tests
+                         , flacNameTests, flacNamesTests, mp3NamesTests
                          ]
 
 ----------------------------------------
