@@ -12,7 +12,7 @@
 {-# LANGUAGE UnicodeSyntax              #-}
 {-# LANGUAGE ViewPatterns               #-}
 
-import Prelude  ( Float, Int, (-), error, fromIntegral, undefined )
+import Prelude  ( Float, Int, (-), error, fromIntegral )
 
 -- aeson -------------------------------
 
@@ -41,7 +41,6 @@ import Data.List               ( replicate, sortOn, zip )
 import Data.List.NonEmpty      ( NonEmpty( (:|) ) )
 import Data.Maybe              ( Maybe( Just, Nothing )
                                , catMaybes, maybe )
-import Data.Monoid             ( mconcat )
 import Data.Ord                ( max )
 import Data.String             ( String )
 import Data.Tuple              ( fst )
@@ -57,7 +56,7 @@ import Text.Show               ( Show( show ) )
 
 -- base-unicode-symbols ----------------
 
-import Data.Eq.Unicode        ( (≡), (≢) )
+import Data.Eq.Unicode        ( (≡) )
 import Data.Function.Unicode  ( (∘) )
 import Data.Monoid.Unicode    ( (⊕) )
 
@@ -184,7 +183,8 @@ import Data.Yaml  ( FromJSON( parseJSON ), ParseException, ToJSON( toJSON )
 
 import qualified  MInfo.T.TestData  as  TestData
 
-import MInfo.Types  ( Artist )
+import MInfo.Types          ( Artist )
+import MInfo.Types.Dateish  ( Dateish, __dateish', __dateishy' )
 
 --------------------------------------------------------------------------------
 
@@ -519,12 +519,13 @@ flacName r n t = fileName r n t ⊲ (⊙ [pc|flac|])
 
 type 𝔹 = Bool
 
-data MultiDisc = MultiDisc | SingleDisc
+data MultiDisc = SingleDisc | MultiDisc ℕ
 
-pcToRF ∷ (AsInfoError ε, AsFPathComponentError ε, MonadError ε η) ⇒
-          ReleaseInfo → MultiDisc → ℕ → ℕ → Track → η RelFile
-pcToRF ri SingleDisc disc i trck = (fromNonEmpty ∘ pure) ⊳ fileName ri i trck
-pcToRF ri MultiDisc disc i trck = do
+trackFile ∷ (AsInfoError ε, AsFPathComponentError ε, MonadError ε η) ⇒
+            ReleaseInfo → MultiDisc → ℕ → Track → η RelFile
+trackFile ri SingleDisc i trck =
+  (fromNonEmpty ∘ pure) ⊳ fileName ri i trck
+trackFile ri (MultiDisc disc) i trck = do
   d ← parsePathC $ [fmtT|Disc %02d|] disc
   f ← fileName ri i trck
   return $ fromNonEmpty (d :| [f])
@@ -534,11 +535,11 @@ fileNames ∷ (AsInfoError ε, AsFPathComponentError ε, MonadError ε η) ⇒
 fileNames inf =
   let Info rinfo trcks = inf
       trckss ∷ [[Track]] = unTracks trcks
-      multi = if 1 ≡ length trckss then SingleDisc else MultiDisc
+      multi d = if 1 ≡ length trckss then SingleDisc else (MultiDisc d)
       index ∷ [α] → [(ℕ,α)]
       index xs = zip [1..] xs
-   in sequence [ pcToRF rinfo multi discid id trck
-               | (discid,trcks) ← index trckss, (id,trck) ← index trcks ]
+   in sequence [ trackFile rinfo (multi discid) i trck
+               | (discid,ts) ← index trckss, (i,trck) ← index ts ]
 
 flacNames ∷ (AsInfoError ε, AsFPathComponentError ε, MonadError ε η) ⇒
              Info → η [RelFile]
@@ -561,8 +562,8 @@ flacNamesTests =
       infosTr2 = [relfile|Disc 01/02-Hole to Feed.flac|]
       infosTr3 = [relfile|Disc 02/01-Wrong  (Trentemøller Remix).flac|]
       infosTr4 = [relfile|Disc 02/02-Perfect  (Electronic Periodic Dark Drone Mix).flac|]
-      check name expect info =
-        assertListEqR name (flacNames @InfoFPCError info) expect
+      check name expect inf =
+        assertListEqR name (flacNames @InfoFPCError inf) expect
    in testGroup "flacNames" $
                  ю [ check "info1" [info1Tr1,info1Tr2]                   info1
                    , check "infos" [infosTr1,infosTr2,infosTr3,infosTr4] infos
@@ -584,8 +585,8 @@ mp3NamesTests =
       infosTr2 = [relfile|Disc 01/02-Hole to Feed.mp3|]
       infosTr3 = [relfile|Disc 02/01-Wrong  (Trentemøller Remix).mp3|]
       infosTr4 = [relfile|Disc 02/02-Perfect  (Electronic Periodic Dark Drone Mix).mp3|]
-      check name expect info =
-        assertListEqR name (mp3Names @InfoFPCError info) expect
+      check name expect inf =
+        assertListEqR name (mp3Names @InfoFPCError inf) expect
    in testGroup "mp3Names" $
                  ю [ check "info1" [info1Tr1,info1Tr2]                   info1
                    , check "infos" [infosTr1,infosTr2,infosTr3,infosTr4] infos
@@ -687,27 +688,10 @@ instance ToJSON Catno where
 
 ------------------------------------------------------------
 
-newtype Release = Release Text
-  deriving (Eq, IsString, Show)
-
-instance Printable Release where
-  print (Release t) = P.text t
-
-instance FromJSON Release where
-  parseJSON (String t) = return (Release t)
-  parseJSON (Number n) =
-    return (Release ∘ pack $ either show show (floatingOrInteger @Float @Int n))
-  parseJSON invalid    = typeMismatch "String" invalid
-
-instance ToJSON Release where
-  toJSON (Release t) = String t
-
-------------------------------------------------------------
-
 data ReleaseInfo = ReleaseInfo { _artist           ∷ Artist
                                , _catno            ∷ Maybe Catno
-                               , _release          ∷ Maybe Release
-                               , _original_release ∷ Maybe Text
+                               , _release          ∷ Maybe Dateish
+                               , _original_release ∷ Maybe Dateish
                                , _source           ∷ Maybe Text
                                , _source_version   ∷ Maybe Text
                                , _live_type        ∷ Maybe Text
@@ -774,9 +758,6 @@ instance FromJSON Info where
                    ⊵ v .:? "live_date"
       )
    ⊵ v .: "tracks"
---    ⊵ (Tracks ⊳ v .: "tracks")
---      ⊵ return (Tracks [] {- ⊳ parseJSON (v .: "tracks") -})
-
 
 info1 ∷ Info
 info1 = Info (ReleaseInfo ("Depeche Mode") Nothing Nothing Nothing
@@ -833,7 +814,7 @@ info2 = Info releaseInfo2 tracks2
 
 releaseInfo3 ∷ ReleaseInfo
 releaseInfo3 = ReleaseInfo ("Depeche Mode") (Just "12345")
-                           (Just "1993") Nothing
+                           (Just (__dateishy' 1993)) Nothing
                            (Just "Radio 1 in Concert") Nothing
                            (Just "Live") (Just "Crystal Palace")
                            (Just "1993-07-31")
@@ -860,11 +841,13 @@ info3 = Info releaseInfo3 tracks3
 --------------------
 
 releaseInfo4 ∷ ReleaseInfo
-releaseInfo4 = ReleaseInfo ("Depeche Mode") (Just "BX Stumm 300")
-                           (Just "2009-04-17") Nothing
-                           (Just "Sounds of the Universe  (Deluxe Box Set)")
-                             Nothing
-                           Nothing Nothing Nothing
+releaseInfo4 =
+  ReleaseInfo ("Depeche Mode") (Just "BX Stumm 300")
+              (Just (__dateish' 2009 04 17))
+              Nothing
+              (Just "Sounds of the Universe  (Deluxe Box Set)")
+                Nothing
+              Nothing Nothing Nothing
 tracks4 ∷ Tracks
 tracks4 = let mkTrack t = Track Nothing (Just t) Nothing Nothing Nothing Nothing
               mkTrack' (t,v) = Track Nothing (Just t) (Just v)
@@ -927,10 +910,13 @@ info4 = Info releaseInfo4 tracks4
 --------------------
 
 releaseInfo5 ∷ ReleaseInfo
-releaseInfo5 = ReleaseInfo ("Depeche Mode") Nothing (Just "2009-04-17") Nothing
-                           (Just "Sounds of the Universe  (Deluxe Box Set)")
-                             Nothing
-                           Nothing Nothing Nothing
+releaseInfo5 =
+  ReleaseInfo ("Depeche Mode") Nothing
+              (Just (__dateish' 2009 04 17))
+              Nothing
+              (Just "Sounds of the Universe  (Deluxe Box Set)") Nothing
+              Nothing Nothing Nothing
+
 tracks5 ∷ Tracks
 tracks5 = let mkTrack t = Track Nothing (Just t) Nothing Nothing Nothing Nothing
               mkTrack' (t,v) = Track Nothing (Just t) (Just v)
@@ -1025,7 +1011,8 @@ info5 = Info releaseInfo5 tracks5
 --------------------
 
 infos ∷ Info
-infos = Info (ReleaseInfo ("Depeche Mode") Nothing (Just "2009-04-17")
+infos = Info (ReleaseInfo ("Depeche Mode") Nothing
+                          (Just (__dateish' 2009 04 17))
                           Nothing (Just "Sounds of the Universe")
                           (Just "Deluxe Box Set") Nothing Nothing Nothing)
              (Tracks [ [ Track Nothing (Just "In Chains") Nothing
@@ -1403,12 +1390,14 @@ trackS = Track Nothing (Just "Sesh") (Just "Acoustic")
                (Just "Session") Nothing (Just "1980-01-01")
 
 releaseInfo1 ∷ ReleaseInfo
-releaseInfo1 = ReleaseInfo ("artie") (Just "123X") (Just "1979-12-31")
+releaseInfo1 = ReleaseInfo ("artie") (Just "123X")
+                           (Just (__dateish' 1979 12 31))
                            Nothing (Just "Elpee") Nothing Nothing Nothing
                            Nothing
 
 releaseInfol ∷ ReleaseInfo
-releaseInfol = ReleaseInfo ("simon") (Just "124XX") (Just "1979-12-31")
+releaseInfol = ReleaseInfo ("simon") (Just "124XX")
+                           (Just (__dateish' 1979 12 31))
                            Nothing
                            (Just "An LP Title") Nothing
                            (Just "Live") (Just "Sweden") (Just "1990")

@@ -11,45 +11,46 @@
 {-# LANGUAGE UnicodeSyntax              #-}
 
 module MInfo.Types.Dateish
-  ( Dateish )
+  ( Dateish( Dateish, DateishY )
+  , __dateish, __dateish', dateish, dateish'
+  , __dateishy, __dateishy', dateishy, dateishy'
+  )
 where
 
-import Prelude  ( Integer, Integral, (+), (-)
-                , error, fromIntegral, fromInteger, toInteger
-                )
+import Prelude  ( Float, Integer, Integral, (-), error, fromIntegral )
 
 import Control.Applicative  ( (<*>), (<*) )
 import Data.Functor         ( (<$>) )
 
+-- aeson -------------------------------
+
+import Data.Aeson.Types  ( Value( Number, String ), typeMismatch )
+       
 -- base --------------------------------
 
 import Control.Monad  ( Monad, fail, return )
 import Data.Bool      ( not )
-import Data.Either    ( Either( Right ) )
+import Data.Either    ( Either( Left, Right ) )
 import Data.Eq        ( Eq )
 import Data.Foldable  ( foldl1, toList )
 import Data.Function  ( ($) )
-import Data.Maybe     ( Maybe( Just, Nothing ), maybe )
-import Data.Ord       ( Ord, (<) )
+import Data.Maybe     ( Maybe( Just, Nothing ) )
+import Data.Ord       ( (<) )
 import Data.String    ( String )
-import Data.Word      ( Word16 )
 import GHC.Generics   ( Generic )
 import System.Exit    ( ExitCode )
 import System.IO      ( IO )
-import Text.Read      ( read )
 import Text.Show      ( Show )
 
 -- base-unicode-symbols ----------------
 
 import Data.Eq.Unicode         ( (≡) )
-import Data.Function.Unicode   ( (∘) )
 import Data.Monoid.Unicode     ( (⊕) )
 
 -- data-textual ------------------------
 
-import Data.Textual  ( Printable( print ), Textual( textual )
-                     , fromText, toText )
-import Data.Textual.Integral  ( Decimal( Decimal ), nnUpTo )
+import Data.Textual  ( Parsed( Malformed, Parsed ), Printable( print )
+                     , Textual( textual ), fromText, parseText, toText )
 
 -- genvalidity -------------------------
 
@@ -59,8 +60,7 @@ import Data.GenValidity  ( GenValid( genValid, shrinkValid  ) )
 
 import Data.MoreUnicode.Applicative  ( (⊵), (⋪), (⋫), (∤) )
 import Data.MoreUnicode.Functor      ( (⊳) )
-import Data.MoreUnicode.Monad        ( (≫) )
-import Data.MoreUnicode.Monoid       ( ю, ф )
+import Data.MoreUnicode.Monoid       ( ф )
 import Data.MoreUnicode.Natural      ( ℕ )
 import Data.MoreUnicode.Tasty        ( (≟) )
 
@@ -70,8 +70,8 @@ import NonEmptyContainers.SeqNE  ( SeqNE, (⋗), pattern (:⫸) )
 
 -- parsers ------------------------------
 
-import Text.Parser.Char         ( CharParsing, digit, string )
-import Text.Parser.Combinators  ( Parsing, count, try )
+import Text.Parser.Char         ( CharParsing, string )
+import Text.Parser.Combinators  ( Parsing, try )
 
 -- parsec-plus -------------------------
 
@@ -81,6 +81,10 @@ import ParsecPlus  ( Parsecable( parser ), parsec' )
 
 import Test.QuickCheck.Arbitrary
                               ( Arbitrary( arbitrary ) )
+
+-- scientific --------------------------
+
+import Data.Scientific  ( floatingOrInteger )
 
 -- tasty -------------------------------
 
@@ -119,16 +123,21 @@ import Data.Time  ( fromGregorian, toGregorian )
 
 import Data.Validity  ( Validation, Validity( validate ), check, isValid )
 
+-- yaml --------------------------------
+
+import Data.Yaml  ( FromJSON( parseJSON ), ToJSON( toJSON ) )
+
 ------------------------------------------------------------
 --                     local imports                      --
 ------------------------------------------------------------
 
-import MInfo.BoundedN ( 𝕎, pattern 𝕎, 𝕨 )
+import MInfo.BoundedN        ( pattern 𝕎 )
+import MInfo.Types.Day       ( Day( Day ), day, __day, __day' )
+import MInfo.Types.Month     ( Month( Month ), month, __month, __month' )
+import MInfo.Types.Year      ( Year( Year ), year, __year, __year' )
+import MInfo.Types.ToWord16  ( ToWord16( toWord16 ) )
 
 --------------------------------------------------------------------------------
-
-class ToWord16 α where
-  toWord16 ∷ α → Word16
 
 {- | `try` the first thing, then the next thing, until the last thing (which
      isn't surrounded by a `try`) -}
@@ -139,145 +148,6 @@ tries _          = ePatSymExhaustive "tries"
 ePatSymExhaustive ∷ String → α
 ePatSymExhaustive s =
     error $ s ⊕ "https://gitlab.haskell.org/ghc/ghc/issues/10339"
-
-------------------------------------------------------------
-
-newtype Day = Day (𝕎 31)
-  deriving (Eq,Ord,Show)
-
-day ∷ Integral α ⇒ α → Maybe Day
-day i = Day ⊳ 𝕨 (toInteger i-1)
-
-day' ∷ Integer → Maybe Day
-day' = day
-
-__day ∷ Integral α ⇒ α → Day
-__day i = case day i of
-            Just  d → d
-            Nothing → error $ [fmt|day %d out of range|] i
-
-__day' ∷ Integer → Day
-__day' = __day
-
-instance ToWord16 Day where
-  toWord16 (Day (𝕎 i)) = fromInteger i + 1
-  toWord16 (Day (_))    = error "failed to pattern-match day"
-
-instance Printable Day where
-  print d = P.text $ [fmt|%d|] (toWord16 d)
-
-instance Textual Day where
-  textual = do
-    m ← nnUpTo Decimal 2
-    maybe (fail $ [fmt|bad day value %d|] m) return $ day' m
-
-dayTextualTests ∷ TestTree
-dayTextualTests =
-  testGroup "Textual"
-            [ testCase "12" $ Just (__day' 12) ≟ fromText "12"
-            , testCase  "0" $ Nothing @Day     ≟ fromText  "0"
-            , testCase "32" $ Nothing @Day     ≟ fromText "32"
-            , testCase "31" $ Just (__day' 31) ≟ fromText "31"
-            , testProperty "invertibleText" (propInvertibleText @Day)
-            ]
-
-
-instance Arbitrary Day where
-  arbitrary = Day ⊳ arbitrary
-
-dayTests ∷ TestTree
-dayTests = testGroup "Day" [ dayTextualTests ]
-
-------------------------------------------------------------
-
-newtype Month = Month (𝕎 12)
-  deriving (Eq,Ord,Show)
-
-month ∷ Integral α ⇒ α → Maybe Month
-month i = Month ⊳ 𝕨 (toInteger i-1)
-
-month' ∷ Integer → Maybe Month
-month' = month
-
-__month ∷ Integral α ⇒ α → Month
-__month i = case month i of
-            Just  d → d
-            Nothing → error $ [fmt|month %d out of range|] i
-
-__month' ∷ Integer → Month
-__month' = __month
-
-instance ToWord16 Month where
-  toWord16 (Month (𝕎 i)) = fromInteger i + 1
-  toWord16 (Month (_))    = error "failed to pattern-match month"
-
-instance Printable Month where
-  print m = P.text $ [fmt|%d|] (toWord16 m)
-
-instance Textual Month where
-  textual = do
-    m ← nnUpTo Decimal 2
-    maybe (fail $ [fmt|bad month value %d|] m) return $ month' m
-
-monthTextualTests ∷ TestTree
-monthTextualTests =
-  testGroup "Textual"
-            [ testCase "12" $ Just (__month' 12) ≟ fromText "12"
-            , testCase  "0" $ Nothing @Month     ≟ fromText  "0"
-            , testCase "13" $ Nothing @Month     ≟ fromText "13"
-            , testProperty "invertibleText" (propInvertibleText @Month)
-            ]
-
-instance Arbitrary Month where
-  arbitrary = Month ⊳ arbitrary
-
-monthTests ∷ TestTree
-monthTests = testGroup "Month" [ monthTextualTests ]
-
-------------------------------------------------------------
-
-newtype Year = Year (𝕎 200)
-  deriving (Eq,Generic,Ord,Show)
-
-year ∷ Integral α ⇒ α → Maybe Year
-year i = Year ⊳ 𝕨 (toInteger i-1900)
-
-year' ∷ Integer → Maybe Year
-year' = year
-
-__year ∷ Integral α ⇒ α → Year
-__year i = case year i of
-            Just  d → d
-            Nothing → error $ [fmt|year %d out of range|] i
-
-__year' ∷ Integer → Year
-__year' = __year
-
-instance ToWord16 Year where
-  toWord16 (Year (𝕎 i)) = fromInteger i + 1900
-  toWord16 (Year (_))    = error "failed to pattern-match year"
-
-instance Printable Year where
-  print y = P.text $ [fmt|%d|] (toWord16 y)
-
-instance Textual Year where
-  textual = do
-    y ← read ⊳ count 4 digit
-    maybe (fail $ [fmt|bad year value %d|] y) return $ year' y
-
-yearTextualTests ∷ TestTree
-yearTextualTests =
-  testGroup "Textual"
-            [ testCase "2014" $ Just (__year' 2014) ≟ fromText "2014"
-            , testCase "2019" $ Just (__year' 2019) ≟ fromText "2019"
-            , testProperty "invertibleText" (propInvertibleText @Year)
-            ]
-
-instance Arbitrary Year where
-  arbitrary = Year ⊳ arbitrary
-
-yearTests ∷ TestTree
-yearTests = testGroup "Year" [ yearTextualTests ]
 
 ------------------------------------------------------------
 
@@ -492,11 +362,57 @@ dateishTextualTests =
             , testProperty "invertibleText" (propInvertibleText @Dateish)
             ]
 
-dateishTests ∷ TestTree
-dateishTests =
-  testGroup "Dateish" [ dateishPrintableTests, dateishTextualTests
-                      , dateishValidityTests, dateishParsecableTests ]
+instance FromJSON Dateish where
+  parseJSON (String t) = case parseText t of
+                           Parsed      d → return d
+                           Malformed _ e → fail $ [fmt|%s (%t)|] e  t
+  parseJSON (Number n) = case floatingOrInteger @Float @Integer n of
+                             Left  f → fail $ [fmt|fractional year: (%f)|] f
+                             Right i → case year i of
+                                         Just  y → return $ DateishY y
+                                         Nothing → fail $ [fmt|bad year: %d|] i
+  parseJSON invalid    = typeMismatch "Dateish" invalid
 
+instance ToJSON Dateish where
+  toJSON d = String $ toText d
+
+------------------------------------------------------------
+
+dateish ∷ (Integral α, Integral β, Integral γ) ⇒ α → β → γ → Maybe Dateish
+dateish y m d = do
+  y' ← year y
+  m' ← month m
+  d' ← day d
+  return $ Dateish y' m' d'
+
+dateish' ∷ Integer → Integer → Integer → Maybe Dateish
+dateish' = dateish
+
+--------------------
+
+__dateish ∷ (Integral α, Integral β, Integral γ) ⇒ α → β → γ → Dateish
+__dateish y m d = Dateish (__year y) (__month m) (__day d)
+
+__dateish' ∷ Integer → Integer → Integer → Dateish
+__dateish' = __dateish
+
+----------------------------------------
+
+dateishy ∷ Integral α ⇒ α → Maybe Dateish
+dateishy y = do
+  y' ← year y
+  return $ DateishY y'
+
+dateishy' ∷ Integer → Maybe Dateish
+dateishy' = dateishy
+
+--------------------
+
+__dateishy ∷ Integral α ⇒ α → Dateish
+__dateishy y = DateishY (__year y)
+
+__dateishy' ∷ Integer → Dateish
+__dateishy' = __dateishy
 
 -- testing ---------------------------------------------------------------------
 
@@ -554,7 +470,8 @@ badDateishYs = DateishYs ((__year' 2019),(__year' 2019))
 ------------------------------------------------------------
 
 tests ∷ TestTree
-tests = testGroup "MInfo.Types" [ dayTests, monthTests, yearTests, dateishTests ]
+tests = testGroup "Dateish" [ dateishPrintableTests, dateishTextualTests
+                            , dateishValidityTests, dateishParsecableTests ]
 
 ----------------------------------------
 
