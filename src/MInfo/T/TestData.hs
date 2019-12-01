@@ -3,7 +3,7 @@
 
 -- https://stackoverflow.com/questions/58777439/haskell-data-yaml-utf-8-decoding
 
-module Infy.T.TestData where
+module MInfo.T.TestData where
 
 import Data.ByteString  ( ByteString, intercalate )
   

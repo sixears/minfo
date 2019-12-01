@@ -4,6 +4,7 @@
 {-# LANGUAGE InstanceSigs               #-}
 {-# LANGUAGE LambdaCase                 #-}
 {-# LANGUAGE KindSignatures             #-}
+{-# LANGUAGE MultiParamTypeClasses      #-}
 {-# LANGUAGE OverloadedStrings          #-}
 {-# LANGUAGE PatternSynonyms            #-}
 {-# LANGUAGE UnicodeSyntax              #-}
@@ -11,36 +12,44 @@
 
 module MInfo.BoundedN
   ( -- don't export the constructor, so clients can't create out-of-range values
-    BoundedN, 𝕎, pattern 𝕎, pattern 𝕎', 𝕨
+    BoundedN, 𝕎, pattern 𝕎, pattern 𝕎', pattern W, pattern W'
+  , checkBoundedN, checkBoundedN', 𝕨
   )
 where
 
 import Prelude  ( Bounded, Enum( pred, succ ), Integer, Integral( toInteger )
+                , Num
+                , (-)
                 , enumFrom, enumFromThen, enumFromThenTo, enumFromTo, error
                 , fromEnum, fromInteger, maxBound, minBound, toEnum, toInteger
                 )
 
 -- base --------------------------------
 
+import Control.Exception      ( Exception )
+import Control.Monad          ( return )
 import Data.Bool              ( not, otherwise )
+import Data.Either            ( Either, either )
 import Data.Eq                ( Eq )
-import Data.Function          ( ($) )
+import Data.Function          ( ($), const, id )
 import Data.Maybe             ( Maybe( Just, Nothing ) )
 import Data.Ord               ( Ord, (<) )
 import Data.String            ( String )
+import Data.Typeable          ( Typeable )
 import GHC.Generics           ( Generic )
-import GHC.TypeLits           ( KnownNat, Nat )
+import GHC.TypeNats           ( KnownNat, Nat, natVal )
 import System.Exit            ( ExitCode )
 import System.IO              ( IO )
 import Text.Read              ( Read )
-import Text.Show              ( Show )
+import Text.Show              ( Show( show ) )
 
 -- base-unicode-symbols ----------------
 
 import Data.Bool.Unicode        ( (∧) )
 import Data.Eq.Unicode          ( (≡) )
-import Data.Ord.Unicode         ( (≤), (≥) )
 import Data.Function.Unicode    ( (∘) )
+import Data.Monoid.Unicode      ( (⊕) )
+import Data.Ord.Unicode         ( (≤), (≥) )
 import Numeric.Natural.Unicode  ( ℕ )
 
 -- deepseq -----------------------------
@@ -51,6 +60,19 @@ import Control.DeepSeq  ( NFData )
 
 import Data.Finite  ( Finite, getFinite, packFinite )
 
+-- genvalidity -------------------------
+
+import Data.GenValidity  ( GenValid( genValid, shrinkValid ) )
+
+-- lens --------------------------------
+
+import Control.Lens.Prism   ( Prism' )
+import Control.Lens.Review  ( (#) )
+
+-- mtl ---------------------------------
+
+import Control.Monad.Except  ( MonadError, throwError )
+
 -- more-unicode ------------------------
 
 import Data.MoreUnicode.Functor  ( (⊳), (⩺) )
@@ -58,7 +80,7 @@ import Data.MoreUnicode.Tasty    ( (≟) )
 
 -- QuickCheck --------------------------
 
-import Test.QuickCheck        ( Property, property )
+import Test.QuickCheck        ( Gen, Property, property )
 import Test.QuickCheck.Arbitrary
                               ( Arbitrary( arbitrary ), arbitraryBoundedEnum )
 
@@ -82,17 +104,92 @@ import Test.Tasty.QuickCheck  ( testProperty )
 
 import Text.Fmt  ( fmt )
 
+-- validity ----------------------------
+
+import Data.Validity  ( Validation, Validity( validate ), check )
+
 --------------------------------------------------------------------------------
 
-newtype BoundedN (n ∷ Nat) = BoundedN { toFinite ∷ Finite n }
+__bang__ ∷ Show ε ⇒ Either ε α → α
+__bang__ = either (error ∘ show) id
+
+maxOf ∷ Bounded α ⇒ α → α
+maxOf = const maxBound
+
+newtype BoundedN (ν ∷ Nat) = BoundedN { toFinite ∷ Finite ν }
   deriving (Bounded,Enum,Eq,Generic,NFData,Ord,Read,Show)
 
 type 𝕎 = BoundedN
 
 ----------------------------------------
 
+instance KnownNat ν ⇒ Validity (BoundedN ν) where
+  validate ∷ BoundedN ν → Validation
+  validate b = let m = toNum @Integer $ maxOf b
+                   i = toNum b
+                   checkMsg = [fmt|value %d does not exceed upper bound %d|] i m
+                in check (i ≤ m) checkMsg
+                 ⊕ check (i ≥ 0) ([fmt|value %d is non-negative|] i)
+
+instance KnownNat ν ⇒ GenValid (BoundedN ν) where
+  genValid ∷ Gen (BoundedN ν)
+  genValid = arbitrary
+  shrinkValid ∷ BoundedN ν → [BoundedN ν]
+  -- try all the lower-numbered values
+  shrinkValid (𝕎 0) = []
+  shrinkValid (𝕎 n) = enumFromTo (𝕎 0) (𝕎 (n-1))
+  shrinkValid  _     = error "shrinkValid failed to pattern-match on 𝕎"
+
+----------------------------------------
+
+data BoundsError α = InputTooLow  α | InputTooHigh ℕ α
+  deriving (Eq,Show)
+
+instance (Typeable α, Show α) ⇒ Exception (BoundsError α)
+
+-- see ProcLib.Process2 / ExecError for another example of a
+-- multi-param error class
+class AsBoundsError α ε where
+  _BoundsError ∷ Prism' ε (BoundsError α)
+
+instance AsBoundsError α (BoundsError α) where
+  _BoundsError = id
+
+inputTooLow ∷ (AsBoundsError α ε, MonadError ε η) ⇒ α → η χ
+inputTooLow i = throwError $ _BoundsError # InputTooLow i
+
+inputTooHigh ∷ (AsBoundsError α ε, MonadError ε η) ⇒ ℕ → α → η χ
+inputTooHigh max i = throwError $ _BoundsError # InputTooHigh max i
+
+-- | Like `inputTooHigh`, but infers the max value from the type of the result.
+inputTooHigh' ∷ (KnownNat ν,AsBoundsError α ε,MonadError ε η) ⇒ α → η (proxy ν)
+inputTooHigh' i = let result = inputTooHigh max i
+                      max    = natVal $ fromME result
+                   in result
+
+
+fromME ∷ MonadError σ μ ⇒ μ β → β
+fromME = error $ "fromME should never be called (for type inference only)"
+
+checkBoundedN ∷ (KnownNat ν, Integral α, AsBoundsError α ε, MonadError ε η) ⇒
+                α → η (𝕎 ν)
+checkBoundedN i | i < 0 = inputTooLow i
+                | otherwise = -- we 'let' the result, to bind a name to the
+                              -- return type, so that inputTooHigh' can use it
+                              -- to infer the upper bound
+                              let result = case toBoundedN i of
+                                             Just n  → return n
+                                             Nothing → inputTooHigh' i
+                               in result
+
+checkBoundedN' ∷ (KnownNat ν, Integral α, MonadError (BoundsError α) η) ⇒
+                 α → η (𝕎 ν)
+checkBoundedN' = checkBoundedN
+
 {- | Convert an Integral to a 𝕎, hopefully. -}
 toBoundedN ∷ (KnownNat ν, Integral α) ⇒ α → Maybe (𝕎 ν)
+-- we can't use the maybe-funnel on here checkBoundedN here, because
+-- checkBoundedN uses toBoundedN…
 toBoundedN = BoundedN ⩺ packFinite ∘ toInteger
 
 {- | Alias for `toBoundedN`, with Integer to avoid type ambiguity -}
@@ -120,11 +217,15 @@ toBoundedNTests =
 ----------------------------------------
 
 {- | *PARTIAL* Convert an Integral to a 𝕎' (or bust). -}
-__toBoundedN ∷ (KnownNat ν, Integral α) ⇒ α → 𝕎 ν
+__toBoundedN ∷ (KnownNat ν, Integral α, Show α) ⇒ α → 𝕎 ν
+{-
 __toBoundedN i | i < 0     = error $ [fmt|%d < 0|] i
-               | otherwise = case toBoundedN i of
-                               Just n  → n
-                               Nothing → error $ [fmt|out of bounds: %d|] i
+               | otherwise = result
+                             where result = case toBoundedN i of
+                                              Just n  → n
+                                              Nothing → error $ [fmt|out of bounds: %d|] i
+-}
+__toBoundedN = __bang__ ∘ checkBoundedN'
 
 {- | Alias for `__toBoundedN`, with Integer to avoid type ambiguity.
     *PARTIAL* Convert an Integral to a 𝕎' (or bust). -}
@@ -149,10 +250,24 @@ pattern 𝕎 ∷ KnownNat ν ⇒ Integer → 𝕎 ν
 pattern 𝕎 i ← ((getFinite ∘ toFinite) → i)
               where 𝕎 i = __toBoundedN i
 
+{- | Non-unicode alias for 𝕎 -}
+pattern W ∷ KnownNat ν ⇒ Integer → 𝕎 ν
+pattern W i ← ((getFinite ∘ toFinite) → i)
+              where W i = __toBoundedN i
+
 {- | Alias for 𝕎, for any @Integral@. -}
-pattern 𝕎' ∷ (KnownNat ν, Integral α) ⇒ α → 𝕎 ν
+pattern 𝕎' ∷ (KnownNat ν, Integral α, Show α) ⇒ α → 𝕎 ν
 pattern 𝕎' i ← ((fromInteger ∘ getFinite ∘ toFinite) → i)
               where 𝕎' i = __toBoundedN i
+
+{- | Non-unicode alias for 𝕎' -}
+pattern W' ∷ (KnownNat ν, Integral α, Show α) ⇒ α → 𝕎 ν
+pattern W' i ← ((fromInteger ∘ getFinite ∘ toFinite) → i)
+              where W' i = __toBoundedN i
+
+toNum ∷ (Num α, KnownNat ν) ⇒ 𝕎 ν → α
+toNum (𝕎 i) = fromInteger $ toInteger i
+toNum _      = error "failed to convert BoundedN to num"
 
 --------------------
 
@@ -170,6 +285,7 @@ pattern 𝕎' i ← ((fromInteger ∘ getFinite ∘ toFinite) → i)
                 ]
 
 instance KnownNat ν ⇒ Arbitrary (BoundedN ν) where
+  arbitrary ∷ Gen (BoundedN ν)
   arbitrary = BoundedN ⊳ arbitraryBoundedEnum
 
 arbitraryTests ∷ TestTree
@@ -208,6 +324,7 @@ enumTests =
             [𝕎 1, 𝕎 3, 𝕎 5] ≟ enumFromThen (𝕎 @7 1) (𝕎 3)
         , testCase   "enumFromTo 1 4" $
             [𝕎 1, 𝕎 2, 𝕎 3, 𝕎 4] ≟ enumFromTo (𝕎 @7 1) (𝕎 4)
+
         , testCase   "enumFromThenTo 8 5 0" $
               [𝕎 8, 𝕎 5, 𝕎 2]
             ≟ enumFromThenTo (𝕎 @9 8) (𝕎 5) (𝕎 0)
