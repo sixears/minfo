@@ -183,8 +183,10 @@ import Data.Yaml  ( FromJSON( parseJSON ), ParseException, ToJSON( toJSON )
 
 import qualified  MInfo.T.TestData  as  TestData
 
-import MInfo.Types          ( Artist, LiveType( Demo, Live, NotLive, Session )
-                            , TrackTitle, TrackVersion )
+import MInfo.Types          ( Artist, LiveLocation
+                            , LiveType( Demo, Live, NotLive, Session )
+                            , TrackTitle, TrackVersion
+                            )
 import MInfo.Types.Dateish  ( Dateish, __dateish', __dateishy' )
 
 --------------------------------------------------------------------------------
@@ -352,7 +354,7 @@ data Track = Track { __artist        ∷ Maybe Artist
                    , __title         ∷ Maybe TrackTitle
                    , __version       ∷ Maybe TrackVersion
                    , __live_type     ∷ LiveType
-                   , __live_location ∷ Maybe Text
+                   , __live_location ∷ Maybe LiveLocation
                    , __live_date     ∷ Maybe Dateish
                    }
   deriving (Eq, Generic, Show)
@@ -366,7 +368,7 @@ trackVersion = lens __version (\ r v → r { __version = v })
 trackLiveType ∷ Lens' Track LiveType
 trackLiveType = lens __live_type (\ r y → r { __live_type = y })
 
-trackLiveLocation ∷ Lens' Track (Maybe Text)
+trackLiveLocation ∷ Lens' Track (Maybe LiveLocation)
 trackLiveLocation = lens __live_location (\ r l → r { __live_location = l })
 
 trackLiveDate ∷ Lens' Track (Maybe Dateish)
@@ -438,6 +440,9 @@ instance Printable Track where
                                   tom ∷ Show α ⇒ Text → Maybe α → [Text]
                                   tom _ Nothing  = []
                                   tom i (Just x) = [ tot i (Just x) ]
+                                  tom' ∷ Printable α ⇒ Text → Maybe α → [Text]
+                                  tom' _ Nothing  = []
+                                  tom' i (Just x) = [ tot' i (Just x) ]
                                   unl ∷ [Text] → Text
                                   unl = dropEnd 1 ∘ unlines
                                in P.text ∘ unl $ (tom "artist" (toText ⊳ a))
@@ -446,7 +451,7 @@ instance Printable Track where
                                                ⊕ case y of
                                                    NotLive → []
                                                    _ → ["live_type: " ⊕ toText y]
-                                               ⊕ (tom "live_location" l)
+                                               ⊕ (tom' "live_location" l)
                                                ⊕ (tom "live_date" d)
 
 trackPrintableTests ∷ TestTree
@@ -475,10 +480,11 @@ maybeList [] = Nothing
 maybeList (Just a : _)   = Just a
 maybeList (Nothing : as) = maybeList as
 
-lName ∷ LiveType → Maybe Text → Maybe Dateish → Maybe Text
+lName ∷ LiveType → Maybe LiveLocation → Maybe Dateish → Maybe Text
 lName NotLive _ _ = Nothing
 lName lType lLocY lDateY =
-  Just $ intercalate " " (toText lType : catMaybes [lLocY, toText ⊳ lDateY])
+  Just $ intercalate " " (toText lType : catMaybes [ toText ⊳ lLocY
+                                                   , toText ⊳ lDateY ])
 
 lNameTests ∷ TestTree
 lNameTests =
@@ -725,7 +731,7 @@ data ReleaseInfo = ReleaseInfo { _artist           ∷ Artist
                                , _source           ∷ Maybe Text
                                , _source_version   ∷ Maybe Text
                                , _live_type        ∷ LiveType
-                               , _live_location    ∷ Maybe Text
+                               , _live_location    ∷ Maybe LiveLocation
                                , _live_date        ∷ Maybe Dateish
                                }
   deriving (Eq,Show)
@@ -734,7 +740,7 @@ data ReleaseInfo = ReleaseInfo { _artist           ∷ Artist
 live_type ∷ Lens' ReleaseInfo LiveType
 live_type = lens _live_type (\ i y → i { _live_type = y})
 
-live_location ∷ Lens' ReleaseInfo (Maybe Text)
+live_location ∷ Lens' ReleaseInfo (Maybe LiveLocation)
 live_location = lens _live_location (\ i l → i { _live_location = l})
 
 live_date ∷ Lens' ReleaseInfo (Maybe Dateish)

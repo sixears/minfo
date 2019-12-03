@@ -10,7 +10,7 @@
 {-# LANGUAGE UnicodeSyntax              #-}
 
 module MInfo.Types
-  ( Artist, LiveType(..), TrackTitle, TrackVersion )
+  ( Artist, LiveLocation, LiveType(..), TrackTitle, TrackVersion )
 where
 
 -- aeson -------------------------------
@@ -92,6 +92,14 @@ newtype TrackVersion = TrackVersion Text
 
 instance Printable TrackVersion where
   print (TrackVersion t) = P.text t
+
+------------------------------------------------------------
+
+newtype LiveLocation = LiveLocation Text
+  deriving (Eq,FromJSON,Generic,IsString,Show,ToJSON)
+
+instance Printable LiveLocation where
+  print (LiveLocation t) = P.text t
 
 ------------------------------------------------------------
 
