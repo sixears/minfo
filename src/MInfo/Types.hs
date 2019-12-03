@@ -10,7 +10,7 @@
 {-# LANGUAGE UnicodeSyntax              #-}
 
 module MInfo.Types
-  ( Artist )
+  ( Artist, TrackTitle, TrackVersion )
 where
 
 -- aeson -------------------------------
@@ -68,6 +68,22 @@ instance FromJSON Artist where
 instance ToJSON Artist where
   toJSON (Artist t) = String t
 -}
+
+------------------------------------------------------------
+
+newtype TrackTitle = TrackTitle Text
+  deriving (Eq,FromJSON,Generic,IsString,Show,ToJSON)
+
+instance Printable TrackTitle where
+  print (TrackTitle t) = P.text t
+
+------------------------------------------------------------
+
+newtype TrackVersion = TrackVersion Text
+  deriving (Eq,FromJSON,Generic,IsString,Show,ToJSON)
+
+instance Printable TrackVersion where
+  print (TrackVersion t) = P.text t
 
 -- testing ---------------------------------------------------------------------
 

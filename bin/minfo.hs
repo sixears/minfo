@@ -19,7 +19,7 @@ import Prelude  ( Float, Int, (-), error, fromIntegral )
 import qualified  Data.Aeson.Types  as  AesonT
 
 import Data.Aeson.Types  ( Value( Array, Bool, Null, Number, Object, String )
-                         , (.:?), (.:)
+                         , (.:?), (.:), (.!=)
                          , defaultOptions, fieldLabelModifier, genericParseJSON
                          , typeMismatch, withObject
                          )
@@ -28,7 +28,7 @@ import Data.Aeson.Types  ( Value( Array, Bool, Null, Number, Object, String )
 
 import Control.Applicative     ( pure )
 import Control.Exception       ( Exception )
-import Control.Monad           ( forM_, join, mapM_, return, sequence )
+import Control.Monad           ( fail, forM_, join, mapM_, return, sequence )
 import Control.Monad.IO.Class  ( MonadIO, liftIO )
 import Data.Bifunctor          ( first, second )
 import Data.Bool               ( Bool( True, False ) )
@@ -42,6 +42,7 @@ import Data.List.NonEmpty      ( NonEmpty( (:|) ) )
 import Data.Maybe              ( Maybe( Just, Nothing )
                                , catMaybes, maybe )
 import Data.Ord                ( max )
+import Data.Semigroup          ( Semigroup( (<>) ) )
 import Data.String             ( String )
 import Data.Tuple              ( fst )
 import Data.Typeable           ( Typeable, typeOf )
@@ -111,6 +112,7 @@ import Data.MoreUnicode.Lens         ( (⊣), (⫥) )
 import Data.MoreUnicode.Monad        ( (≫) )
 import Data.MoreUnicode.Monoid       ( ю )
 import Data.MoreUnicode.Natural      ( ℕ )
+import Data.MoreUnicode.Semigroup    ( (◇) )
 import Data.MoreUnicode.Tasty        ( (≟) )
 
 -- mtl ---------------------------------
@@ -183,7 +185,7 @@ import Data.Yaml  ( FromJSON( parseJSON ), ParseException, ToJSON( toJSON )
 
 import qualified  MInfo.T.TestData  as  TestData
 
-import MInfo.Types          ( Artist )
+import MInfo.Types          ( Artist, TrackTitle, TrackVersion )
 import MInfo.Types.Dateish  ( Dateish, __dateish', __dateishy' )
 
 --------------------------------------------------------------------------------
@@ -347,22 +349,47 @@ tlength = fromIntegral ∘ Text.length
 
 ------------------------------------------------------------
 
+data LiveType = NotLive | Live | Session | Demo
+  deriving (Eq, Show)
+
+instance Semigroup LiveType where
+  NotLive <> b = b
+  a <> _       = a
+
+instance Printable LiveType where
+  print NotLive = P.text ""
+  print Live    = "Live"
+  print Session = "Session"
+  print Demo    = "Demo"
+
+
+instance FromJSON LiveType where
+  parseJSON (String "Live")    = return Live
+  parseJSON (String "Session") = return Session
+  parseJSON (String "Demo")    = return Demo
+  parseJSON (String t)         = fail $ [fmt|unrecognized live type '%t'|] t
+  parseJSON invalid    = typeMismatch "String" invalid
+
+instance ToJSON LiveType where
+  toJSON l = String (toText l)
+
+
 data Track = Track { __artist        ∷ Maybe Artist
-                   , __title         ∷ Maybe Text
-                   , __version       ∷ Maybe Text
-                   , __live_type     ∷ Maybe Text
+                   , __title         ∷ Maybe TrackTitle
+                   , __version       ∷ Maybe TrackVersion
+                   , __live_type     ∷ LiveType
                    , __live_location ∷ Maybe Text
                    , __live_date     ∷ Maybe Text
                    }
   deriving (Eq, Generic, Show)
 
-trackTitle ∷ Lens' Track (Maybe Text)
+trackTitle ∷ Lens' Track (Maybe TrackTitle)
 trackTitle = lens __title (\ r t → r { __title = t })
 
-trackVersion ∷ Lens' Track (Maybe Text)
+trackVersion ∷ Lens' Track (Maybe TrackVersion)
 trackVersion = lens __version (\ r v → r { __version = v })
 
-trackLiveType ∷ Lens' Track (Maybe Text)
+trackLiveType ∷ Lens' Track LiveType
 trackLiveType = lens __live_type (\ r y → r { __live_type = y })
 
 trackLiveLocation ∷ Lens' Track (Maybe Text)
@@ -372,50 +399,79 @@ trackLiveDate ∷ Lens' Track (Maybe Text)
 trackLiveDate = lens __live_date (\ r d → r { __live_date = d })
 
 instance FromJSON Track where
+{-
   parseJSON = let drop_ (_ : _ : s) = s
                   drop_ s           = s
                in genericParseJSON defaultOptions { fieldLabelModifier = drop_ }
+-}
+  parseJSON = withObject "Track" $ \ v →
+    Track ⊳ v .:? "artist"
+          ⊵ v .:? "title"
+          ⊵ v .:? "version"
+          ⊵ v .:? "live_type" .!= NotLive
+          ⊵ v .:? "live_location"
+          ⊵ v .:? "live_date"
 
 trackFromJSONTests ∷ TestTree
 trackFromJSONTests =
-  let t1 ∷ ByteString
+  let t0 ∷ ByteString
+      t0 = BS.intercalate "\n" [ "title: Condemnation" ]
+      t1 ∷ ByteString
       t1 = BS.intercalate "\n" [ "title: Judas"
                                , "live_type: Live"
                                , "live_date: 1993-07-29"
                                ]
+      e0 ∷ Track
+      e0 = Track Nothing (Just "Condemnation") Nothing NotLive Nothing Nothing
       e1 ∷ Track
-      e1 = Track Nothing (Just "Judas") Nothing (Just "Live") Nothing
+      e1 = Track Nothing (Just "Judas") Nothing Live Nothing
                  (Just "1993-07-29")
    in testGroup "trackFromJSON"
-                [ testCase "t1" $ Right e1 ≟ unYaml @ParseError t1
+                [ testCase "t0" $ Right e0 ≟ unYaml @ParseError t0
+                , testCase "t1" $ Right e1 ≟ unYaml @ParseError t1
                 ]
 
 instance ToJSON Track where
   toJSON (Track a t v y l d) =
-    let fields = ю [ maybe [] (\ a' → [ "artist" .= toJSON a' ]) a
+    let maybel k x = maybe [] (\ x' → [ k .= toJSON x' ]) x
+        fields = ю [ maybel "artist" a
                    , [ "title" .= t ]
-                   , maybe [] (\ v' → [ "version" .= toJSON v' ]) v
-                   , maybe [] (\ y' → [ "live_type" .= toJSON y' ]) y
-                   , maybe [] (\ l' → [ "live_location" .= toJSON l' ]) l
-                   , maybe [] (\ d' → [ "live_date" .= toJSON d' ]) d
+                   , maybel "version" v
+                   , case y of
+                       NotLive → []
+                       _       → ю [ [ "live_type" .= toJSON y ]
+                                   , maybel "live_location" l
+                                   , maybel "live_date" d
+                                   ]
                    ]
      in object fields
+
+{- | Yaml quote: quote a string as necessary for yaml. -}
+yquote ∷ Text → Text
+yquote t = "\"" ⊕ t ⊕ "\""
 
 instance Printable Track where
   print (Track a t v y l d) = let toj ∷ Show α ⇒ Maybe α → Text
                                   toj Nothing  = "~"
                                   toj (Just x) = toText (show x)
+                                  toj' ∷ Printable α ⇒ Maybe α → Text
+                                  toj' Nothing  = "~"
+                                  toj' (Just x) = yquote $ toText x
                                   tot ∷ Show α ⇒ Text → Maybe α → Text
                                   tot i x = i ⊕ ": " ⊕ toj x
+                                  tot' ∷ Printable α ⇒ Text → Maybe α → Text
+                                  tot' i x = i ⊕ ": " ⊕ toj' x
                                   tom ∷ Show α ⇒ Text → Maybe α → [Text]
                                   tom _ Nothing  = []
                                   tom i (Just x) = [ tot i (Just x) ]
                                   unl ∷ [Text] → Text
                                   unl = dropEnd 1 ∘ unlines
                                in P.text ∘ unl $ (tom "artist" (toText ⊳ a))
-                                               ⊕ [tot "title" t]
+                                               ⊕ [tot' "title" t]
                                                ⊕ (tom "version" v)
-                                               ⊕ (tom "live_type" y)
+                                               ⊕ case y of
+                                                   NotLive → []
+                                                   _ → ["live_type: " ⊕ toText y]
                                                ⊕ (tom "live_location" l)
                                                ⊕ (tom "live_date" d)
 
@@ -423,16 +479,16 @@ trackPrintableTests ∷ TestTree
 trackPrintableTests =
   let e1 = intercalate "\n" [ "artist: \"Depeche Mode\""
                             , "title: \"Can't Get Enough\""
-                            , "live_type: \"Live\""
+                            , "live_type: Live"
                             , "live_location: \"Hammersmith Odeon\""
                             ]
       t1 = Track (Just "Depeche Mode") (Just "Can't Get Enough") Nothing
-                 (Just "Live") (Just "Hammersmith Odeon") Nothing
+                 Live (Just "Hammersmith Odeon") Nothing
    in testGroup "Printable" [ testCase "t1" $ e1 ≟ toText t1
                             ]
 
 blankTrack ∷ Track
-blankTrack = Track Nothing Nothing Nothing Nothing Nothing Nothing
+blankTrack = Track Nothing Nothing Nothing NotLive Nothing Nothing
 
 trackTests ∷ TestTree
 trackTests = testGroup "Track" [ trackPrintableTests, trackFromJSONTests ]
@@ -445,25 +501,25 @@ maybeList [] = Nothing
 maybeList (Just a : _)   = Just a
 maybeList (Nothing : as) = maybeList as
 
-lName ∷ Maybe Text → Maybe Text → Maybe Text → Maybe Text
-lName Nothing _ _ = Nothing
-lName (Just lType) lLocY lDateY =
-  Just $ intercalate " " (lType : catMaybes [lLocY, lDateY])
+lName ∷ LiveType → Maybe Text → Maybe Text → Maybe Text
+lName NotLive _ _ = Nothing
+lName lType lLocY lDateY =
+  Just $ intercalate " " (toText lType : catMaybes [lLocY, lDateY])
 
 lNameTests ∷ TestTree
 lNameTests =
   testGroup "lName"
-            [ testCase "nothing" $ Nothing ≟ lName Nothing Nothing Nothing
+            [ testCase "nothing" $ Nothing ≟ lName NotLive Nothing Nothing
             , testCase "live" $
                   Just "Live Hammersmith Odeon 1970-01-01"
-                ≟ lName (Just "Live") (Just "Hammersmith Odeon")
+                ≟ lName Live (Just "Hammersmith Odeon")
                         (Just "1970-01-01")
             ]
 
 liveName ∷ ReleaseInfo → Track → Maybe Text
-liveName r t = lName (t ⊣ trackLiveType ∤ r ⊣ live_type)
-                      (t ⊣ trackLiveLocation ∤ r ⊣ live_location)
-                      (t ⊣ trackLiveDate ∤ r ⊣ live_date)
+liveName r t = lName ((t ⊣ trackLiveType) ◇ (r ⊣ live_type))
+                     (t ⊣ trackLiveLocation ∤ r ⊣ live_location)
+                     (t ⊣ trackLiveDate ∤ r ⊣ live_date)
 
 liveNameTests ∷ TestTree
 liveNameTests = testGroup "liveName"
@@ -484,11 +540,11 @@ fileName relnfo num trck =
       parens   = encompass "(" ")"
       brackets = encompass "[" "]"
       go t = case t ⊣ trackTitle of
-               Nothing → pack $ printf "%02d" num
-               Just ti → let vv = parens   ⊳ t ⊣ trackVersion
-                             ll = brackets ⊳ liveName relnfo t
-                          in [fmt|%02d-%t|]
-                             num (intercalate "  " $ catMaybes [Just ti,vv,ll])
+               Nothing     → pack $ printf "%02d" num
+               ti@(Just _) → let vv = (parens ∘ toText) ⊳ t ⊣ trackVersion
+                                 ll = brackets ⊳ liveName relnfo t
+                              in [fmt|%02d-%t|]
+                                 num (intercalate "  " $ catMaybes [toText ⊳ ti,vv,ll])
    in case fromText gone of
         Nothing → throwIllegalFileName $ [fmt|illegal file name '%t'|] gone
         Just f  → return f
@@ -620,25 +676,25 @@ tracksFromJSONTests ∷ TestTree
 tracksFromJSONTests =
   let t1 ∷ ByteString
       t1 = BS.intercalate "\n" [ "- title: Judas"
-                               , "  live_type: Live"
+                               , "  live_type: Demo"
                                , "  live_date: 1993-07-29"
                                , "- title: Mercy in You"
-                               , "  live_type: Live"
+                               , "  live_type: Session"
                                , "  live_date: 1993-07-29"
                                ]
       e1 ∷ Track
-      e1 = Track Nothing (Just "Judas") Nothing (Just "Live") Nothing
+      e1 = Track Nothing (Just "Judas") Nothing Demo Nothing
                  (Just "1993-07-29")
       e2 ∷ Track
-      e2 = Track Nothing (Just "Mercy in You") Nothing (Just "Live") Nothing
+      e2 = Track Nothing (Just "Mercy in You") Nothing Session Nothing
                  (Just "1993-07-29")
       t3 ∷ ByteString
       t3 = BS.intercalate "\n" [ "-"
                                , "  - title: Judas"
-                               , "    live_type: Live"
+                               , "    live_type: Demo"
                                , "    live_date: 1993-07-29"
                                , "  - title: Mercy in You"
-                               , "    live_type: Live"
+                               , "    live_type: Session"
                                , "    live_date: 1993-07-29"
                                , "-"
                                , "  - title: I Feel You"
@@ -646,7 +702,7 @@ tracksFromJSONTests =
                                , "    live_date: 1993-07-29"
                                ]
       e3 ∷ Track
-      e3 = Track Nothing (Just "I Feel You") Nothing (Just "Live") Nothing
+      e3 = Track Nothing (Just "I Feel You") Nothing Live Nothing
                  (Just "1993-07-29")
    in testGroup "tracksFromJSON"
                 [ testCase "t1"  $ Right [e1,e2] ≟ unYaml @ParseError t1
@@ -694,14 +750,14 @@ data ReleaseInfo = ReleaseInfo { _artist           ∷ Artist
                                , _original_release ∷ Maybe Dateish
                                , _source           ∷ Maybe Text
                                , _source_version   ∷ Maybe Text
-                               , _live_type        ∷ Maybe Text
+                               , _live_type        ∷ LiveType
                                , _live_location    ∷ Maybe Text
                                , _live_date        ∷ Maybe Text
                                }
   deriving (Eq,Show)
 
 
-live_type ∷ Lens' ReleaseInfo (Maybe Text)
+live_type ∷ Lens' ReleaseInfo LiveType
 live_type = lens _live_type (\ i y → i { _live_type = y})
 
 live_location ∷ Lens' ReleaseInfo (Maybe Text)
@@ -722,15 +778,18 @@ releaseInfoFields (ReleaseInfo a c r o s v t l d) =
     , [ "source" .= s ]
     , maybe [] (\ v' → [ "source_version"   .= toJSON v' ]) v
 
-    , maybe [] (\ t' → [ "live_type"     .= toJSON t' ]) t
-    , maybe [] (\ l' → [ "live_location" .= toJSON l' ]) l
-    , maybe [] (\ d' → [ "live_date"     .= toJSON d' ]) d
+    , case t of
+        NotLive → []
+        _       → ю [ [ "live_type"     .= toJSON t ]
+                    , maybe [] (\ l' → [ "live_location" .= toJSON l' ]) l
+                    , maybe [] (\ d' → [ "live_date"     .= toJSON d' ]) d
+                    ]
     ]
 
 
 blankReleaseInfo ∷ ReleaseInfo
 blankReleaseInfo = ReleaseInfo "" Nothing Nothing Nothing
-                               Nothing Nothing Nothing Nothing Nothing
+                               Nothing Nothing NotLive Nothing Nothing
 
 ------------------------------------------------------------
 
@@ -753,7 +812,7 @@ instance FromJSON Info where
                    ⊵ v .:? "original_release"
                    ⊵ v .:? "source"
                    ⊵ v .:? "source_version"
-                   ⊵ v .:? "live_type"
+                   ⊵ v .:? "live_type" .!= NotLive
                    ⊵ v .:? "live_location"
                    ⊵ v .:? "live_date"
       )
@@ -763,14 +822,14 @@ info1 ∷ Info
 info1 = Info (ReleaseInfo ("Depeche Mode") Nothing Nothing Nothing
                           (Just "World We Live in and Live in Hamburg,The")
                           Nothing
-                          (Just "Live")
+                          Live
                           (Just "Alsterdorfer Sporthalle, Hamburg")
                           (Just "1984-12-14")
              )
              (Tracks [ [ Track Nothing (Just "Something to Do") Nothing
-                               Nothing Nothing Nothing
+                               NotLive Nothing Nothing
                        , Track Nothing (Just "Two Minute Warning") Nothing
-                               Nothing Nothing Nothing
+                               NotLive Nothing Nothing
                        ]
                      ])
 
@@ -779,10 +838,10 @@ info1 = Info (ReleaseInfo ("Depeche Mode") Nothing Nothing Nothing
 releaseInfo2 ∷ ReleaseInfo
 releaseInfo2 = ReleaseInfo ("Depeche Mode") (Just "DMDVD4") Nothing
                            Nothing (Just "Devotional")
-                           Nothing Nothing Nothing Nothing
+                           Nothing NotLive Nothing Nothing
 tracks2 ∷ Tracks
 tracks2 = let mkTrack t = Track Nothing (Just t) Nothing
-                          (Just "Live")
+                          Live
                           (Just "Stade Couvert Régional, Liévin, France")
                           (Just "1993-07-29")
            in Tracks [ mkTrack ⊳ [ "Higher Love"
@@ -816,10 +875,10 @@ releaseInfo3 ∷ ReleaseInfo
 releaseInfo3 = ReleaseInfo ("Depeche Mode") (Just "12345")
                            (Just (__dateishy' 1993)) Nothing
                            (Just "Radio 1 in Concert") Nothing
-                           (Just "Live") (Just "Crystal Palace")
+                           Live (Just "Crystal Palace")
                            (Just "1993-07-31")
 tracks3 ∷ Tracks
-tracks3 = let mkTrack t = Track Nothing (Just t) Nothing Nothing Nothing Nothing
+tracks3 = let mkTrack t = Track Nothing (Just t) Nothing NotLive Nothing Nothing
            in Tracks [ mkTrack ⊳ [ "Walking in my Shoes"
                                  , "Halo"
                                  , "Stripped"
@@ -847,13 +906,13 @@ releaseInfo4 =
               Nothing
               (Just "Sounds of the Universe  (Deluxe Box Set)")
                 Nothing
-              Nothing Nothing Nothing
+              NotLive Nothing Nothing
 tracks4 ∷ Tracks
-tracks4 = let mkTrack t = Track Nothing (Just t) Nothing Nothing Nothing Nothing
+tracks4 = let mkTrack t = Track Nothing (Just t) Nothing NotLive Nothing Nothing
               mkTrack' (t,v) = Track Nothing (Just t) (Just v)
-                                     Nothing Nothing Nothing
+                                     NotLive Nothing Nothing
               mkTrackD t = Track Nothing (Just t) Nothing
-                                 (Just "Demo") Nothing Nothing
+                                 Demo Nothing Nothing
            in Tracks [ mkTrack ⊳ [ "In Chains"
                                  , "Hole to Feed"
                                  , "Wrong"
@@ -915,16 +974,16 @@ releaseInfo5 =
               (Just (__dateish' 2009 04 17))
               Nothing
               (Just "Sounds of the Universe  (Deluxe Box Set)") Nothing
-              Nothing Nothing Nothing
+              NotLive Nothing Nothing
 
 tracks5 ∷ Tracks
-tracks5 = let mkTrack t = Track Nothing (Just t) Nothing Nothing Nothing Nothing
+tracks5 = let mkTrack t = Track Nothing (Just t) Nothing NotLive Nothing Nothing
               mkTrack' (t,v) = Track Nothing (Just t) (Just v)
-                                     Nothing Nothing Nothing
+                                     NotLive Nothing Nothing
               mkTrackD t = Track Nothing (Just t) (Just "Demo")
-                                 Nothing Nothing Nothing
+                                 NotLive Nothing Nothing
               mkTrackS t = Track Nothing (Just t) Nothing
-                                 (Just "Session") Nothing (Just "2008-12-08")
+                                 Session Nothing (Just "2008-12-08")
            in Tracks [ mkTrack ⊳ [ "In Chains"
                                  , "Hole to Feed"
                                  , "Wrong"
@@ -1014,19 +1073,19 @@ infos ∷ Info
 infos = Info (ReleaseInfo ("Depeche Mode") Nothing
                           (Just (__dateish' 2009 04 17))
                           Nothing (Just "Sounds of the Universe")
-                          (Just "Deluxe Box Set") Nothing Nothing Nothing)
+                          (Just "Deluxe Box Set") NotLive Nothing Nothing)
              (Tracks [ [ Track Nothing (Just "In Chains") Nothing
-                               Nothing Nothing Nothing
+                               NotLive Nothing Nothing
                        , Track Nothing (Just "Hole to Feed") Nothing
-                               Nothing Nothing Nothing
+                               NotLive Nothing Nothing
                        ]
                      , [ Track Nothing
                                (Just "Wrong") (Just "Trentemøller Remix")
-                               Nothing Nothing Nothing
+                               NotLive Nothing Nothing
                        , Track Nothing
                                (Just "Perfect")
                                (Just "Electronic Periodic Dark Drone Mix")
-                               Nothing Nothing Nothing
+                               NotLive Nothing Nothing
                        ]
                      ])
 
@@ -1046,7 +1105,7 @@ infoFromJSONTests =
         let (rinfo,trcks) = splitEPair (splitInfo ⊳ unYaml @ParseError inf)
             Info erinfo etrcks = expected
             nme t = name ⊕ ": " ⊕ t
-         in ю [ [ testCase      (nme "release info") $ rinfo ≟ Right erinfo ]
+         in ю [ [ testCase      (nme "release info") $ Right erinfo ≟ rinfo ]
                 , assertListEqR (nme "tracks")
                                 (tracks_ ⊳ trcks) (tracks_ etrcks)
                 , assertListEqR (nme "flat tracks")
@@ -1331,7 +1390,7 @@ instance AsInfoError ParseInfoFPCError where
 
 instance AsFPathComponentError ParseInfoFPCError where
   _FPathComponentError = _PIFPCInfoFPCError ∘ _FPathComponentError
-  
+
 ------------------------------------------------------------
 
 unYaml ∷ ∀ ε α μ . (FromJSON α, MonadError ε μ, AsParseError ε) ⇒
@@ -1375,24 +1434,24 @@ main = doMain @ParseInfoFPCError @Word8 $ do
 --------------------------------------------------------------------------------
 
 track1 ∷ Track
-track1 = Track Nothing (Just "track title") Nothing Nothing Nothing Nothing
+track1 = Track Nothing (Just "track title") Nothing NotLive Nothing Nothing
 
 trackL ∷ Track
 trackL = Track Nothing (Just "live track") Nothing
-               (Just "Live") (Just "Hammersmith Odeon") (Just "1970-01-01")
+               Live (Just "Hammersmith Odeon") (Just "1970-01-01")
 
 trackL' ∷ Track
 trackL' = Track Nothing (Just "Live Track") Nothing
-                Nothing Nothing (Just "1990-02-02")
+                NotLive Nothing (Just "1990-02-02")
 
 trackS ∷ Track
 trackS = Track Nothing (Just "Sesh") (Just "Acoustic")
-               (Just "Session") Nothing (Just "1980-01-01")
+               Session Nothing (Just "1980-01-01")
 
 releaseInfo1 ∷ ReleaseInfo
 releaseInfo1 = ReleaseInfo ("artie") (Just "123X")
                            (Just (__dateish' 1979 12 31))
-                           Nothing (Just "Elpee") Nothing Nothing Nothing
+                           Nothing (Just "Elpee") Nothing NotLive Nothing
                            Nothing
 
 releaseInfol ∷ ReleaseInfo
@@ -1400,7 +1459,7 @@ releaseInfol = ReleaseInfo ("simon") (Just "124XX")
                            (Just (__dateish' 1979 12 31))
                            Nothing
                            (Just "An LP Title") Nothing
-                           (Just "Live") (Just "Sweden") (Just "1990")
+                           Live (Just "Sweden") (Just "1990")
 
 ------------------------------------------------------------
 
