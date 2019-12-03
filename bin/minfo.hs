@@ -27,12 +27,12 @@ import Data.Aeson.Types  ( Value( Array, Bool, Null, Number, Object, String )
 
 import Control.Applicative     ( pure )
 import Control.Exception       ( Exception )
-import Control.Monad           ( forM_, join, mapM_, return, sequence )
+import Control.Monad           ( forM_, mapM_, return, sequence )
 import Control.Monad.IO.Class  ( MonadIO, liftIO )
 import Data.Bifunctor          ( first, second )
 import Data.Bool               ( Bool( True, False ) )
 import Data.Either             ( Either( Left, Right ), either )
-import Data.Eq                 ( Eq( (==) ) )
+import Data.Eq                 ( Eq )
 import Data.Foldable           ( Foldable, maximum )
 import Data.Function           ( ($), id )
 import Data.Functor            ( fmap )
@@ -49,7 +49,7 @@ import GHC.Exts                ( IsString, fromList, toList )
 import GHC.Generics            ( Generic )
 import Numeric.Natural         ( Natural )
 import System.Exit             ( ExitCode )
-import System.IO               ( FilePath, IO )
+import System.IO               ( IO )
 import Text.Printf             ( printf )
 import Text.Show               ( Show( show ) )
 
@@ -79,7 +79,6 @@ import Fluffy.Foldable  ( length )
 
 -- fpath -------------------------------
 
-import FPath.AsFilePath       ( filepath )
 import FPath.Error.FPathComponentError
                               ( AsFPathComponentError( _FPathComponentError )
                               , FPathComponentError )
@@ -100,13 +99,13 @@ import qualified Data.ListLike
 
 -- monaderror-io -----------------------
 
-import MonadError  ( ѥ, fromRight )
+import MonadError  ( ѥ )
 
 -- more-unicode ------------------------
 
 import Data.MoreUnicode.Applicative  ( (⊴), (⊵), (∤) )
 import Data.MoreUnicode.Functor      ( (⊲), (⊳), (⩺) )
-import Data.MoreUnicode.Lens         ( (⊣), (⫥) )
+import Data.MoreUnicode.Lens         ( (⊣) )
 import Data.MoreUnicode.Monad        ( (≫) )
 import Data.MoreUnicode.Monoid       ( ю )
 import Data.MoreUnicode.Natural      ( ℕ )
@@ -151,8 +150,7 @@ import TastyPlus  ( assertListEqR, runTestsP, runTestsReplay, runTestTree )
 
 import qualified  Data.Text  as  Text
 
-import Data.Text     ( Text, dropEnd, init, intercalate, lines, pack, replace
-                     , unlines )
+import Data.Text     ( Text, init, intercalate, lines, pack, replace, unlines )
 import Data.Text.IO  ( putStrLn )
 
 -- text-printer ------------------------
@@ -174,20 +172,27 @@ import Data.Vector  ( (!?) )
 
 -- yaml --------------------------------
 
-import Data.Yaml  ( FromJSON( parseJSON ), ParseException, ToJSON( toJSON )
-                  , (.=), decodeEither', decodeFileEither, encode, object )
+import Data.Yaml  ( FromJSON( parseJSON ), ToJSON( toJSON )
+                  , (.=), decodeEither', encode, object )
 
 ------------------------------------------------------------
 --                     local imports                      --
 ------------------------------------------------------------
 
+import MInfo.YamlPlus        ( unYaml, unYamlFile )
+import MInfo.YamlPlus.Error  ( AsYamlParseError( _YamlParseError )
+                             , YamlParseError )
+
 import qualified  MInfo.T.TestData  as  TestData
 
 import MInfo.Types          ( Artist, LiveLocation
                             , LiveType( Demo, Live, NotLive, Session )
-                            , TrackTitle, TrackVersion
                             )
 import MInfo.Types.Dateish  ( Dateish, __dateish', __dateishy' )
+import MInfo.Types.Track    ( Track( Track )
+                            , blankTrack, trackLiveDate, trackLiveLocation
+                            , trackLiveType, trackTitle, trackVersion
+                            )
 
 --------------------------------------------------------------------------------
 
@@ -350,130 +355,6 @@ tlength = fromIntegral ∘ Text.length
 
 ------------------------------------------------------------
 
-data Track = Track { __artist        ∷ Maybe Artist
-                   , __title         ∷ Maybe TrackTitle
-                   , __version       ∷ Maybe TrackVersion
-                   , __live_type     ∷ LiveType
-                   , __live_location ∷ Maybe LiveLocation
-                   , __live_date     ∷ Maybe Dateish
-                   }
-  deriving (Eq, Generic, Show)
-
-trackTitle ∷ Lens' Track (Maybe TrackTitle)
-trackTitle = lens __title (\ r t → r { __title = t })
-
-trackVersion ∷ Lens' Track (Maybe TrackVersion)
-trackVersion = lens __version (\ r v → r { __version = v })
-
-trackLiveType ∷ Lens' Track LiveType
-trackLiveType = lens __live_type (\ r y → r { __live_type = y })
-
-trackLiveLocation ∷ Lens' Track (Maybe LiveLocation)
-trackLiveLocation = lens __live_location (\ r l → r { __live_location = l })
-
-trackLiveDate ∷ Lens' Track (Maybe Dateish)
-trackLiveDate = lens __live_date (\ r d → r { __live_date = d })
-
-instance FromJSON Track where
-{-
-  parseJSON = let drop_ (_ : _ : s) = s
-                  drop_ s           = s
-               in genericParseJSON defaultOptions { fieldLabelModifier = drop_ }
--}
-  parseJSON = withObject "Track" $ \ v →
-    Track ⊳ v .:? "artist"
-          ⊵ v .:? "title"
-          ⊵ v .:? "version"
-          ⊵ v .:? "live_type" .!= NotLive
-          ⊵ v .:? "live_location"
-          ⊵ v .:? "live_date"
-
-trackFromJSONTests ∷ TestTree
-trackFromJSONTests =
-  let t0 ∷ ByteString
-      t0 = BS.intercalate "\n" [ "title: Condemnation" ]
-      t1 ∷ ByteString
-      t1 = BS.intercalate "\n" [ "title: Judas"
-                               , "live_type: Live"
-                               , "live_date: 1993-07-29"
-                               ]
-      e0 ∷ Track
-      e0 = Track Nothing (Just "Condemnation") Nothing NotLive Nothing Nothing
-      e1 ∷ Track
-      e1 = Track Nothing (Just "Judas") Nothing Live Nothing
-                 (Just $ __dateish' 1993 07 29)
-   in testGroup "trackFromJSON"
-                [ testCase "t0" $ Right e0 ≟ unYaml @ParseError t0
-                , testCase "t1" $ Right e1 ≟ unYaml @ParseError t1
-                ]
-
-instance ToJSON Track where
-  toJSON (Track a t v y l d) =
-    let maybel k x = maybe [] (\ x' → [ k .= toJSON x' ]) x
-        fields = ю [ maybel "artist" a
-                   , [ "title" .= t ]
-                   , maybel "version" v
-                   , case y of
-                       NotLive → []
-                       _       → ю [ [ "live_type" .= toJSON y ]
-                                   , maybel "live_location" l
-                                   , maybel "live_date" d
-                                   ]
-                   ]
-     in object fields
-
-{- | Yaml quote: quote a string as necessary for yaml. -}
-yquote ∷ Text → Text
-yquote t = "\"" ⊕ t ⊕ "\""
-
-instance Printable Track where
-  print (Track a t v y l d) = let toj ∷ Show α ⇒ Maybe α → Text
-                                  toj Nothing  = "~"
-                                  toj (Just x) = toText (show x)
-                                  toj' ∷ Printable α ⇒ Maybe α → Text
-                                  toj' Nothing  = "~"
-                                  toj' (Just x) = yquote $ toText x
-                                  tot ∷ Show α ⇒ Text → Maybe α → Text
-                                  tot i x = i ⊕ ": " ⊕ toj x
-                                  tot' ∷ Printable α ⇒ Text → Maybe α → Text
-                                  tot' i x = i ⊕ ": " ⊕ toj' x
-                                  tom ∷ Show α ⇒ Text → Maybe α → [Text]
-                                  tom _ Nothing  = []
-                                  tom i (Just x) = [ tot i (Just x) ]
-                                  tom' ∷ Printable α ⇒ Text → Maybe α → [Text]
-                                  tom' _ Nothing  = []
-                                  tom' i (Just x) = [ tot' i (Just x) ]
-                                  unl ∷ [Text] → Text
-                                  unl = dropEnd 1 ∘ unlines
-                               in P.text ∘ unl $ (tom "artist" (toText ⊳ a))
-                                               ⊕ [tot' "title" t]
-                                               ⊕ (tom "version" v)
-                                               ⊕ case y of
-                                                   NotLive → []
-                                                   _ → ["live_type: " ⊕ toText y]
-                                               ⊕ (tom' "live_location" l)
-                                               ⊕ (tom "live_date" d)
-
-trackPrintableTests ∷ TestTree
-trackPrintableTests =
-  let e1 = intercalate "\n" [ "artist: \"Depeche Mode\""
-                            , "title: \"Can't Get Enough\""
-                            , "live_type: Live"
-                            , "live_location: \"Hammersmith Odeon\""
-                            ]
-      t1 = Track (Just "Depeche Mode") (Just "Can't Get Enough") Nothing
-                 Live (Just "Hammersmith Odeon") Nothing
-   in testGroup "Printable" [ testCase "t1" $ e1 ≟ toText t1
-                            ]
-
-blankTrack ∷ Track
-blankTrack = Track Nothing Nothing Nothing NotLive Nothing Nothing
-
-trackTests ∷ TestTree
-trackTests = testGroup "Track" [ trackPrintableTests, trackFromJSONTests ]
-
-------------------------------------------------------------
-
 -- this looks like a monadic fold, or somesuch.  Maybe of MaybeT?
 maybeList ∷ [Maybe α] → Maybe α
 maybeList [] = Nothing
@@ -543,7 +424,7 @@ fileNameTests =
                       Right seshT ≟ fileName @InfoError releaseInfo1 100 trackS
                 , testCase "trackL'-rl" $
                       Right [pc|11-Live Track  [Live Sweden 1990-02-02]|]
-                    ≟ fileName @ParseInfoFPCError releaseInfol 11 trackL'
+                    ≟ fileName @YamlParseInfoFPCError releaseInfol 11 trackL'
                 ]
 
 
@@ -685,11 +566,11 @@ tracksFromJSONTests =
       e3 = Track Nothing (Just "I Feel You") Nothing Live Nothing
                  (Just $ __dateish' 1993 07 29)
    in testGroup "tracksFromJSON"
-                [ testCase "t1"  $ Right [e1,e2] ≟ unYaml @ParseError t1
+                [ testCase "t1"  $ Right [e1,e2] ≟ unYaml @YamlParseError t1
                 , testCase "t1'" $
-                    Right (Tracks [[e1,e2]]) ≟ unYaml @ParseError t1
+                    Right (Tracks [[e1,e2]]) ≟ unYaml @YamlParseError t1
                 , testCase "t3" $
-                    Right (Tracks [[e1,e2],[e3]]) ≟ unYaml @ParseError t3
+                    Right (Tracks [[e1,e2],[e3]]) ≟ unYaml @YamlParseError t3
                 ]
 
 {-
@@ -1071,9 +952,6 @@ infos = Info (ReleaseInfo ("Depeche Mode") Nothing
 
 --------------------
 
-instance Printable [Track] where
-  print ts = P.text $ intercalate "\n" (toText ⊳ ts)
-
 infoFromJSONTests ∷ TestTree
 infoFromJSONTests =
   let splitInfo ∷ Info → (ReleaseInfo,Tracks)
@@ -1082,7 +960,7 @@ infoFromJSONTests =
       splitEPair (Left l) = (Left l,Left l)
       splitEPair (Right (a,b)) = (Right a, Right b)
       checkInfo name inf expected =
-        let (rinfo,trcks) = splitEPair (splitInfo ⊳ unYaml @ParseError inf)
+        let (rinfo,trcks) = splitEPair (splitInfo ⊳ unYaml @YamlParseError inf)
             Info erinfo etrcks = expected
             nme t = name ⊕ ": " ⊕ t
          in ю [ [ testCase      (nme "release info") $ Right erinfo ≟ rinfo ]
@@ -1091,13 +969,13 @@ infoFromJSONTests =
                 , assertListEqR (nme "flat tracks")
                                 (unTracks ⊳trcks) (unTracks etrcks)
                 , [ testCase (nme "info") $
-                      Right info2 ≟ unYaml @ParseError TestData.info2T
+                      Right info2 ≟ unYaml @YamlParseError TestData.info2T
                   ]
                 ]
 
    in testGroup "infoFromJSON"
                 (ю [ [ testCase "info1'" $
-                         Right info1 ≟ unYaml @ParseError TestData.info1T
+                         Right info1 ≟ unYaml @YamlParseError TestData.info1T
                      ]
                    , checkInfo "info2" TestData.info2T info2
                    , checkInfo "info3" TestData.info3T info3
@@ -1136,17 +1014,17 @@ trackCountTests ∷ TestTree
 trackCountTests =
   testGroup "trackCount"
             [ testCase "info1" $
-                Right  2 ≟ trackCount ⊳ (unYaml @ParseError TestData.info1T)
+                Right  2 ≟ trackCount ⊳ (unYaml @YamlParseError TestData.info1T)
             , testCase "info2" $
-                Right 19 ≟ trackCount ⊳ (unYaml @ParseError TestData.info2T)
+                Right 19 ≟ trackCount ⊳ (unYaml @YamlParseError TestData.info2T)
             , testCase "info3" $
-                Right 12 ≟ trackCount ⊳ (unYaml @ParseError TestData.info3T)
+                Right 12 ≟ trackCount ⊳ (unYaml @YamlParseError TestData.info3T)
             , testCase "info4" $
-                Right 39 ≟ trackCount ⊳ (unYaml @ParseError TestData.info4T)
+                Right 39 ≟ trackCount ⊳ (unYaml @YamlParseError TestData.info4T)
             , testCase "info5" $
-                Right 65 ≟ trackCount ⊳ (unYaml @ParseError TestData.info5T)
+                Right 65 ≟ trackCount ⊳ (unYaml @YamlParseError TestData.info5T)
             , testCase "infos" $
-                Right  4 ≟ trackCount ⊳ (unYaml @ParseError TestData.infosT)
+                Right  4 ≟ trackCount ⊳ (unYaml @YamlParseError TestData.infosT)
             ]
 
 infoTests ∷ TestTree
@@ -1304,28 +1182,6 @@ throwIllegalFileName t = throwError $ (_InfoError #) (IllegalFileName t)
 
 ------------------------------------------------------------
 
-newtype ParseError = ParseError ParseException
-  deriving Show
-
-instance Exception ParseError
-
-instance Eq ParseError where
-  a == b = show a ≡ show b
-
-instance Printable ParseError where
-  print = P.string ∘ show
-
-class AsParseError ε where
-  _ParseError ∷ Prism' ε ParseError
-
-instance AsParseError ParseError where
-  _ParseError = id
-
-asParseError ∷ AsParseError ε ⇒ Either ParseException α → Either ε α
-asParseError = first ((_ParseError #) ∘ ParseError)
-
-------------------------------------------------------------
-
 data InfoFPCError = IFPCInfoError             InfoError
                   | IFPCFPathComponenentError FPathComponentError
   deriving (Eq,Show)
@@ -1347,49 +1203,38 @@ instance AsFPathComponentError InfoFPCError where
 
 ------------------------------------------------------------
 
-data ParseInfoFPCError = PIFPCParseError   ParseError
-                       | PIFPCInfoFPCError InfoFPCError
+data YamlParseInfoFPCError = YPIFPCParseError   YamlParseError
+                           | YPIFPCInfoFPCError InfoFPCError
   deriving (Eq,Show)
 
-_PIFPCInfoFPCError ∷ Prism' ParseInfoFPCError InfoFPCError
-_PIFPCInfoFPCError = prism PIFPCInfoFPCError
-                           (\ case PIFPCInfoFPCError e → Right e; e → Left e)
+_YPIFPCInfoFPCError ∷ Prism' YamlParseInfoFPCError InfoFPCError
+_YPIFPCInfoFPCError = prism YPIFPCInfoFPCError
+                           (\ case YPIFPCInfoFPCError e → Right e; e → Left e)
 
-instance Exception ParseInfoFPCError
+instance Exception YamlParseInfoFPCError
 
-instance Printable ParseInfoFPCError where
-  print (PIFPCParseError   e) = print e
-  print (PIFPCInfoFPCError e) = print e
+instance Printable YamlParseInfoFPCError where
+  print (YPIFPCParseError   e) = print e
+  print (YPIFPCInfoFPCError e) = print e
 
-instance AsParseError ParseInfoFPCError where
-  _ParseError = prism PIFPCParseError
-                      (\ case PIFPCParseError  e -> Right e; e -> Left e)
+instance AsYamlParseError YamlParseInfoFPCError where
+  _YamlParseError = prism YPIFPCParseError
+                          (\ case YPIFPCParseError  e -> Right e; e -> Left e)
 
-instance AsInfoError ParseInfoFPCError where
-  _InfoError = _PIFPCInfoFPCError ∘ _InfoError
+instance AsInfoError YamlParseInfoFPCError where
+  _InfoError = _YPIFPCInfoFPCError ∘ _InfoError
 
-instance AsFPathComponentError ParseInfoFPCError where
-  _FPathComponentError = _PIFPCInfoFPCError ∘ _FPathComponentError
+instance AsFPathComponentError YamlParseInfoFPCError where
+  _FPathComponentError = _YPIFPCInfoFPCError ∘ _FPathComponentError
 
 ------------------------------------------------------------
 
-unYaml ∷ ∀ ε α μ . (FromJSON α, MonadError ε μ, AsParseError ε) ⇒
-         ByteString → μ α
-unYaml = fromRight ∘ asParseError ∘ decodeEither'
-
-{- | Decode a yaml file; IO errors (e.g., file not found) are thrown as
-     ParseErrors (this is the doing of `Data.Yaml.decodeFileEither`, not me). -}
-unYamlFile ∷ (MonadIO μ, MonadError ε μ, AsParseError ε) ⇒ File → μ Info
-unYamlFile = let go ∷ (MonadIO μ, AsParseError ε) ⇒ FilePath → μ (Either ε Info)
-                 go = liftIO  ∘ fmap asParseError ∘ decodeFileEither
-              in join ∘ (fromRight ⩺ go ∘ (⫥ filepath))
-
 {- | Print some function of Info. -}
-pInfo ∷ (MonadIO μ, AsParseError ε, MonadError ε μ, Printable τ) ⇒
+pInfo ∷ (MonadIO μ, AsYamlParseError ε, MonadError ε μ, Printable τ) ⇒
         (Info → [τ]) → File → μ ()
 pInfo f fn = unYamlFile fn ≫ mapM_ say ∘ f
 
-pInfo' ∷ (MonadIO μ,AsParseError ε,MonadError ε μ,Foldable φ,Printable τ) ⇒
+pInfo' ∷ (MonadIO μ,AsYamlParseError ε,MonadError ε μ,Foldable φ,Printable τ) ⇒
          (Info → μ (φ τ)) → File → μ ()
 
 pInfo' f fn = do
@@ -1400,7 +1245,7 @@ pInfo' f fn = do
 
 
 main ∷ IO ()
-main = doMain @ParseInfoFPCError @Word8 $ do
+main = doMain @YamlParseInfoFPCError @Word8 $ do
   opts ← optParser "read & write info.yaml" parseOpts
 
   case opts ⊣ runMode of
@@ -1444,7 +1289,7 @@ releaseInfol = ReleaseInfo ("simon") (Just "124XX")
 ------------------------------------------------------------
 
 tests ∷ TestTree
-tests = testGroup "minfo" [ pyamlTests, trackTests, tracksTests, lNameTests
+tests = testGroup "minfo" [ pyamlTests, tracksTests, lNameTests
                           , infoTests, liveNameTests, fileNameTests
                           , flacNameTests, flacNamesTests, mp3NamesTests
                           ]
