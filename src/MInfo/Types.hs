@@ -10,25 +10,29 @@
 {-# LANGUAGE UnicodeSyntax              #-}
 
 module MInfo.Types
-  ( Artist, TrackTitle, TrackVersion )
+  ( Artist, LiveType(..), TrackTitle, TrackVersion )
 where
 
 -- aeson -------------------------------
 
-import Data.Aeson.Types  ( FromJSON, ToJSON )
+import Data.Aeson.Types  ( FromJSON( parseJSON ), ToJSON( toJSON )
+                         , Value( String ), typeMismatch )
 
 -- base --------------------------------
 
-import Data.Eq        ( Eq )
-import Data.String    ( IsString, String )
-import GHC.Generics   ( Generic )
-import System.Exit    ( ExitCode )
-import System.IO      ( IO )
-import Text.Show      ( Show )
+import Control.Monad   ( fail, return )
+import Data.Eq         ( Eq )
+import Data.Function   ( ($) )
+import Data.Semigroup  ( Semigroup( (<>) ) )
+import Data.String     ( IsString, String )
+import GHC.Generics    ( Generic )
+import System.Exit     ( ExitCode )
+import System.IO       ( IO )
+import Text.Show       ( Show )
 
 -- data-textual ------------------------
 
-import Data.Textual  ( Printable( print ) )
+import Data.Textual  ( Printable( print ), toText )
 
 -- more-unicode ------------------------
 
@@ -49,6 +53,10 @@ import Data.Text  ( Text )
 -- text-printer ------------------------
 
 import qualified  Text.Printer  as  P
+
+-- tfmt --------------------------------
+
+import Text.Fmt  ( fmt )
 
 --------------------------------------------------------------------------------
 
@@ -84,6 +92,31 @@ newtype TrackVersion = TrackVersion Text
 
 instance Printable TrackVersion where
   print (TrackVersion t) = P.text t
+
+------------------------------------------------------------
+
+data LiveType = NotLive | Live | Session | Demo
+  deriving (Eq, Show)
+
+instance Semigroup LiveType where
+  NotLive <> b = b
+  a <> _       = a
+
+instance Printable LiveType where
+  print NotLive = P.text ""
+  print Live    = "Live"
+  print Session = "Session"
+  print Demo    = "Demo"
+
+instance FromJSON LiveType where
+  parseJSON (String "Live")    = return Live
+  parseJSON (String "Session") = return Session
+  parseJSON (String "Demo")    = return Demo
+  parseJSON (String t)         = fail $ [fmt|unrecognized live type '%t'|] t
+  parseJSON invalid    = typeMismatch "String" invalid
+
+instance ToJSON LiveType where
+  toJSON l = String (toText l)
 
 -- testing ---------------------------------------------------------------------
 

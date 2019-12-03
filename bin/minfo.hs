@@ -20,7 +20,6 @@ import qualified  Data.Aeson.Types  as  AesonT
 
 import Data.Aeson.Types  ( Value( Array, Bool, Null, Number, Object, String )
                          , (.:?), (.:), (.!=)
-                         , defaultOptions, fieldLabelModifier, genericParseJSON
                          , typeMismatch, withObject
                          )
 
@@ -28,7 +27,7 @@ import Data.Aeson.Types  ( Value( Array, Bool, Null, Number, Object, String )
 
 import Control.Applicative     ( pure )
 import Control.Exception       ( Exception )
-import Control.Monad           ( fail, forM_, join, mapM_, return, sequence )
+import Control.Monad           ( forM_, join, mapM_, return, sequence )
 import Control.Monad.IO.Class  ( MonadIO, liftIO )
 import Data.Bifunctor          ( first, second )
 import Data.Bool               ( Bool( True, False ) )
@@ -42,7 +41,6 @@ import Data.List.NonEmpty      ( NonEmpty( (:|) ) )
 import Data.Maybe              ( Maybe( Just, Nothing )
                                , catMaybes, maybe )
 import Data.Ord                ( max )
-import Data.Semigroup          ( Semigroup( (<>) ) )
 import Data.String             ( String )
 import Data.Tuple              ( fst )
 import Data.Typeable           ( Typeable, typeOf )
@@ -185,7 +183,8 @@ import Data.Yaml  ( FromJSON( parseJSON ), ParseException, ToJSON( toJSON )
 
 import qualified  MInfo.T.TestData  as  TestData
 
-import MInfo.Types          ( Artist, TrackTitle, TrackVersion )
+import MInfo.Types          ( Artist, LiveType( Demo, Live, NotLive, Session )
+                            , TrackTitle, TrackVersion )
 import MInfo.Types.Dateish  ( Dateish, __dateish', __dateishy' )
 
 --------------------------------------------------------------------------------
@@ -348,31 +347,6 @@ tlength ∷ Text → ℕ
 tlength = fromIntegral ∘ Text.length
 
 ------------------------------------------------------------
-
-data LiveType = NotLive | Live | Session | Demo
-  deriving (Eq, Show)
-
-instance Semigroup LiveType where
-  NotLive <> b = b
-  a <> _       = a
-
-instance Printable LiveType where
-  print NotLive = P.text ""
-  print Live    = "Live"
-  print Session = "Session"
-  print Demo    = "Demo"
-
-
-instance FromJSON LiveType where
-  parseJSON (String "Live")    = return Live
-  parseJSON (String "Session") = return Session
-  parseJSON (String "Demo")    = return Demo
-  parseJSON (String t)         = fail $ [fmt|unrecognized live type '%t'|] t
-  parseJSON invalid    = typeMismatch "String" invalid
-
-instance ToJSON LiveType where
-  toJSON l = String (toText l)
-
 
 data Track = Track { __artist        ∷ Maybe Artist
                    , __title         ∷ Maybe TrackTitle
