@@ -353,7 +353,7 @@ data Track = Track { __artist        ∷ Maybe Artist
                    , __version       ∷ Maybe TrackVersion
                    , __live_type     ∷ LiveType
                    , __live_location ∷ Maybe Text
-                   , __live_date     ∷ Maybe Text
+                   , __live_date     ∷ Maybe Dateish
                    }
   deriving (Eq, Generic, Show)
 
@@ -369,7 +369,7 @@ trackLiveType = lens __live_type (\ r y → r { __live_type = y })
 trackLiveLocation ∷ Lens' Track (Maybe Text)
 trackLiveLocation = lens __live_location (\ r l → r { __live_location = l })
 
-trackLiveDate ∷ Lens' Track (Maybe Text)
+trackLiveDate ∷ Lens' Track (Maybe Dateish)
 trackLiveDate = lens __live_date (\ r d → r { __live_date = d })
 
 instance FromJSON Track where
@@ -399,7 +399,7 @@ trackFromJSONTests =
       e0 = Track Nothing (Just "Condemnation") Nothing NotLive Nothing Nothing
       e1 ∷ Track
       e1 = Track Nothing (Just "Judas") Nothing Live Nothing
-                 (Just "1993-07-29")
+                 (Just $ __dateish' 1993 07 29)
    in testGroup "trackFromJSON"
                 [ testCase "t0" $ Right e0 ≟ unYaml @ParseError t0
                 , testCase "t1" $ Right e1 ≟ unYaml @ParseError t1
@@ -475,10 +475,10 @@ maybeList [] = Nothing
 maybeList (Just a : _)   = Just a
 maybeList (Nothing : as) = maybeList as
 
-lName ∷ LiveType → Maybe Text → Maybe Text → Maybe Text
+lName ∷ LiveType → Maybe Text → Maybe Dateish → Maybe Text
 lName NotLive _ _ = Nothing
 lName lType lLocY lDateY =
-  Just $ intercalate " " (toText lType : catMaybes [lLocY, lDateY])
+  Just $ intercalate " " (toText lType : catMaybes [lLocY, toText ⊳ lDateY])
 
 lNameTests ∷ TestTree
 lNameTests =
@@ -487,7 +487,7 @@ lNameTests =
             , testCase "live" $
                   Just "Live Hammersmith Odeon 1970-01-01"
                 ≟ lName Live (Just "Hammersmith Odeon")
-                        (Just "1970-01-01")
+                        (Just $ __dateish' 1970 01 01)
             ]
 
 liveName ∷ ReleaseInfo → Track → Maybe Text
@@ -658,10 +658,10 @@ tracksFromJSONTests =
                                ]
       e1 ∷ Track
       e1 = Track Nothing (Just "Judas") Nothing Demo Nothing
-                 (Just "1993-07-29")
+                 (Just $ __dateish' 1993 07 29)
       e2 ∷ Track
       e2 = Track Nothing (Just "Mercy in You") Nothing Session Nothing
-                 (Just "1993-07-29")
+                 (Just $ __dateish' 1993 07 29)
       t3 ∷ ByteString
       t3 = BS.intercalate "\n" [ "-"
                                , "  - title: Judas"
@@ -677,7 +677,7 @@ tracksFromJSONTests =
                                ]
       e3 ∷ Track
       e3 = Track Nothing (Just "I Feel You") Nothing Live Nothing
-                 (Just "1993-07-29")
+                 (Just $ __dateish' 1993 07 29)
    in testGroup "tracksFromJSON"
                 [ testCase "t1"  $ Right [e1,e2] ≟ unYaml @ParseError t1
                 , testCase "t1'" $
@@ -726,7 +726,7 @@ data ReleaseInfo = ReleaseInfo { _artist           ∷ Artist
                                , _source_version   ∷ Maybe Text
                                , _live_type        ∷ LiveType
                                , _live_location    ∷ Maybe Text
-                               , _live_date        ∷ Maybe Text
+                               , _live_date        ∷ Maybe Dateish
                                }
   deriving (Eq,Show)
 
@@ -737,7 +737,7 @@ live_type = lens _live_type (\ i y → i { _live_type = y})
 live_location ∷ Lens' ReleaseInfo (Maybe Text)
 live_location = lens _live_location (\ i l → i { _live_location = l})
 
-live_date ∷ Lens' ReleaseInfo (Maybe Text)
+live_date ∷ Lens' ReleaseInfo (Maybe Dateish)
 live_date = lens _live_date (\ i d → i { _live_date = d})
 
 instance ToJSON ReleaseInfo where
@@ -798,7 +798,7 @@ info1 = Info (ReleaseInfo ("Depeche Mode") Nothing Nothing Nothing
                           Nothing
                           Live
                           (Just "Alsterdorfer Sporthalle, Hamburg")
-                          (Just "1984-12-14")
+                          (Just (__dateish' 1984 12 14))
              )
              (Tracks [ [ Track Nothing (Just "Something to Do") Nothing
                                NotLive Nothing Nothing
@@ -817,7 +817,7 @@ tracks2 ∷ Tracks
 tracks2 = let mkTrack t = Track Nothing (Just t) Nothing
                           Live
                           (Just "Stade Couvert Régional, Liévin, France")
-                          (Just "1993-07-29")
+                          (Just (__dateish' 1993 07 29))
            in Tracks [ mkTrack ⊳ [ "Higher Love"
                                  , "World in my Eyes"
                                  , "Walking in my Shoes"
@@ -850,7 +850,7 @@ releaseInfo3 = ReleaseInfo ("Depeche Mode") (Just "12345")
                            (Just (__dateishy' 1993)) Nothing
                            (Just "Radio 1 in Concert") Nothing
                            Live (Just "Crystal Palace")
-                           (Just "1993-07-31")
+                           (Just (__dateish' 1993 07 31))
 tracks3 ∷ Tracks
 tracks3 = let mkTrack t = Track Nothing (Just t) Nothing NotLive Nothing Nothing
            in Tracks [ mkTrack ⊳ [ "Walking in my Shoes"
@@ -957,7 +957,7 @@ tracks5 = let mkTrack t = Track Nothing (Just t) Nothing NotLive Nothing Nothing
               mkTrackD t = Track Nothing (Just t) (Just "Demo")
                                  NotLive Nothing Nothing
               mkTrackS t = Track Nothing (Just t) Nothing
-                                 Session Nothing (Just "2008-12-08")
+                                 Session Nothing (Just (__dateish' 2008 12 08))
            in Tracks [ mkTrack ⊳ [ "In Chains"
                                  , "Hole to Feed"
                                  , "Wrong"
@@ -1412,15 +1412,15 @@ track1 = Track Nothing (Just "track title") Nothing NotLive Nothing Nothing
 
 trackL ∷ Track
 trackL = Track Nothing (Just "live track") Nothing
-               Live (Just "Hammersmith Odeon") (Just "1970-01-01")
+               Live (Just "Hammersmith Odeon") (Just (__dateish' 1970 01 01))
 
 trackL' ∷ Track
 trackL' = Track Nothing (Just "Live Track") Nothing
-                NotLive Nothing (Just "1990-02-02")
+                NotLive Nothing (Just (__dateish' 1990 02 02))
 
 trackS ∷ Track
 trackS = Track Nothing (Just "Sesh") (Just "Acoustic")
-               Session Nothing (Just "1980-01-01")
+               Session Nothing (Just (__dateish' 1980 01 01))
 
 releaseInfo1 ∷ ReleaseInfo
 releaseInfo1 = ReleaseInfo ("artie") (Just "123X")
@@ -1433,7 +1433,7 @@ releaseInfol = ReleaseInfo ("simon") (Just "124XX")
                            (Just (__dateish' 1979 12 31))
                            Nothing
                            (Just "An LP Title") Nothing
-                           Live (Just "Sweden") (Just "1990")
+                           Live (Just "Sweden") (Just $ __dateishy' 1990)
 
 ------------------------------------------------------------
 
