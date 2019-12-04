@@ -17,7 +17,7 @@ import Prelude  ( (-), error, fromIntegral )
 -- aeson -------------------------------
 
 import Data.Aeson.Types  ( Value( Array, Bool, Null, Number, Object, String )
-                         , (.:?), (.:), (.!=), withObject )
+                         , (.:), withObject )
 
 -- base --------------------------------
 
@@ -34,8 +34,7 @@ import Data.Function           ( ($), id )
 import Data.Functor            ( fmap )
 import Data.List               ( replicate, sortOn, zip )
 import Data.List.NonEmpty      ( NonEmpty( (:|) ) )
-import Data.Maybe              ( Maybe( Just, Nothing )
-                               , catMaybes, maybe )
+import Data.Maybe              ( Maybe( Just, Nothing ), catMaybes )
 import Data.Ord                ( max )
 import Data.String             ( String )
 import Data.Tuple              ( fst )
@@ -159,7 +158,7 @@ import qualified  Data.HashMap.Strict  as  HashMap
 -- yaml --------------------------------
 
 import Data.Yaml  ( FromJSON( parseJSON ), ToJSON( toJSON )
-                  , (.=), decodeEither', encode, object )
+                  , decodeEither', encode, object )
 
 ------------------------------------------------------------
 --                     local imports                      --
@@ -169,16 +168,19 @@ import MInfo.YamlPlus        ( unYaml, unYamlFile )
 import MInfo.YamlPlus.Error  ( AsYamlParseError( _YamlParseError )
                              , YamlParseError )
 
-import qualified  MInfo.T.TestData  as  TestData
+import qualified  MInfo.Types.ReleaseInfo  as  ReleaseInfo
+import qualified  MInfo.Types.Track        as  Track
+import qualified  MInfo.T.TestData         as  TestData
 
-import MInfo.Types          ( Artist, Catno, LiveLocation
+import MInfo.Types          ( LiveLocation
                             , LiveType( Demo, Live, NotLive, Session )
                             )
 import MInfo.Types.Dateish  ( Dateish, __dateish', __dateishy' )
 
-import qualified  MInfo.Types.Track  as  Track
-import MInfo.Types.Track    ( Track( Track ), blankTrack )
-import MInfo.Types.Tracks   ( Tracks( Tracks, unTracks ), flatTracks )
+import MInfo.Types.ReleaseInfo  ( ReleaseInfo( ReleaseInfo )
+                                , blankReleaseInfo, releaseInfoFields )
+import MInfo.Types.Track        ( Track( Track ), blankTrack )
+import MInfo.Types.Tracks       ( Tracks( Tracks, unTracks ), flatTracks )
 
 --------------------------------------------------------------------------------
 
@@ -364,9 +366,9 @@ lNameTests =
             ]
 
 liveName ∷ ReleaseInfo → Track → Maybe Text
-liveName r t = lName ((t ⊣ Track.live_type) ◇ (r ⊣ live_type))
-                     (t ⊣ Track.live_location ∤ r ⊣ live_location)
-                     (t ⊣ Track.live_date ∤ r ⊣ live_date)
+liveName r t = lName ((t ⊣ Track.live_type) ◇ (r ⊣ ReleaseInfo.live_type))
+                     (t ⊣ Track.live_location ∤ r ⊣ ReleaseInfo.live_location)
+                     (t ⊣ Track.live_date ∤ r ⊣ ReleaseInfo.live_date)
 
 liveNameTests ∷ TestTree
 liveNameTests = testGroup "liveName"
@@ -497,57 +499,6 @@ mp3NamesTests =
 
 ------------------------------------------------------------
 
-------------------------------------------------------------
-
-data ReleaseInfo = ReleaseInfo { _artist           ∷ Artist
-                               , _catno            ∷ Maybe Catno
-                               , _release          ∷ Maybe Dateish
-                               , _original_release ∷ Maybe Dateish
-                               , _source           ∷ Maybe Text
-                               , _source_version   ∷ Maybe Text
-                               , _live_type        ∷ LiveType
-                               , _live_location    ∷ Maybe LiveLocation
-                               , _live_date        ∷ Maybe Dateish
-                               }
-  deriving (Eq,Show)
-
-
-live_type ∷ Lens' ReleaseInfo LiveType
-live_type = lens _live_type (\ i y → i { _live_type = y})
-
-live_location ∷ Lens' ReleaseInfo (Maybe LiveLocation)
-live_location = lens _live_location (\ i l → i { _live_location = l})
-
-live_date ∷ Lens' ReleaseInfo (Maybe Dateish)
-live_date = lens _live_date (\ i d → i { _live_date = d})
-
-instance ToJSON ReleaseInfo where
-  toJSON = object ∘ releaseInfoFields
-
-releaseInfoFields ∷ ReleaseInfo → [(Text,Value)]
-releaseInfoFields (ReleaseInfo a c r o s v t l d) =
-  ю [ [ "artist" .= a ]
-    , [ "catno"  .= c ]
-    , maybe [] (\ r' → [ "release"          .= toJSON r' ]) r
-    , maybe [] (\ o' → [ "original_release" .= toJSON o' ]) o
-    , [ "source" .= s ]
-    , maybe [] (\ v' → [ "source_version"   .= toJSON v' ]) v
-
-    , case t of
-        NotLive → []
-        _       → ю [ [ "live_type"     .= toJSON t ]
-                    , maybe [] (\ l' → [ "live_location" .= toJSON l' ]) l
-                    , maybe [] (\ d' → [ "live_date"     .= toJSON d' ]) d
-                    ]
-    ]
-
-
-blankReleaseInfo ∷ ReleaseInfo
-blankReleaseInfo = ReleaseInfo "" Nothing Nothing Nothing
-                               Nothing Nothing NotLive Nothing Nothing
-
-------------------------------------------------------------
-
 data Info = Info { _releaseInfo ∷ ReleaseInfo
                  , _tracks      ∷ Tracks
                  }
@@ -560,18 +511,8 @@ tracks ∷ Info → [Track]
 tracks i = flatTracks (_tracks i)
 
 instance FromJSON Info where
-  parseJSON = withObject "Info" $ \ v → Info
-    ⊳ (ReleaseInfo ⊳ v .: "artist"
-                   ⊵ v .:? "catno"
-                   ⊵ v .:? "release"
-                   ⊵ v .:? "original_release"
-                   ⊵ v .:? "source"
-                   ⊵ v .:? "source_version"
-                   ⊵ v .:? "live_type" .!= NotLive
-                   ⊵ v .:? "live_location"
-                   ⊵ v .:? "live_date"
-      )
-   ⊵ v .: "tracks"
+  parseJSON = withObject "Info" $
+    \ v → Info ⊳ parseJSON (Object v) ⊵ v .: "tracks"
 
 info1 ∷ Info
 info1 = Info (ReleaseInfo ("Depeche Mode") Nothing Nothing Nothing

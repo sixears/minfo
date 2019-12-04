@@ -58,6 +58,7 @@ library
                      , MInfo.Types
                      , MInfo.Types.Day
                      , MInfo.Types.Month
+                     , MInfo.Types.ReleaseInfo
                      , MInfo.Types.Track
                      , MInfo.Types.Tracks
                      , MInfo.Types.Year
