@@ -10,8 +10,6 @@ where
 
 -- aeson -------------------------------
 
-import qualified  Data.Aeson.Types  as  AesonT
-
 import Data.Aeson.Types  ( Value( Array ), typeMismatch )
 
 -- base --------------------------------
@@ -105,11 +103,7 @@ instance FromJSON Tracks where
     case ts !? 0 of
       Nothing        → return $ Tracks [[]]
       Just (Array _) → Tracks ⊳ (sequence $ parseJSON ⊳ toList ts)
-      Just _         → let -- xs' = parseJSON ⊳ x
-                           ts'    ∷ [AesonT.Parser Track]   = parseJSON ⊳ toList ts
-                           ts'''  ∷ AesonT.Parser [[Track]] = pure ⊳ sequence ts'
-                           ts'''' = Tracks ⊳ ts'''
-                        in ts''''
+      Just _         → (Tracks ∘ pure) ⊳ (sequence $ parseJSON ⊳ toList ts)
   parseJSON invalid = typeMismatch "Array" invalid
 
 
