@@ -13,8 +13,8 @@
 {-# LANGUAGE ViewPatterns               #-}
 
 module MInfo.Types.Track
-  ( Track( Track ), blankTrack, trackLiveDate, trackLiveLocation, trackLiveType
-  , trackTitle, trackVersion )
+  ( Track( Track )
+  , blankTrack, live_date, live_location, live_type, title, version )
 where
 
 -- aeson -------------------------------
@@ -97,29 +97,29 @@ import MInfo.Types.Dateish  ( Dateish, __dateish' )
 
 --------------------------------------------------------------------------------
 
-data Track = Track { __artist        ∷ Maybe Artist
-                   , __title         ∷ Maybe TrackTitle
-                   , __version       ∷ Maybe TrackVersion
-                   , __live_type     ∷ LiveType
-                   , __live_location ∷ Maybe LiveLocation
-                   , __live_date     ∷ Maybe Dateish
+data Track = Track { _artist        ∷ Maybe Artist
+                   , _title         ∷ Maybe TrackTitle
+                   , _version       ∷ Maybe TrackVersion
+                   , _live_type     ∷ LiveType
+                   , _live_location ∷ Maybe LiveLocation
+                   , _live_date     ∷ Maybe Dateish
                    }
   deriving (Eq, Generic, Show)
 
-trackTitle        ∷ Lens' Track (Maybe TrackTitle)
-trackTitle        = lens __title         (\ r t → r { __title = t })
+title         ∷ Lens' Track (Maybe TrackTitle)
+title         = lens _title         (\ r t → r { _title = t })
 
-trackVersion      ∷ Lens' Track (Maybe TrackVersion)
-trackVersion      = lens __version       (\ r v → r { __version = v })
+version       ∷ Lens' Track (Maybe TrackVersion)
+version       = lens _version       (\ r v → r { _version = v })
 
-trackLiveType     ∷ Lens' Track LiveType
-trackLiveType     = lens __live_type     (\ r y → r { __live_type = y })
+live_type     ∷ Lens' Track LiveType
+live_type     = lens _live_type     (\ r y → r { _live_type = y })
 
-trackLiveLocation ∷ Lens' Track (Maybe LiveLocation)
-trackLiveLocation = lens __live_location (\ r l → r { __live_location = l })
+live_location ∷ Lens' Track (Maybe LiveLocation)
+live_location = lens _live_location (\ r l → r { _live_location = l })
 
-trackLiveDate     ∷ Lens' Track (Maybe Dateish)
-trackLiveDate     = lens __live_date     (\ r d → r { __live_date = d })
+live_date     ∷ Lens' Track (Maybe Dateish)
+live_date     = lens _live_date     (\ r d → r { _live_date = d })
 
 instance FromJSON Track where
   parseJSON = withObject "Track" $ \ v →

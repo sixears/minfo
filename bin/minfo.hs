@@ -16,8 +16,6 @@ import Prelude  ( Float, Int, (-), error, fromIntegral )
 
 -- aeson -------------------------------
 
-import qualified  Data.Aeson.Types  as  AesonT
-
 import Data.Aeson.Types  ( Value( Array, Bool, Null, Number, Object, String )
                          , (.:?), (.:), (.!=)
                          , typeMismatch, withObject
@@ -58,11 +56,6 @@ import Text.Show               ( Show( show ) )
 import Data.Eq.Unicode        ( (≡) )
 import Data.Function.Unicode  ( (∘) )
 import Data.Monoid.Unicode    ( (⊕) )
-
--- bytestring --------------------------
-
-import qualified  Data.ByteString  as  BS
-import Data.ByteString  ( ByteString )
 
 -- data-textual ------------------------
 
@@ -150,7 +143,7 @@ import TastyPlus  ( assertListEqR, runTestsP, runTestsReplay, runTestTree )
 
 import qualified  Data.Text  as  Text
 
-import Data.Text     ( Text, init, intercalate, lines, pack, replace, unlines )
+import Data.Text     ( Text, init, intercalate, lines, pack, replace )
 import Data.Text.IO  ( putStrLn )
 
 -- text-printer ------------------------
@@ -164,11 +157,6 @@ import Text.Fmt  ( fmt, fmtT )
 -- unordered-containers ----------------
 
 import qualified  Data.HashMap.Strict  as  HashMap
-
--- vector ------------------------------
-
-import qualified  Data.Vector  as  Vector
-import Data.Vector  ( (!?) )
 
 -- yaml --------------------------------
 
@@ -189,10 +177,10 @@ import MInfo.Types          ( Artist, LiveLocation
                             , LiveType( Demo, Live, NotLive, Session )
                             )
 import MInfo.Types.Dateish  ( Dateish, __dateish', __dateishy' )
-import MInfo.Types.Track    ( Track( Track )
-                            , blankTrack, trackLiveDate, trackLiveLocation
-                            , trackLiveType, trackTitle, trackVersion
-                            )
+
+import qualified  MInfo.Types.Track  as  Track
+import MInfo.Types.Track    ( Track( Track ), blankTrack )
+import MInfo.Types.Tracks   ( Tracks( Tracks, unTracks ), flatTracks )
 
 --------------------------------------------------------------------------------
 
@@ -378,9 +366,9 @@ lNameTests =
             ]
 
 liveName ∷ ReleaseInfo → Track → Maybe Text
-liveName r t = lName ((t ⊣ trackLiveType) ◇ (r ⊣ live_type))
-                     (t ⊣ trackLiveLocation ∤ r ⊣ live_location)
-                     (t ⊣ trackLiveDate ∤ r ⊣ live_date)
+liveName r t = lName ((t ⊣ Track.live_type) ◇ (r ⊣ live_type))
+                     (t ⊣ Track.live_location ∤ r ⊣ live_location)
+                     (t ⊣ Track.live_date ∤ r ⊣ live_date)
 
 liveNameTests ∷ TestTree
 liveNameTests = testGroup "liveName"
@@ -400,9 +388,9 @@ fileName relnfo num trck =
       encompass  l r t = l ⊕ t ⊕ r
       parens   = encompass "(" ")"
       brackets = encompass "[" "]"
-      go t = case t ⊣ trackTitle of
+      go t = case t ⊣ Track.title of
                Nothing     → pack $ printf "%02d" num
-               ti@(Just _) → let vv = (parens ∘ toText) ⊳ t ⊣ trackVersion
+               ti@(Just _) → let vv = (parens ∘ toText) ⊳ t ⊣ Track.version
                                  ll = brackets ⊳ liveName relnfo t
                               in [fmt|%02d-%t|]
                                  num (intercalate "  " $ catMaybes [toText ⊳ ti,vv,ll])
@@ -511,81 +499,6 @@ mp3NamesTests =
 
 ------------------------------------------------------------
 
-newtype Tracks = Tracks { unTracks ∷ [[Track]] }
-  deriving (Eq,Show)
-
-tracks_ ∷ Tracks → [Track]
-tracks_ (Tracks tss) = ю tss
-
-instance Printable Tracks where
-  print tss = P.text ∘ unlines $ toText ⊳ tracks_ tss
-
-instance FromJSON Tracks where
-  parseJSON (Array ts) =
-    case ts !? 0 of
-      Nothing        → return $ Tracks [[]]
-      Just (Array _) → Tracks ⊳ (sequence $ parseJSON ⊳ toList ts)
-      Just _         → let -- xs' = parseJSON ⊳ x
-                           ts'    ∷ [AesonT.Parser Track]   = parseJSON ⊳ toList ts
-                           ts'''  ∷ AesonT.Parser [[Track]] = pure ⊳ sequence ts'
-                           ts'''' = Tracks ⊳ ts'''
-                        in ts'''' -- (Tracks ∘ pure) ⊳ sequence (parseJSON ⊳ ts)
-  parseJSON invalid = typeMismatch "Array" invalid
-
-
-tracksFromJSONTests ∷ TestTree
-tracksFromJSONTests =
-  let t1 ∷ ByteString
-      t1 = BS.intercalate "\n" [ "- title: Judas"
-                               , "  live_type: Demo"
-                               , "  live_date: 1993-07-29"
-                               , "- title: Mercy in You"
-                               , "  live_type: Session"
-                               , "  live_date: 1993-07-29"
-                               ]
-      e1 ∷ Track
-      e1 = Track Nothing (Just "Judas") Nothing Demo Nothing
-                 (Just $ __dateish' 1993 07 29)
-      e2 ∷ Track
-      e2 = Track Nothing (Just "Mercy in You") Nothing Session Nothing
-                 (Just $ __dateish' 1993 07 29)
-      t3 ∷ ByteString
-      t3 = BS.intercalate "\n" [ "-"
-                               , "  - title: Judas"
-                               , "    live_type: Demo"
-                               , "    live_date: 1993-07-29"
-                               , "  - title: Mercy in You"
-                               , "    live_type: Session"
-                               , "    live_date: 1993-07-29"
-                               , "-"
-                               , "  - title: I Feel You"
-                               , "    live_type: Live"
-                               , "    live_date: 1993-07-29"
-                               ]
-      e3 ∷ Track
-      e3 = Track Nothing (Just "I Feel You") Nothing Live Nothing
-                 (Just $ __dateish' 1993 07 29)
-   in testGroup "tracksFromJSON"
-                [ testCase "t1"  $ Right [e1,e2] ≟ unYaml @YamlParseError t1
-                , testCase "t1'" $
-                    Right (Tracks [[e1,e2]]) ≟ unYaml @YamlParseError t1
-                , testCase "t3" $
-                    Right (Tracks [[e1,e2],[e3]]) ≟ unYaml @YamlParseError t3
-                ]
-
-{-
-    case ts !? 0 of
-      Just (Object _) → Tracks  ⊳ (sequence $ parseJSON ⊳ toList ts)
-      Just (Array  _) → Trackss ⊳ (sequence $ withArray "Tracks" (\ v → sequence $ parseJSON ⊳ toList v) ⊳ (toList ts))
---      Just (Array _)  → Trackss ⊳ (sequence $ sequence ⊳ (fmap parseJSON ⊳ toList ⊳ toList ts))
--}
-
-instance ToJSON Tracks where
-  toJSON = Array ∘ Vector.fromList ∘ fmap toJSON ∘ tracks_
-
-tracksTests ∷ TestTree
-tracksTests = testGroup "Tracks" [ tracksFromJSONTests ]
-
 ------------------------------------------------------------
 
 newtype Catno = Catno Text
@@ -663,7 +576,7 @@ releaseInfo ∷ Lens' Info ReleaseInfo
 releaseInfo = lens _releaseInfo (\ i r → i { _releaseInfo = r })
 
 tracks ∷ Info → [Track]
-tracks i = tracks_ (_tracks i)
+tracks i = flatTracks (_tracks i)
 
 instance FromJSON Info where
   parseJSON = withObject "Info" $ \ v → Info
@@ -965,7 +878,7 @@ infoFromJSONTests =
             nme t = name ⊕ ": " ⊕ t
          in ю [ [ testCase      (nme "release info") $ Right erinfo ≟ rinfo ]
                 , assertListEqR (nme "tracks")
-                                (tracks_ ⊳ trcks) (tracks_ etrcks)
+                                (flatTracks ⊳ trcks) (flatTracks etrcks)
                 , assertListEqR (nme "flat tracks")
                                 (unTracks ⊳trcks) (unTracks etrcks)
                 , [ testCase (nme "info") $
@@ -1289,7 +1202,7 @@ releaseInfol = ReleaseInfo ("simon") (Just "124XX")
 ------------------------------------------------------------
 
 tests ∷ TestTree
-tests = testGroup "minfo" [ pyamlTests, tracksTests, lNameTests
+tests = testGroup "minfo" [ pyamlTests, lNameTests
                           , infoTests, liveNameTests, fileNameTests
                           , flacNameTests, flacNamesTests, mp3NamesTests
                           ]
