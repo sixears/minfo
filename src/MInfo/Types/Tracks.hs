@@ -92,11 +92,12 @@ import MInfo.YamlPlus.Error  ( YamlParseError )
 newtype Tracks = Tracks { unTracks ∷ [[Track]] }
   deriving (Eq,Show)
 
-flatTracks ∷ Tracks → [Track]
-flatTracks (Tracks tss) = ю tss
+----------------------------------------
 
 instance Printable Tracks where
   print tss = P.text ∘ unlines $ toText ⊳ flatTracks tss
+
+----------------------------------------
 
 instance FromJSON Tracks where
   parseJSON (Array ts) =
@@ -106,6 +107,7 @@ instance FromJSON Tracks where
       Just _         → (Tracks ∘ pure) ⊳ (sequence $ parseJSON ⊳ toList ts)
   parseJSON invalid = typeMismatch "Array" invalid
 
+--------------------
 
 tracksFromJSONTests ∷ TestTree
 tracksFromJSONTests =
@@ -147,8 +149,15 @@ tracksFromJSONTests =
                     Right (Tracks [[e1,e2],[e3]]) ≟ unYaml @YamlParseError t3
                 ]
 
+----------------------------------------
+
 instance ToJSON Tracks where
   toJSON = Array ∘ fromList ∘ fmap toJSON ∘ flatTracks
+
+----------------------------------------
+
+flatTracks ∷ Tracks → [Track]
+flatTracks (Tracks tss) = ю tss
 
 --------------------------------------------------------------------------------
 --                                   tests                                    --
