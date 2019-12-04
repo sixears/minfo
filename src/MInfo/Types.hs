@@ -10,17 +10,20 @@
 {-# LANGUAGE UnicodeSyntax              #-}
 
 module MInfo.Types
-  ( Artist, LiveLocation, LiveType(..), TrackTitle, TrackVersion )
+  ( Artist, Catno, LiveLocation, LiveType(..), TrackTitle, TrackVersion )
 where
+
+import Prelude  ( Float, Int )
 
 -- aeson -------------------------------
 
 import Data.Aeson.Types  ( FromJSON( parseJSON ), ToJSON( toJSON )
-                         , Value( String ), typeMismatch )
+                         , Value( Number, String ), typeMismatch )
 
 -- base --------------------------------
 
 import Control.Monad   ( fail, return )
+import Data.Either     ( either )
 import Data.Eq         ( Eq )
 import Data.Function   ( ($) )
 import Data.Semigroup  ( Semigroup( (<>) ) )
@@ -28,7 +31,11 @@ import Data.String     ( IsString, String )
 import GHC.Generics    ( Generic )
 import System.Exit     ( ExitCode )
 import System.IO       ( IO )
-import Text.Show       ( Show )
+import Text.Show       ( Show( show ) )
+
+-- base-unicode-symbols ----------------
+
+import Data.Function.Unicode  ( (∘) )
 
 -- data-textual ------------------------
 
@@ -37,6 +44,10 @@ import Data.Textual  ( Printable( print ), toText )
 -- more-unicode ------------------------
 
 import Data.MoreUnicode.Natural      ( ℕ )
+
+-- scientific --------------------------
+
+import Data.Scientific  ( floatingOrInteger )
 
 -- tasty -------------------------------
 
@@ -48,7 +59,7 @@ import TastyPlus  ( runTestsP, runTestsReplay, runTestTree )
 
 -- text --------------------------------
 
-import Data.Text  ( Text )
+import Data.Text  ( Text, pack )
 
 -- text-printer ------------------------
 
@@ -65,17 +76,6 @@ newtype Artist = Artist Text
 
 instance Printable Artist where
   print (Artist t) = P.text t
-
-{-
-instance FromJSON Artist where
-  parseJSON (String t) = return (Artist t)
-  parseJSON invalid    = typeMismatch "String" invalid
--}
-
-{-
-instance ToJSON Artist where
-  toJSON (Artist t) = String t
--}
 
 ------------------------------------------------------------
 
@@ -100,6 +100,23 @@ newtype LiveLocation = LiveLocation Text
 
 instance Printable LiveLocation where
   print (LiveLocation t) = P.text t
+
+------------------------------------------------------------
+
+newtype Catno = Catno Text
+  deriving (Eq, IsString, Show)
+
+instance Printable Catno where
+  print (Catno t) = P.text t
+
+instance FromJSON Catno where
+  parseJSON (String t) = return (Catno t)
+  parseJSON (Number n) =
+    return (Catno ∘ pack $ either show show (floatingOrInteger @Float @Int n))
+  parseJSON invalid    = typeMismatch "String" invalid
+
+instance ToJSON Catno where
+  toJSON (Catno t) = String t
 
 ------------------------------------------------------------
 

@@ -12,14 +12,12 @@
 {-# LANGUAGE UnicodeSyntax              #-}
 {-# LANGUAGE ViewPatterns               #-}
 
-import Prelude  ( Float, Int, (-), error, fromIntegral )
+import Prelude  ( (-), error, fromIntegral )
 
 -- aeson -------------------------------
 
 import Data.Aeson.Types  ( Value( Array, Bool, Null, Number, Object, String )
-                         , (.:?), (.:), (.!=)
-                         , typeMismatch, withObject
-                         )
+                         , (.:?), (.:), (.!=), withObject )
 
 -- base --------------------------------
 
@@ -29,7 +27,7 @@ import Control.Monad           ( forM_, mapM_, return, sequence )
 import Control.Monad.IO.Class  ( MonadIO, liftIO )
 import Data.Bifunctor          ( first, second )
 import Data.Bool               ( Bool( True, False ) )
-import Data.Either             ( Either( Left, Right ), either )
+import Data.Either             ( Either( Left, Right ) )
 import Data.Eq                 ( Eq )
 import Data.Foldable           ( Foldable, maximum )
 import Data.Function           ( ($), id )
@@ -43,7 +41,7 @@ import Data.String             ( String )
 import Data.Tuple              ( fst )
 import Data.Typeable           ( Typeable, typeOf )
 import Data.Word               ( Word8 )
-import GHC.Exts                ( IsString, fromList, toList )
+import GHC.Exts                ( fromList, toList )
 import GHC.Generics            ( Generic )
 import Numeric.Natural         ( Natural )
 import System.Exit             ( ExitCode )
@@ -125,7 +123,7 @@ import Options.Applicative  ( ArgumentFields, CommandFields, Mod, Parser, ReadM
 
 -- scientific --------------------------
 
-import Data.Scientific  ( Scientific, floatingOrInteger )
+import Data.Scientific  ( Scientific )
 
 -- tasty -------------------------------
 
@@ -173,7 +171,7 @@ import MInfo.YamlPlus.Error  ( AsYamlParseError( _YamlParseError )
 
 import qualified  MInfo.T.TestData  as  TestData
 
-import MInfo.Types          ( Artist, LiveLocation
+import MInfo.Types          ( Artist, Catno, LiveLocation
                             , LiveType( Demo, Live, NotLive, Session )
                             )
 import MInfo.Types.Dateish  ( Dateish, __dateish', __dateishy' )
@@ -498,23 +496,6 @@ mp3NamesTests =
                    ]
 
 ------------------------------------------------------------
-
-------------------------------------------------------------
-
-newtype Catno = Catno Text
-  deriving (Eq, IsString, Show)
-
-instance Printable Catno where
-  print (Catno t) = P.text t
-
-instance FromJSON Catno where
-  parseJSON (String t) = return (Catno t)
-  parseJSON (Number n) =
-    return (Catno ∘ pack $ either show show (floatingOrInteger @Float @Int n))
-  parseJSON invalid    = typeMismatch "String" invalid
-
-instance ToJSON Catno where
-  toJSON (Catno t) = String t
 
 ------------------------------------------------------------
 
