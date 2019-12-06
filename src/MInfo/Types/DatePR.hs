@@ -1,12 +1,13 @@
-{-# LANGUAGE InstanceSigs  #-}
-{-# LANGUAGE QuasiQuotes   #-}
-{-# LANGUAGE TypeFamilies  #-}
-{-# LANGUAGE UnicodeSyntax #-}
+{-# LANGUAGE InstanceSigs    #-}
+{-# LANGUAGE QuasiQuotes     #-}
+{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE TypeFamilies    #-}
+{-# LANGUAGE UnicodeSyntax   #-}
 
 {- | Date range, utilizing DateP for varying precisions -}
 
 module MInfo.Types.DatePR
-  ( DatePR, datePR )
+  ( DatePR, datePR, tests )
 where
 
 -- aeson -------------------------------

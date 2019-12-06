@@ -1,12 +1,13 @@
-{-# LANGUAGE InstanceSigs  #-}
-{-# LANGUAGE QuasiQuotes   #-}
-{-# LANGUAGE TypeFamilies  #-}
-{-# LANGUAGE UnicodeSyntax #-}
+{-# LANGUAGE InstanceSigs    #-}
+{-# LANGUAGE QuasiQuotes     #-}
+{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE TypeFamilies    #-}
+{-# LANGUAGE UnicodeSyntax   #-}
 
 {- | Date, with varying precisions - day, month, year. -}
 
 module MInfo.Types.DateP
-  ( DateP, dateDay, dateDay', dateMonth, dateYear, dateP, toDate, toDay )
+  ( DateP, dateDay, dateDay', dateMonth, dateYear, dateP, toDate, toDay, tests )
 where
 
 import Prelude  ( Float, Integer )

@@ -12,7 +12,7 @@
 {-# LANGUAGE UnicodeSyntax              #-}
 
 module MInfo.Types.DayOfM
-  ( DayOfM( DayOfM ), dayOfM )
+  ( DayOfM( DayOfM ), dayOfM, tests )
 where
 
 import Prelude  ( (+), (-), error, fromInteger, toInteger )

@@ -10,7 +10,7 @@
 {-# LANGUAGE UnicodeSyntax              #-}
 
 module MInfo.Types
-  ( Artist, Catno, LiveLocation, LiveType(..), TrackTitle, TrackVersion )
+  ( Artist, Catno, LiveLocation, LiveType(..), TrackTitle, TrackVersion, tests )
 where
 
 import Prelude  ( Float, Int )

@@ -14,6 +14,7 @@ module MInfo.Types.Dateish
   ( Dateish( Dateish, DateishY )
   , __dateish, __dateish', dateish, dateish'
   , __dateishy, __dateishy', dateishy, dateishy'
+  , tests
   )
 where
 
@@ -132,9 +133,10 @@ import Data.Yaml  ( FromJSON( parseJSON ), ToJSON( toJSON ) )
 ------------------------------------------------------------
 
 import MInfo.BoundedN        ( pattern 𝕎 )
-import MInfo.Types.Day       ( Day( Day ), day, __day, __day' )
-import MInfo.Types.Month     ( Month( Month ), month, __month, __month' )
-import MInfo.Types.Year      ( Year( Year ), year, __year, __year' )
+import MInfo.Types.DayOfM    ( DayOfM( DayOfM ) )
+import MInfo.Types.FromI     ( fromI, __fromI, __fromI' )
+import MInfo.Types.Month     ( Month( Month ) )
+import MInfo.Types.Year      ( Year( Year ) )
 import MInfo.Types.ToWord16  ( ToWord16( toWord16 ) )
 
 --------------------------------------------------------------------------------
@@ -152,37 +154,37 @@ ePatSymExhaustive s =
 ------------------------------------------------------------
 
 {- | A specialist data type for Music/Info dates -}
-data Dateish = Dateish    Year Month Day
-             | DateishDs  Year Month (Day,Day)
+data Dateish = Dateish    Year Month DayOfM
+             | DateishDs  Year Month (DayOfM,DayOfM)
              | DateishM   Year Month
              | DateishMs  Year (Month,Month)
              | DateishY   Year
              | DateishYs  (Year,Year)
-             | DateishR   Year (Month,Day) (Month,Day)
-             | DateishRY  (Year,Month,Day) (Year,Month,Day)
+             | DateishR   Year (Month,DayOfM) (Month,DayOfM)
+             | DateishRY  (Year,Month,DayOfM) (Year,Month,DayOfM)
   deriving (Eq,Generic,Show)
 
-{- | convert a (Year,Month,Day) triple to a Gregorian day (for comparison) -}
-dToG ∷ (Year,Month,Day) → Calendar.Day
+{- | convert a (Year,Month,DayOfM) triple to a Gregorian day (for comparison) -}
+dToG ∷ (Year,Month,DayOfM) → Calendar.Day
 dToG (y,m,d) = fromGregorian (fromIntegral $ toWord16 y)
                              (fromIntegral $ toWord16 m)
                              (fromIntegral $ toWord16 d)
 
 {- | Convert a Gregorian day to a (Year,Month,Day) triple (for checking).
      *PARTIAL*, because we only care to handle a 200-year span. -}
-__gToD ∷ Calendar.Day → (Year,Month,Day)
+__gToD ∷ Calendar.Day → (Year,Month,DayOfM)
 __gToD dy = let (y,m,d) = toGregorian dy
-             in (__year y, __month m, __day d)
+             in (__fromI y, __fromI m, __fromI d)
 
-checkDate ∷ (Year,Month,Day) → Validation
+checkDate ∷ (Year,Month,DayOfM) → Validation
 checkDate (y,m,d) = check ((__gToD $ dToG (y,m,d)) ≡ (y,m,d)) $
                       [fmt|%t is a valid date|] (textDate (y,m,d))
 
-checkOrder ∷ (Year,Month,Day) → (Year,Month,Day) → Validation
+checkOrder ∷ (Year,Month,DayOfM) → (Year,Month,DayOfM) → Validation
 checkOrder dy0 dy1 = check ((dToG dy0) < (dToG dy1)) $
                        [fmt|day %t < day %t|] (textDate dy0) (textDate dy1)
 
-checkDates ∷ (Year,Month,Day) → (Year,Month,Day) → Validation
+checkDates ∷ (Year,Month,DayOfM) → (Year,Month,DayOfM) → Validation
 checkDates dy0 dy1 = checkDate dy0 ⊕ checkDate dy1 ⊕ checkOrder dy0 dy1
 
 instance Validity Dateish where
@@ -191,8 +193,8 @@ instance Validity Dateish where
   validate (DateishDs y m (d0,d1))       = let dy0 = (y,m,d0)
                                                dy1 = (y,m,d1)
                                             in checkDates dy0 dy1
-  validate (DateishMs y (m0,m1))         = let dy0 = (y,m0,__day' 1)
-                                               dy1 = (y,m1,__day' 1)
+  validate (DateishMs y (m0,m1))         = let dy0 = (y,m0,__fromI' 1)
+                                               dy1 = (y,m1,__fromI' 1)
                                             in checkDates dy0 dy1
   validate (DateishR  y (m0,d0) (m1,d1)) = let dy0 = (y,m0,d0)
                                                dy1 = (y,m1,d1)
@@ -251,25 +253,25 @@ instance GenValid Dateish where
               in suchThat genUnchecked isValid
 
   shrinkValid ∷ Dateish → [Dateish]
-  shrinkValid (Dateish (Year (𝕎 1)) (Month (𝕎 1)) (Day (𝕎 1))) = []
-  shrinkValid (Dateish y@(Year (𝕎 1)) m@(Month (𝕎 1)) (Day (𝕎 d))) =
-    [Dateish y m (Day (𝕎 (d-1)))]
-  shrinkValid (Dateish y@(Year (𝕎 1)) (Month (𝕎 m)) d@(Day (𝕎 1))) =
+  shrinkValid (Dateish (Year (𝕎 1)) (Month (𝕎 1)) (DayOfM (𝕎 1))) = []
+  shrinkValid (Dateish y@(Year (𝕎 1)) m@(Month (𝕎 1)) (DayOfM (𝕎 d))) =
+    [Dateish y m (DayOfM (𝕎 (d-1)))]
+  shrinkValid (Dateish y@(Year (𝕎 1)) (Month (𝕎 m)) d@(DayOfM (𝕎 1))) =
     [Dateish y (Month (𝕎 (m-1))) d]
-  shrinkValid (Dateish (Year (𝕎 y)) m@(Month (𝕎 1)) d@(Day (𝕎 1))) =
+  shrinkValid (Dateish (Year (𝕎 y)) m@(Month (𝕎 1)) d@(DayOfM (𝕎 1))) =
     [Dateish (Year (𝕎 (y-1))) m d]
-  shrinkValid (Dateish y@(Year (𝕎 1)) (Month (𝕎 m)) (Day (𝕎 d))) =
-    [Dateish y (Month (𝕎 (m-1))) (Day (𝕎 (d-1)))]
-  shrinkValid (Dateish (Year (𝕎 y)) m@(Month (𝕎 1)) (Day (𝕎 d))) =
-    [Dateish (Year (𝕎 (y-1))) m (Day (𝕎 (d-1)))]
-  shrinkValid (Dateish (Year (𝕎 y)) (Month (𝕎 m)) d@(Day (𝕎 1))) =
+  shrinkValid (Dateish y@(Year (𝕎 1)) (Month (𝕎 m)) (DayOfM (𝕎 d))) =
+    [Dateish y (Month (𝕎 (m-1))) (DayOfM (𝕎 (d-1)))]
+  shrinkValid (Dateish (Year (𝕎 y)) m@(Month (𝕎 1)) (DayOfM (𝕎 d))) =
+    [Dateish (Year (𝕎 (y-1))) m (DayOfM (𝕎 (d-1)))]
+  shrinkValid (Dateish (Year (𝕎 y)) (Month (𝕎 m)) d@(DayOfM (𝕎 1))) =
     [Dateish (Year (𝕎 (y-1))) (Month (𝕎 (m-1))) d]
-  shrinkValid (Dateish (Year (𝕎 y)) (Month (𝕎 m)) (Day (𝕎 d))) =
-    [Dateish (Year (𝕎 (y-1))) (Month (𝕎 (m-1))) (Day (𝕎 (d-1)))]
+  shrinkValid (Dateish (Year (𝕎 y)) (Month (𝕎 m)) (DayOfM (𝕎 d))) =
+    [Dateish (Year (𝕎 (y-1))) (Month (𝕎 (m-1))) (DayOfM (𝕎 (d-1)))]
 
   shrinkValid _ = []
 
-textDate ∷ (Year,Month,Day) → Text
+textDate ∷ (Year,Month,DayOfM) → Text
 textDate (y,m,d) = [fmt|%4d-%02d-%02d|] (toWord16 y) (toWord16 m) (toWord16 d)
 
 instance Printable Dateish where
@@ -327,10 +329,10 @@ instance Arbitrary Dateish where
 
 instance Textual Dateish where
   textual =
-    let dmy ∷ (Monad η, CharParsing η) ⇒ η (Year,Month,Day)
+    let dmy ∷ (Monad η, CharParsing η) ⇒ η (Year,Month,DayOfM)
         dmy = (,,) ⊳ (textual ⋪ string "-") ⊵ textual ⊵ (string "-" ⋫ textual)
 
-        dm ∷ (Monad η, CharParsing η) ⇒ η (Month,Day)
+        dm ∷ (Monad η, CharParsing η) ⇒ η (Month,DayOfM)
         dm = (,) <$> (textual <* string "-") <*> textual
 
      in tries $ [ DateishYs ⊳ ((,) ⊳ (textual ⋪ string ":") ⊵ textual)
@@ -368,7 +370,7 @@ instance FromJSON Dateish where
                            Malformed _ e → fail $ [fmt|%s (%t)|] e  t
   parseJSON (Number n) = case floatingOrInteger @Float @Integer n of
                              Left  f → fail $ [fmt|fractional year: (%f)|] f
-                             Right i → case year i of
+                             Right i → case fromI i of
                                          Just  y → return $ DateishY y
                                          Nothing → fail $ [fmt|bad year: %d|] i
   parseJSON invalid    = typeMismatch "Dateish" invalid
@@ -380,9 +382,9 @@ instance ToJSON Dateish where
 
 dateish ∷ (Integral α, Integral β, Integral γ) ⇒ α → β → γ → Maybe Dateish
 dateish y m d = do
-  y' ← year y
-  m' ← month m
-  d' ← day d
+  y' ← fromI y
+  m' ← fromI m
+  d' ← fromI d
   return $ Dateish y' m' d'
 
 dateish' ∷ Integer → Integer → Integer → Maybe Dateish
@@ -391,7 +393,7 @@ dateish' = dateish
 --------------------
 
 __dateish ∷ (Integral α, Integral β, Integral γ) ⇒ α → β → γ → Dateish
-__dateish y m d = Dateish (__year y) (__month m) (__day d)
+__dateish y m d = Dateish (__fromI y) (__fromI m) (__fromI d)
 
 __dateish' ∷ Integer → Integer → Integer → Dateish
 __dateish' = __dateish
@@ -400,7 +402,7 @@ __dateish' = __dateish
 
 dateishy ∷ Integral α ⇒ α → Maybe Dateish
 dateishy y = do
-  y' ← year y
+  y' ← fromI y
   return $ DateishY y'
 
 dateishy' ∷ Integer → Maybe Dateish
@@ -409,7 +411,7 @@ dateishy' = dateishy
 --------------------
 
 __dateishy ∷ Integral α ⇒ α → Dateish
-__dateishy y = DateishY (__year y)
+__dateishy y = DateishY (__fromI y)
 
 __dateishy' ∷ Integer → Dateish
 __dateishy' = __dateishy
@@ -421,50 +423,50 @@ __dateishy' = __dateishy
 ------------------------------------------------------------
 
 testDateish ∷ Dateish
-testDateish = Dateish (__year' 2019) (__month' 11) (__day' 14)
+testDateish = Dateish (__fromI' 2019) (__fromI' 11) (__fromI' 14)
 
 badDateish ∷ Dateish
-badDateish = Dateish (__year' 2019) (__month' 11) (__day' 31)
+badDateish = Dateish (__fromI' 2019) (__fromI' 11) (__fromI' 31)
 
 testDateishDs ∷ Dateish
-testDateishDs = DateishDs (__year' 2019) (__month' 11) ((__day' 14),(__day' 29))
+testDateishDs = DateishDs (__fromI' 2019) (__fromI' 11) ((__fromI' 14),(__fromI' 29))
 
 badDateishDs ∷ Dateish
-badDateishDs = DateishDs (__year' 2019) (__month' 11) ((__day' 20),(__day' 19))
+badDateishDs = DateishDs (__fromI' 2019) (__fromI' 11) ((__fromI' 20),(__fromI' 19))
 
 testDateishM ∷ Dateish
-testDateishM = DateishM (__year' 2019) (__month' 11)
+testDateishM = DateishM (__fromI' 2019) (__fromI' 11)
 
 testDateishMs ∷ Dateish
-testDateishMs = DateishMs (__year' 2019) ((__month' 11),(__month' 12))
+testDateishMs = DateishMs (__fromI' 2019) ((__fromI' 11),(__fromI' 12))
 
 badDateishMs ∷ Dateish
-badDateishMs = DateishMs (__year' 2019) ((__month' 11),(__month' 11))
+badDateishMs = DateishMs (__fromI' 2019) ((__fromI' 11),(__fromI' 11))
 
 testDateishR ∷ Dateish
-testDateishR = DateishR (__year' 2019) (__month' 11,__day' 30)
-                                      (__month' 12,__day' 1)
+testDateishR = DateishR (__fromI' 2019) (__fromI' 11,__fromI' 30)
+                                      (__fromI' 12,__fromI' 1)
 
 badDateishR ∷ Dateish
-badDateishR = DateishR (__year' 2019) (__month' 12,__day' 1)
-                                     (__month' 11,__day' 30)
+badDateishR = DateishR (__fromI' 2019) (__fromI' 12,__fromI' 1)
+                                     (__fromI' 11,__fromI' 30)
 
 testDateishRY ∷ Dateish
-testDateishRY = DateishRY (__year' 2019,__month' 11,__day' 30)
-                          (__year' 2020,__month' 1,__day' 1)
+testDateishRY = DateishRY (__fromI' 2019,__fromI' 11,__fromI' 30)
+                          (__fromI' 2020,__fromI' 1,__fromI' 1)
 
 badDateishRY ∷ Dateish
-badDateishRY = DateishRY (__year' 2019,__month' 11,__day' 1)
-                         (__year' 2019,__month' 1,__day' 30)
+badDateishRY = DateishRY (__fromI' 2019,__fromI' 11,__fromI' 1)
+                         (__fromI' 2019,__fromI' 1,__fromI' 30)
 
 testDateishY ∷ Dateish
-testDateishY = DateishY (__year' 2019)
+testDateishY = DateishY (__fromI' 2019)
 
 testDateishYs ∷ Dateish
-testDateishYs = DateishYs ((__year' 2019),(__year' 2020))
+testDateishYs = DateishYs ((__fromI' 2019),(__fromI' 2020))
 
 badDateishYs ∷ Dateish
-badDateishYs = DateishYs ((__year' 2019),(__year' 2019))
+badDateishYs = DateishYs ((__fromI' 2019),(__fromI' 2019))
 
 ------------------------------------------------------------
 

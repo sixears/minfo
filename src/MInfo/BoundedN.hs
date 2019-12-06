@@ -17,7 +17,7 @@
 module MInfo.BoundedN
   ( -- don't export the constructor, so clients can't create out-of-range values
     BoundedN, 𝕎, pattern 𝕎, pattern 𝕎', pattern W, pattern W'
-  , checkBoundedN, checkBoundedN', 𝕨
+  , checkBoundedN, checkBoundedN', 𝕨, tests
   )
 where
 

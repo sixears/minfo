@@ -7,11 +7,12 @@
 {-# LANGUAGE PatternSynonyms            #-}
 {-# LANGUAGE QuasiQuotes                #-}
 {-# LANGUAGE ScopedTypeVariables        #-}
+{-# LANGUAGE TemplateHaskell            #-}
 {-# LANGUAGE TypeApplications           #-}
 {-# LANGUAGE UnicodeSyntax              #-}
 
 module MInfo.Types.Month
-  ( Month( Month ), month )
+  ( Month( Month ), month, tests )
 where
 
 import Prelude  ( (+), (-), error, fromInteger, toInteger )

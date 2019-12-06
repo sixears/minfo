@@ -14,7 +14,7 @@
 
 module MInfo.Types.Track
   ( Track( Track )
-  , blankTrack, live_date, live_location, live_type, title, version )
+  , blankTrack, live_date, live_location, live_type, title, version, tests )
 where
 
 -- aeson -------------------------------

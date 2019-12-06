@@ -7,11 +7,12 @@
 {-# LANGUAGE PatternSynonyms            #-}
 {-# LANGUAGE QuasiQuotes                #-}
 {-# LANGUAGE ScopedTypeVariables        #-}
+{-# LANGUAGE TemplateHaskell            #-}
 {-# LANGUAGE TypeApplications           #-}
 {-# LANGUAGE UnicodeSyntax              #-}
 
 module MInfo.Types.Year
-  ( Year( Year ), year )
+  ( Year( Year ), year, tests )
 where
 
 import Prelude  ( (+), (-), error, fromInteger, toInteger )
