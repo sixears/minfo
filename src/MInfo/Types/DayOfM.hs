@@ -7,11 +7,12 @@
 {-# LANGUAGE PatternSynonyms            #-}
 {-# LANGUAGE QuasiQuotes                #-}
 {-# LANGUAGE ScopedTypeVariables        #-}
+{-# LANGUAGE TemplateHaskell            #-}
 {-# LANGUAGE TypeApplications           #-}
 {-# LANGUAGE UnicodeSyntax              #-}
 
-module MInfo.Types.Year
-  ( Year( Year ), year )
+module MInfo.Types.DayOfM
+  ( DayOfM( DayOfM ), dayOfM )
 where
 
 import Prelude  ( (+), (-), error, fromInteger, toInteger )
@@ -21,18 +22,18 @@ import Prelude  ( (+), (-), error, fromInteger, toInteger )
 import Control.Monad  ( fail, return )
 import Data.Eq        ( Eq )
 import Data.Function  ( ($) )
-import Data.Maybe     ( Maybe( Just ), maybe )
+import Data.Maybe     ( Maybe( Just, Nothing ), maybe )
 import Data.Ord       ( Ord )
 import Data.String    ( String )
-import GHC.Generics   ( Generic )
 import System.Exit    ( ExitCode )
 import System.IO      ( IO )
-import Text.Read      ( read )
 import Text.Show      ( Show )
 
 -- data-textual ------------------------
 
-import Data.Textual  ( Printable( print ), Textual( textual ), fromText )
+import Data.Textual  ( Printable( print ), Textual( textual )
+                     , fromText )
+import Data.Textual.Integral  ( Decimal( Decimal ), nnUpTo )
 
 -- more-unicode ------------------------
 
@@ -42,12 +43,7 @@ import Data.MoreUnicode.Tasty        ( (≟) )
 
 -- QuickCheck --------------------------
 
-import Test.QuickCheck.Arbitrary ( Arbitrary( arbitrary ) )
-
--- parsers ------------------------------
-
-import Text.Parser.Char         ( digit )
-import Text.Parser.Combinators  ( count )
+import Test.QuickCheck.Arbitrary  ( Arbitrary( arbitrary ) )
 
 -- tasty -------------------------------
 
@@ -94,42 +90,45 @@ ePatSymExhaustive = error "https://gitlab.haskell.org/ghc/ghc/issues/10339"
 
 ------------------------------------------------------------
 
-newtype Year = Year (𝕎 200)
-  deriving (Eq,Generic,Ord,Show)
+newtype DayOfM = DayOfM (𝕎 31)
+  deriving (Eq,Ord,Show)
 
-instance FromI Year where
-  fromI i = Year ⊳ 𝕨 (toInteger i-1900)
+instance FromI DayOfM where
+  fromI i = DayOfM ⊳ 𝕨 (toInteger i-1)
 
-instance ToWord16 Year where
-  toWord16 (Year (𝕎 i)) = fromInteger i + 1900
-  toWord16 (Year _)      = ePatSymExhaustive
+instance ToWord16 DayOfM where
+  toWord16 (DayOfM (𝕎 i)) = fromInteger i + 1
+  toWord16 (DayOfM _)    = ePatSymExhaustive
 
-instance Printable Year where
-  print y = P.text $ [fmt|%d|] (toWord16 y)
+instance Printable DayOfM where
+  print d = P.text $ [fmt|%d|] (toWord16 d)
 
-instance Textual Year where
+instance Textual DayOfM where
   textual = do
-    y ← read ⊳ count 4 digit
-    maybe (fail $ [fmt|bad year value %d|] y) return $ fromI' y
+    m ← nnUpTo Decimal 2
+    maybe (fail $ [fmt|bad day value %d|] m) return $ fromI' m
 
-yearTextualTests ∷ TestTree
-yearTextualTests =
+dayTextualTests ∷ TestTree
+dayTextualTests =
   testGroup "Textual"
-            [ testCase "2014" $ Just (__fromI' 2014) ≟ fromText @Year "2014"
-            , testCase "2019" $ Just (__fromI' 2019) ≟ fromText @Year "2019"
-            , testProperty "invertibleText" (propInvertibleText @Year)
+            [ testCase "12" $ Just (__fromI' 12) ≟ fromText @DayOfM "12"
+            , testCase  "0" $ Nothing @DayOfM    ≟ fromText  "0"
+            , testCase "32" $ Nothing @DayOfM    ≟ fromText "32"
+            , testCase "31" $ Just (__fromI' 31) ≟ fromText @DayOfM "31"
+            , testProperty "invertibleText" (propInvertibleText @DayOfM)
             ]
 
-instance Arbitrary Year where
-  arbitrary = Year ⊳ arbitrary
 
-year ∷ QuasiQuoter
-year = mkQuasiQuoterExp "Year" (\ s → ⟦ __fromString @Year s ⟧)
+instance Arbitrary DayOfM where
+  arbitrary = DayOfM ⊳ arbitrary
+
+dayOfM ∷ QuasiQuoter
+dayOfM = mkQuasiQuoterExp "DayOfM" (\ s → ⟦ __fromString @DayOfM s ⟧)
 
 -- testing ---------------------------------------------------------------------
 
 tests ∷ TestTree
-tests = testGroup "Year" [ yearTextualTests ]
+tests = testGroup "DayOfM" [ dayTextualTests ]
 
 ----------------------------------------
 

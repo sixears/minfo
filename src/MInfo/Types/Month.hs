@@ -11,10 +11,10 @@
 {-# LANGUAGE UnicodeSyntax              #-}
 
 module MInfo.Types.Month
-  ( Month( Month ), month, month', __month, __month' )
+  ( Month( Month ), month )
 where
 
-import Prelude  ( Integer, Integral, (+), (-), error, fromInteger, toInteger )
+import Prelude  ( (+), (-), error, fromInteger, toInteger )
 
 -- base --------------------------------
 
@@ -59,6 +59,10 @@ import TastyPlus  ( propInvertibleText, runTestsP, runTestsReplay, runTestTree )
 
 import Test.Tasty.QuickCheck  ( testProperty )
 
+-- template-haskell --------------------
+
+import Language.Haskell.TH.Quote  ( QuasiQuoter )
+
 -- text-printer ------------------------
 
 import qualified  Text.Printer  as  P
@@ -72,6 +76,9 @@ import Text.Fmt  ( fmt )
 ------------------------------------------------------------
 
 import MInfo.BoundedN        ( 𝕎, pattern 𝕎, 𝕨 )
+import MInfo.Util            ( __fromString, mkQuasiQuoterExp )
+
+import MInfo.Types.FromI     ( FromI( fromI, fromI', __fromI' ) )
 import MInfo.Types.ToWord16  ( ToWord16( toWord16 ) )
 
 --------------------------------------------------------------------------------
@@ -84,19 +91,8 @@ ePatSymExhaustive = error "https://gitlab.haskell.org/ghc/ghc/issues/10339"
 newtype Month = Month (𝕎 12)
   deriving (Eq,Ord,Show)
 
-month ∷ Integral α ⇒ α → Maybe Month
-month i = Month ⊳ 𝕨 (toInteger i-1)
-
-month' ∷ Integer → Maybe Month
-month' = month
-
-__month ∷ Integral α ⇒ α → Month
-__month i = case month i of
-            Just  d → d
-            Nothing → error $ [fmt|month %d out of range|] i
-
-__month' ∷ Integer → Month
-__month' = __month
+instance FromI Month where
+  fromI i = Month ⊳ 𝕨 (toInteger i-1)
 
 instance ToWord16 Month where
   toWord16 (Month (𝕎 i)) = fromInteger i + 1
@@ -108,12 +104,12 @@ instance Printable Month where
 instance Textual Month where
   textual = do
     m ← nnUpTo Decimal 2
-    maybe (fail $ [fmt|bad month value %d|] m) return $ month' m
+    maybe (fail $ [fmt|bad month value %d|] m) return $ fromI' m
 
 monthTextualTests ∷ TestTree
 monthTextualTests =
   testGroup "Textual"
-            [ testCase "12" $ Just (__month' 12) ≟ fromText "12"
+            [ testCase "12" $ Just (__fromI' 12) ≟ fromText @Month "12"
             , testCase  "0" $ Nothing @Month     ≟ fromText  "0"
             , testCase "13" $ Nothing @Month     ≟ fromText "13"
             , testProperty "invertibleText" (propInvertibleText @Month)
@@ -121,6 +117,9 @@ monthTextualTests =
 
 instance Arbitrary Month where
   arbitrary = Month ⊳ arbitrary
+
+month ∷ QuasiQuoter
+month = mkQuasiQuoterExp "Month" (\ s → ⟦ __fromString @Month s ⟧)
 
 -- testing ---------------------------------------------------------------------
 

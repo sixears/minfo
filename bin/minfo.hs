@@ -1,6 +1,5 @@
 {-# OPTIONS_GHC -Wall #-}
 
--- {-# LANGUAGE DeriveGeneric              #-}
 {-# LANGUAGE FlexibleInstances          #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE LambdaCase                 #-}

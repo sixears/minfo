@@ -466,7 +466,6 @@ testDateishYs = DateishYs ((__year' 2019),(__year' 2020))
 badDateishYs ∷ Dateish
 badDateishYs = DateishYs ((__year' 2019),(__year' 2019))
 
-
 ------------------------------------------------------------
 
 tests ∷ TestTree
