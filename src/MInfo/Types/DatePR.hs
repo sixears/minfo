@@ -1,8 +1,11 @@
-{-# LANGUAGE InstanceSigs    #-}
-{-# LANGUAGE QuasiQuotes     #-}
-{-# LANGUAGE TemplateHaskell #-}
-{-# LANGUAGE TypeFamilies    #-}
-{-# LANGUAGE UnicodeSyntax   #-}
+{-# LANGUAGE FlexibleContexts  #-}
+{-# LANGUAGE InstanceSigs      #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE QuasiQuotes       #-}
+{-# LANGUAGE TemplateHaskell   #-}
+{-# LANGUAGE TypeApplications  #-}
+{-# LANGUAGE TypeFamilies      #-}
+{-# LANGUAGE UnicodeSyntax     #-}
 
 {- | Date range, utilizing DateP for varying precisions -}
 

@@ -58,6 +58,9 @@ library
                      , MInfo.Types.Dateish
 
                      , MInfo.Types
+                     , MInfo.Types.DateP
+                     , MInfo.Types.Date.Error
+                     , MInfo.Types.DatePR
                      , MInfo.Types.DayOfM
                      , MInfo.Types.FromI
                      , MInfo.Types.Info

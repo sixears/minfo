@@ -1,5 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE PatternSynonyms   #-}
+{-# LANGUAGE QuasiQuotes       #-}
 {-# LANGUAGE UnicodeSyntax     #-}
 {-# LANGUAGE ViewPatterns      #-}
 

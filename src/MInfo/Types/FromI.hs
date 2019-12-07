@@ -1,4 +1,6 @@
-{-# LANGUAGE UnicodeSyntax #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE QuasiQuotes       #-}
+{-# LANGUAGE UnicodeSyntax     #-}
 
 module MInfo.Types.FromI
   ( FromI( fromI, fromI', __fromI, __fromI' ) )
