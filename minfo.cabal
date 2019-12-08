@@ -58,7 +58,7 @@ library
                      , MInfo.Types.Dateish
 
                      , MInfo.Types
-                     , MInfo.Types.DateP
+                     , MInfo.Types.DateImprecise
                      , MInfo.Types.Date.Error
                      , MInfo.Types.DatePR
                      , MInfo.Types.DayOfM
@@ -131,8 +131,12 @@ test-suite minfo-test
   -- add ?RTS -xt -hy to produce a usage graph
   main-is:             minfo-test.hs
   hs-source-dirs:      t
-  build-depends:       base, tasty, tasty-hunit
-                     , mid
+  build-depends:       base, base-unicode-symbols, optparse-applicative, tasty
+                     , tasty-hunit
+
+                     , more-unicode, tasty-plus
+
+                     , minfo
   default-language:    Haskell2010
 
 

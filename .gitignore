@@ -23,3 +23,4 @@ ghc-mod.package-db-stack
 .ghc.environment.x86_64-linux-8.6.5
 dist-newstyle/
 default.nix
+default.nix.bak

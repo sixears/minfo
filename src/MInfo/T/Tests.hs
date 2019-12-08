@@ -37,8 +37,8 @@ import qualified  MInfo.Types.Track
 import qualified  MInfo.Types.Tracks
 import qualified  MInfo.Types.Info
 import qualified  MInfo.Types.DayOfM
+import qualified  MInfo.Types.DateImprecise
 import qualified  MInfo.Types.DatePR
-import qualified  MInfo.Types.DateP
 import qualified  MInfo.PYaml
 
 --------------------------------------------------------------------------------
@@ -55,7 +55,7 @@ tests =
                     , MInfo.Types.Info.tests
                     , MInfo.Types.DayOfM.tests
                     , MInfo.Types.DatePR.tests
-                    , MInfo.Types.DateP.tests
+                    , MInfo.Types.DateImprecise.tests
                     , MInfo.PYaml.tests
                     ]
 

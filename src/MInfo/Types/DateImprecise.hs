@@ -9,8 +9,8 @@
 
 {- | Date, with varying precisions - day, month, year. -}
 
-module MInfo.Types.DateP
-  ( DateP, dateDay, dateDay', dateMonth, dateYear, dateP, toDate, toDay, tests )
+module MInfo.Types.DateImprecise
+  ( DateImprecise, dateDay, dateDay', dateMonth, dateYear, dateImprecise, toDate, toDay, tests )
 where
 
 import Prelude  ( Float, Integer )
@@ -131,11 +131,11 @@ import MInfo.Types.Year        ( Year, year )
 --------------------------------------------------------------------------------
 
 {- | A date, with variable precision -}
-data DateP = DateDay Day | DateMonth (Year,Month) | DateYear Year
+data DateImprecise = DateDay Day | DateMonth (Year,Month) | DateYear Year
   deriving (Eq,Show)
 
 dateDay ∷ (AsDateError (Year,Month,DayOfM) ε, MonadError ε η) ⇒
-          Year → Month → DayOfM → η DateP
+          Year → Month → DayOfM → η DateImprecise
 dateDay y m d = let (y_,m_,d_) = (toIntegral y, toIntegral m, toIntegral d)
                     result@(DateDay day) = dateDay' y m d
                     (y', m', d') = toGregorian day
@@ -143,22 +143,22 @@ dateDay y m d = let (y_,m_,d_) = (toIntegral y, toIntegral m, toIntegral d)
                     then return result
                     else badDateError (y,m,d)
 
-{- | Convert a day to a DateP, with "clipping" as defined in `fromGregorian`;
+{- | Convert a day to a DateImprecise, with "clipping" as defined in `fromGregorian`;
      out-of-range days will be "clipped" back to the earliest available day
      in the month -}
-dateDay' ∷ Year → Month → DayOfM → DateP
+dateDay' ∷ Year → Month → DayOfM → DateImprecise
 dateDay' y m d =
   DateDay $ fromGregorian (toIntegral y) (toIntegral m) (toIntegral d)
 
-dateMonth ∷ Year → Month → DateP
+dateMonth ∷ Year → Month → DateImprecise
 dateMonth = curry DateMonth
 
-dateYear ∷ Year → DateP
+dateYear ∷ Year → DateImprecise
 dateYear = DateYear
 
-{- | Convert a `DateP` to a Day (the first available day in that
+{- | Convert a `DateImprecise` to a Day (the first available day in that
      "range"). -}
-toDay ∷ DateP → Day
+toDay ∷ DateImprecise → Day
 toDay (DateDay d)       = d
 toDay (DateMonth (y,m)) = fromGregorian (toIntegral y) (toIntegral m) 1
 toDay (DateYear y)      = fromGregorian (toIntegral y) 1 1
@@ -167,9 +167,9 @@ cdayToDate ∷ Day → (Year,Month,DayOfM)
 cdayToDate cday = let (y,m,d) = toGregorian cday
                    in (__fromI y, __fromI m, __fromI d)
 
-{- | Convert a `DateP` to a day (the first available day in that
+{- | Convert a `DateImprecise` to a day (the first available day in that
      "range"); as a (y,m,d) triple. -}
-toDate ∷ DateP → (Year,Month,DayOfM)
+toDate ∷ DateImprecise → (Year,Month,DayOfM)
 toDate datep = let cday = toDay datep
                 in cdayToDate cday
 
@@ -182,46 +182,46 @@ textDate (y,m,d) = [fmt|%4d-%02d-%02d|] (toWord16 y) (toWord16 m) (toWord16 d)
 
 ----------------------------------------
 
-instance Printable DateP where
+instance Printable DateImprecise where
   print (DateDay cday)    = P.text $ textDay cday
   print (DateMonth (y,m)) = P.text $ [fmt|%4d-%02d|] (toWord16 y) (toWord16 m)
   print (DateYear y)      = P.text $ [fmt|%4d|] (toWord16 y)
 
 --------------------
 
-datePPrintableTests ∷ TestTree
-datePPrintableTests =
+printableTests ∷ TestTree
+printableTests =
   testGroup "Printable"
-            [ testCase "2019-11-14"       $ "2019-11-14" ≟ toText testDateP
-            , testCase "2019-11"          $ "2019-11"    ≟ toText testDatePM
-            , testCase "2019"             $ "2019"       ≟ toText testDatePY
+            [ testCase "2019-11-14"       $ "2019-11-14" ≟ toText testDateImprecise
+            , testCase "2019-11"          $ "2019-11"    ≟ toText testDateImpreciseM
+            , testCase "2019"             $ "2019"       ≟ toText testDateImpreciseY
             ]
 
 ----------------------------------------
 
-instance Parsecable DateP where
+instance Parsecable DateImprecise where
   parser = textual
 
 --------------------
 
-datePParsecableTests ∷ TestTree
-datePParsecableTests =
+parsecableTests ∷ TestTree
+parsecableTests =
   let nn = "" ∷ Text
-      testDatePText  = "2019-11-14" ∷ Text
-      testDatePMText = "2019-11" ∷ Text
-      testDatePYText = "2019" ∷ Text
+      testDateImpreciseText  = "2019-11-14" ∷ Text
+      testDateImpreciseMText = "2019-11" ∷ Text
+      testDateImpreciseYText = "2019" ∷ Text
    in testGroup "Parsecable"
                 [ testCase "2019-11-14" $
-                    Right testDateP  ≟ parsec' @DateP nn testDatePText
+                    Right testDateImprecise  ≟ parsec' @DateImprecise nn testDateImpreciseText
                 , testCase "2019-11" $
-                    Right testDatePM ≟ parsec' @DateP nn testDatePMText
+                    Right testDateImpreciseM ≟ parsec' @DateImprecise nn testDateImpreciseMText
                 , testCase "2019" $
-                    Right testDatePY ≟ parsec' @DateP nn testDatePYText
+                    Right testDateImpreciseY ≟ parsec' @DateImprecise nn testDateImpreciseYText
                 ]
 
 ----------------------------------------
 
-instance Textual DateP where
+instance Textual DateImprecise where
   textual =
     tries $ [ dateDay'  ⊳ textual ⋪ string "-" ⊵ textual ⋪ string "-"
                         ⊵ textual
@@ -231,19 +231,19 @@ instance Textual DateP where
 
 --------------------
 
-datePTextualTests ∷ TestTree
-datePTextualTests =
+textualTests ∷ TestTree
+textualTests =
   testGroup "Textual"
-            [ testCase "2019-11-14" $ Just testDateP   ≟ fromText "2019-11-14"
-            , testCase "2019-11"    $ Just testDatePM  ≟ fromText "2019-11"
-            , testCase "2019"       $ Just testDatePY  ≟ fromText "2019"
-            , testProperty "invertibleText" (propInvertibleText @DateP)
+            [ testCase "2019-11-14" $ Just testDateImprecise   ≟ fromText "2019-11-14"
+            , testCase "2019-11"    $ Just testDateImpreciseM  ≟ fromText "2019-11"
+            , testCase "2019"       $ Just testDateImpreciseY  ≟ fromText "2019"
+            , testProperty "invertibleText" (propInvertibleText @DateImprecise)
             ]
 
 ----------------------------------------
 
-instance Arbitrary DateP where
-  arbitrary ∷ Gen DateP
+instance Arbitrary DateImprecise where
+  arbitrary ∷ Gen DateImprecise
   arbitrary = oneof [ dateDay'  ⊳ arbitrary ⊵ arbitrary ⊵ arbitrary
                     , dateMonth ⊳ arbitrary ⊵ arbitrary
                     , dateYear  ⊳ arbitrary
@@ -251,7 +251,7 @@ instance Arbitrary DateP where
 
 ----------------------------------------
 
-instance FromJSON DateP where
+instance FromJSON DateImprecise where
   parseJSON (String t) = case parseText t of
                            Parsed      d → return d
                            Malformed _ e → fail $ [fmt|%s (%t)|] e  t
@@ -260,40 +260,41 @@ instance FromJSON DateP where
                              Right i → case fromI i of
                                          Just  y → return $ dateYear y
                                          Nothing → fail $ [fmt|bad year: %d|] i
-  parseJSON invalid    = typeMismatch "DateP" invalid
+  parseJSON invalid    = typeMismatch "DateImprecise" invalid
 
 --------------------
 
-datePFromJSONTests ∷ TestTree
-datePFromJSONTests =
+fromJSONTests ∷ TestTree
+fromJSONTests =
   testGroup "FromJSON"
             [ testCase "2019-11-14" $
-                Right testDateP ≟ unYaml @YamlParseError "2019-11-14"
+                Right testDateImprecise ≟ unYaml @YamlParseError "2019-11-14"
             , testCase "2019-11" $
-                Right testDatePM ≟ unYaml @YamlParseError "2019-11"
+                Right testDateImpreciseM ≟ unYaml @YamlParseError "2019-11"
             , testCase "2019" $
-                Right testDatePY ≟ unYaml @YamlParseError "2019"
+                Right testDateImpreciseY ≟ unYaml @YamlParseError "2019"
             ]
 
 ----------------------------------------
 
-instance ToJSON DateP where
+instance ToJSON DateImprecise where
   toJSON d = String $ toText d
 
 --------------------
 
-datePToJSONTests ∷ TestTree
-datePToJSONTests =
+toJSONTests ∷ TestTree
+toJSONTests =
   let check s d = testCase s $ String (pack s) ≟ toJSON d
-   in testGroup "ToJSON" [ check "2019-11-14" testDateP
-                         , check "2019-11"    testDatePM
-                         , check "2019"       testDatePY
+   in testGroup "ToJSON" [ check "2019-11-14" testDateImprecise
+                         , check "2019-11"    testDateImpreciseM
+                         , check "2019"       testDateImpreciseY
                          ]
 
 ----------------------------------------
 
-dateP ∷ QuasiQuoter
-dateP = mkQuasiQuoterExp "DateP" (\ s → ⟦ __fromString @DateP s ⟧)
+dateImprecise ∷ QuasiQuoter
+dateImprecise = mkQuasiQuoterExp "DateImprecise"
+                                  (\ s → ⟦ __fromString @DateImprecise s ⟧)
 
 -- testing ---------------------------------------------------------------------
 
@@ -301,22 +302,20 @@ dateP = mkQuasiQuoterExp "DateP" (\ s → ⟦ __fromString @DateP s ⟧)
 --                       test data                        --
 ------------------------------------------------------------
 
-testDateP ∷ DateP
-testDateP = dateDay' [year|2019|] [month|11|] [dayOfM|14|]
+testDateImprecise ∷ DateImprecise
+testDateImprecise = dateDay' [year|2019|] [month|11|] [dayOfM|14|]
 
-testDatePM ∷ DateP
-testDatePM = dateMonth [year|2019|] [month|11|]
+testDateImpreciseM ∷ DateImprecise
+testDateImpreciseM = dateMonth [year|2019|] [month|11|]
 
-testDatePY ∷ DateP
-testDatePY = dateYear [year|2019|]
+testDateImpreciseY ∷ DateImprecise
+testDateImpreciseY = dateYear [year|2019|]
 
 ------------------------------------------------------------
 
 tests ∷ TestTree
-tests = testGroup "DateP" [ datePPrintableTests, datePParsecableTests
-                          , datePTextualTests, datePFromJSONTests
-                          , datePToJSONTests
-                          ]
+tests = testGroup "DateImprecise" [ printableTests, parsecableTests
+                                  , textualTests, fromJSONTests , toJSONTests ]
 
 ----------------------------------------
 

@@ -7,7 +7,7 @@
 {-# LANGUAGE TypeFamilies      #-}
 {-# LANGUAGE UnicodeSyntax     #-}
 
-{- | Date range, utilizing DateP for varying precisions -}
+{- | Date range, utilizing DateImprecise for varying precisions -}
 
 module MInfo.Types.DatePR
   ( DatePR, datePR, tests )
@@ -107,8 +107,8 @@ import MInfo.Util              ( __fromString, mkQuasiQuoterExp )
 import MInfo.YamlPlus          ( unYaml )
 import MInfo.YamlPlus.Error    ( YamlParseError )
 
-import MInfo.Types.DateP       ( DateP
-                               , dateDay', dateMonth, dateP, dateYear, toDay )
+import MInfo.Types.DateImprecise       ( DateImprecise
+                               , dateDay', dateMonth, dateImprecise, dateYear, toDay )
 
 import MInfo.Types.Date.Error  ( AsDateError, DateError_
                                , dateRangeError, dateRangeError_ )
@@ -119,18 +119,18 @@ import MInfo.Types.Year        ( year )
 
 --------------------------------------------------------------------------------
 
-type DateError = DateError_ DateP
+type DateError = DateError_ DateImprecise
 
 {- | A date, with variable precision -}
-newtype DatePR = DatePR (DateP,DateP)
+newtype DatePR = DatePR (DateImprecise,DateImprecise)
   deriving (Eq,Show)
 
-datePRange ∷ (AsDateError DateP ε, MonadError ε η) ⇒ DateP → DateP → η DatePR
+datePRange ∷ (AsDateError DateImprecise ε, MonadError ε η) ⇒ DateImprecise → DateImprecise → η DatePR
 datePRange start end = if toDay start < toDay end
                        then return $ DatePR (start,end)
                        else dateRangeError start end
 
-datePRangeM ∷ Monad η ⇒ DateP → DateP → η DatePR
+datePRangeM ∷ Monad η ⇒ DateImprecise → DateImprecise → η DatePR
 datePRangeM start end = case datePRange @DateError start end of
                           Left  e → fail $ show e
                           Right r → return r
@@ -140,10 +140,10 @@ datePRangeTests =
   testGroup "datePRange"
             [ testCase "2019-11-14:2019-11-26" $
                   Right testDatePR
-                ≟ datePRange @DateError [dateP|2019-11-14|] [dateP|2019-11-26|]
+                ≟ datePRange @DateError [dateImprecise|2019-11-14|] [dateImprecise|2019-11-26|]
             , testCase "2019-11-14:2019-11-14" $
-                  Left (dateRangeError_ [dateP|2019-11-14|] [dateP|2019-11-14|])
-                ≟ datePRange @DateError [dateP|2019-11-14|] [dateP|2019-11-14|]
+                  Left (dateRangeError_ [dateImprecise|2019-11-14|] [dateImprecise|2019-11-14|])
+                ≟ datePRange @DateError [dateImprecise|2019-11-14|] [dateImprecise|2019-11-14|]
             ]
 
 
@@ -196,7 +196,7 @@ datePRTextualTests =
                 Just testDatePRM ≟ fromText "2017-11:2019-11"
             , testCase "2019"       $
                 Just testDatePRY ≟ fromText "2017:2019"
-            , testProperty "invertibleText" (propInvertibleText @DateP)
+            , testProperty "invertibleText" (propInvertibleText @DateImprecise)
             ]
 
 ----------------------------------------
@@ -215,7 +215,7 @@ instance FromJSON DatePR where
   parseJSON (String t) = case parseText t of
                            Parsed      d → return d
                            Malformed _ e → fail $ [fmt|%s (%t)|] e  t
-  parseJSON invalid    = typeMismatch "DateP" invalid
+  parseJSON invalid    = typeMismatch "DateImprecise" invalid
 
 --------------------
 
@@ -248,7 +248,7 @@ datePRToJSONTests =
 ----------------------------------------
 
 datePR ∷ QuasiQuoter
-datePR = mkQuasiQuoterExp "DateP" (\ s → ⟦ __fromString @DateP s ⟧)
+datePR = mkQuasiQuoterExp "DateP" (\ s → ⟦ __fromString @DateImprecise s ⟧)
 
 -- testing ---------------------------------------------------------------------
 
@@ -256,28 +256,28 @@ datePR = mkQuasiQuoterExp "DateP" (\ s → ⟦ __fromString @DateP s ⟧)
 --                       test data                        --
 ------------------------------------------------------------
 
-testDateP0 ∷ DateP
+testDateP0 ∷ DateImprecise
 testDateP0 = dateDay' [year|2019|] [month|11|] [dayOfM|14|]
 
-testDateP1 ∷ DateP
+testDateP1 ∷ DateImprecise
 testDateP1 = dateDay' [year|2019|] [month|11|] [dayOfM|26|]
 
 testDatePR ∷ DatePR
 testDatePR = DatePR (testDateP0,testDateP1)
 
-testDatePM0 ∷ DateP
+testDatePM0 ∷ DateImprecise
 testDatePM0 = dateMonth [year|2017|] [month|11|]
 
-testDatePM1 ∷ DateP
+testDatePM1 ∷ DateImprecise
 testDatePM1 = dateMonth [year|2019|] [month|11|]
 
 testDatePRM ∷ DatePR
 testDatePRM = DatePR (testDatePM0,testDatePM1)
 
-testDatePY0 ∷ DateP
+testDatePY0 ∷ DateImprecise
 testDatePY0 = dateYear [year|2017|]
 
-testDatePY1 ∷ DateP
+testDatePY1 ∷ DateImprecise
 testDatePY1 = dateYear [year|2019|]
 
 testDatePRY ∷ DatePR
@@ -286,10 +286,10 @@ testDatePRY = DatePR (testDatePY0,testDatePY1)
 ------------------------------------------------------------
 
 tests ∷ TestTree
-tests = testGroup "DateP" [ datePRangeTests, datePRPrintableTests
-                          , datePRTextualTests, datePRParsecableTests
-                          , datePRFromJSONTests, datePRToJSONTests
-                          ]
+tests = testGroup "DateImprecise" [ datePRangeTests, datePRPrintableTests
+                                  , datePRTextualTests, datePRParsecableTests
+                                  , datePRFromJSONTests, datePRToJSONTests
+                                  ]
 
 ----------------------------------------
 
