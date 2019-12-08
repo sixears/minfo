@@ -9,8 +9,8 @@
 
 {- | Date range, utilizing DateImprecise for varying precisions -}
 
-module MInfo.Types.DatePR
-  ( DatePR, datePR, tests )
+module MInfo.Types.DateImpreciseRange
+  ( DateImpreciseRange, dateImpreciseRange, tests )
 where
 
 -- aeson -------------------------------
@@ -122,96 +122,104 @@ import MInfo.Types.Year        ( year )
 type DateError = DateError_ DateImprecise
 
 {- | A date, with variable precision -}
-newtype DatePR = DatePR (DateImprecise,DateImprecise)
+newtype DateImpreciseRange = DateImpreciseRange (DateImprecise,DateImprecise)
   deriving (Eq,Show)
 
-datePRange ∷ (AsDateError DateImprecise ε, MonadError ε η) ⇒ DateImprecise → DateImprecise → η DatePR
-datePRange start end = if toDay start < toDay end
-                       then return $ DatePR (start,end)
-                       else dateRangeError start end
+dateImpreciseR ∷ (AsDateError DateImprecise ε, MonadError ε η) ⇒
+                     DateImprecise → DateImprecise → η DateImpreciseRange
+dateImpreciseR start end = if toDay start < toDay end
+                               then return $ DateImpreciseRange (start,end)
+                               else dateRangeError start end
 
-datePRangeM ∷ Monad η ⇒ DateImprecise → DateImprecise → η DatePR
-datePRangeM start end = case datePRange @DateError start end of
-                          Left  e → fail $ show e
-                          Right r → return r
+dateImpreciseRM ∷ Monad η ⇒
+                      DateImprecise → DateImprecise → η DateImpreciseRange
+dateImpreciseRM start end =
+  case dateImpreciseR @DateError start end of
+    Left  e → fail $ show e
+    Right r → return r
 
-datePRangeTests ∷ TestTree
-datePRangeTests =
-  testGroup "datePRange"
+dateImpreciseRangeTests ∷ TestTree
+dateImpreciseRangeTests =
+  testGroup "dateImpreciseRange"
             [ testCase "2019-11-14:2019-11-26" $
-                  Right testDatePR
-                ≟ datePRange @DateError [dateImprecise|2019-11-14|] [dateImprecise|2019-11-26|]
+                  Right testDateImpreciseRange
+                ≟ dateImpreciseR @DateError [dateImprecise|2019-11-14|]
+                                                [dateImprecise|2019-11-26|]
             , testCase "2019-11-14:2019-11-14" $
-                  Left (dateRangeError_ [dateImprecise|2019-11-14|] [dateImprecise|2019-11-14|])
-                ≟ datePRange @DateError [dateImprecise|2019-11-14|] [dateImprecise|2019-11-14|]
+                  Left (dateRangeError_ [dateImprecise|2019-11-14|]
+                                        [dateImprecise|2019-11-14|])
+                ≟ dateImpreciseR @DateError [dateImprecise|2019-11-14|]
+                                                    [dateImprecise|2019-11-14|]
             ]
 
 
 
 ----------------------------------------
 
-instance Printable DatePR where
-  print (DatePR (d0,d1))  = P.text $ [fmt|%T:%T|] d0 d1
+instance Printable DateImpreciseRange where
+  print (DateImpreciseRange (d0,d1))  = P.text $ [fmt|%T:%T|] d0 d1
 
 --------------------
 
-datePRPrintableTests ∷ TestTree
-datePRPrintableTests =
+dateImpreciseRangePrintableTests ∷ TestTree
+dateImpreciseRangePrintableTests =
   let check s dpr = testCase s $ s ≟ toString dpr
    in testGroup "Printable"
-                [ check "2019-11-14:2019-11-26" testDatePR
-                , check "2017-11:2019-11"       testDatePRM
-                , check "2017:2019"             testDatePRY
+                [ check "2019-11-14:2019-11-26" testDateImpreciseRange
+                , check "2017-11:2019-11"       testDateImpreciseRangeM
+                , check "2017:2019"             testDateImpreciseRangeY
                 ]
 
 ----------------------------------------
 
-instance Parsecable DatePR where
+instance Parsecable DateImpreciseRange where
   parser = textual
 
 --------------------
 
-datePRParsecableTests ∷ TestTree
-datePRParsecableTests =
+dateImpreciseRangeParsecableTests ∷ TestTree
+dateImpreciseRangeParsecableTests =
   let check s dpr = testCase s $ Right dpr ≟ parsec' (""∷Text) s
    in testGroup "Parsecable"
-                [ check "2019-11-14:2019-11-26" testDatePR
-                , check "2017-11:2019-11" testDatePRM
-                , check "2017:2019" testDatePRY
+                [ check "2019-11-14:2019-11-26" testDateImpreciseRange
+                , check "2017-11:2019-11" testDateImpreciseRangeM
+                , check "2017:2019" testDateImpreciseRangeY
                 ]
 
 ----------------------------------------
 
-instance Textual DatePR where
-  textual = ((,) ⊳ textual ⋪ string ":" ⊵ textual) ≫ uncurry datePRangeM
+instance Textual DateImpreciseRange where
+  textual = ((,) ⊳ textual ⋪ string ":" ⊵ textual) ≫ uncurry dateImpreciseRM
 
 --------------------
 
-datePRTextualTests ∷ TestTree
-datePRTextualTests =
+dateImpreciseRangeTextualTests ∷ TestTree
+dateImpreciseRangeTextualTests =
   testGroup "Textual"
             [ testCase "2019-11-14" $
-                Just testDatePR  ≟ fromText "2019-11-14:2019-11-26"
+                Just testDateImpreciseRange  ≟ fromText "2019-11-14:2019-11-26"
             , testCase "2019-11"    $
-                Just testDatePRM ≟ fromText "2017-11:2019-11"
+                Just testDateImpreciseRangeM ≟ fromText "2017-11:2019-11"
             , testCase "2019"       $
-                Just testDatePRY ≟ fromText "2017:2019"
+                Just testDateImpreciseRangeY ≟ fromText "2017:2019"
             , testProperty "invertibleText" (propInvertibleText @DateImprecise)
             ]
 
 ----------------------------------------
 
-instance Arbitrary DatePR where
-  arbitrary ∷ Gen DatePR
-  arbitrary = let isValid ∷ DatePR → Bool
-                  isValid (DatePR (d0,d1)) = case datePRange @DateError d0 d1 of
-                                               Left  _ → False
-                                               Right _ → True
-               in (DatePR ⊳ ((,) ⊳ arbitrary ⊵ arbitrary)) `suchThat` isValid
+instance Arbitrary DateImpreciseRange where
+  arbitrary ∷ Gen DateImpreciseRange
+  arbitrary = let isValid ∷ DateImpreciseRange → Bool
+                  isValid (DateImpreciseRange (d0,d1)) =
+                    case dateImpreciseR @DateError d0 d1 of
+                      Left  _ → False
+                      Right _ → True
+               in (DateImpreciseRange ⊳ ((,) ⊳ arbitrary ⊵ arbitrary))
+                  `suchThat` isValid
 
 ----------------------------------------
 
-instance FromJSON DatePR where
+instance FromJSON DateImpreciseRange where
   parseJSON (String t) = case parseText t of
                            Parsed      d → return d
                            Malformed _ e → fail $ [fmt|%s (%t)|] e  t
@@ -219,36 +227,40 @@ instance FromJSON DatePR where
 
 --------------------
 
-datePRFromJSONTests ∷ TestTree
-datePRFromJSONTests =
+dateImpreciseRangeFromJSONTests ∷ TestTree
+dateImpreciseRangeFromJSONTests =
   testGroup "FromJSON"
             [ testCase "2019-11-14" $
-                Right testDatePR ≟ unYaml @YamlParseError "2019-11-14:2019-11-26"
+                  Right testDateImpreciseRange
+                ≟ unYaml @YamlParseError "2019-11-14:2019-11-26"
             , testCase "2019-11" $
-                Right testDatePRM ≟ unYaml @YamlParseError "2017-11:2019-11"
+                  Right testDateImpreciseRangeM
+                ≟ unYaml @YamlParseError "2017-11:2019-11"
             , testCase "2019" $
-                Right testDatePRY ≟ unYaml @YamlParseError "2017:2019"
+                  Right testDateImpreciseRangeY
+                ≟ unYaml @YamlParseError "2017:2019"
             ]
 
 ----------------------------------------
 
-instance ToJSON DatePR where
+instance ToJSON DateImpreciseRange where
   toJSON d = String $ toText d
 
 --------------------
 
-datePRToJSONTests ∷ TestTree
-datePRToJSONTests =
+dateImpreciseRangeToJSONTests ∷ TestTree
+dateImpreciseRangeToJSONTests =
   let check s d = testCase s $ String (pack s) ≟ toJSON d
-   in testGroup "ToJSON" [ check "2019-11-14:2019-11-26" testDatePR
-                         , check "2017-11:2019-11"       testDatePRM
-                         , check "2017:2019"             testDatePRY
+   in testGroup "ToJSON" [ check "2019-11-14:2019-11-26" testDateImpreciseRange
+                         , check "2017-11:2019-11"       testDateImpreciseRangeM
+                         , check "2017:2019"             testDateImpreciseRangeY
                          ]
 
 ----------------------------------------
 
-datePR ∷ QuasiQuoter
-datePR = mkQuasiQuoterExp "DateP" (\ s → ⟦ __fromString @DateImprecise s ⟧)
+dateImpreciseRange ∷ QuasiQuoter
+dateImpreciseRange =
+  mkQuasiQuoterExp "DateP" (\ s → ⟦ __fromString @DateImprecise s ⟧)
 
 -- testing ---------------------------------------------------------------------
 
@@ -262,8 +274,8 @@ testDateP0 = dateDay' [year|2019|] [month|11|] [dayOfM|14|]
 testDateP1 ∷ DateImprecise
 testDateP1 = dateDay' [year|2019|] [month|11|] [dayOfM|26|]
 
-testDatePR ∷ DatePR
-testDatePR = DatePR (testDateP0,testDateP1)
+testDateImpreciseRange ∷ DateImpreciseRange
+testDateImpreciseRange = DateImpreciseRange (testDateP0,testDateP1)
 
 testDatePM0 ∷ DateImprecise
 testDatePM0 = dateMonth [year|2017|] [month|11|]
@@ -271,8 +283,8 @@ testDatePM0 = dateMonth [year|2017|] [month|11|]
 testDatePM1 ∷ DateImprecise
 testDatePM1 = dateMonth [year|2019|] [month|11|]
 
-testDatePRM ∷ DatePR
-testDatePRM = DatePR (testDatePM0,testDatePM1)
+testDateImpreciseRangeM ∷ DateImpreciseRange
+testDateImpreciseRangeM = DateImpreciseRange (testDatePM0,testDatePM1)
 
 testDatePY0 ∷ DateImprecise
 testDatePY0 = dateYear [year|2017|]
@@ -280,15 +292,18 @@ testDatePY0 = dateYear [year|2017|]
 testDatePY1 ∷ DateImprecise
 testDatePY1 = dateYear [year|2019|]
 
-testDatePRY ∷ DatePR
-testDatePRY = DatePR (testDatePY0,testDatePY1)
+testDateImpreciseRangeY ∷ DateImpreciseRange
+testDateImpreciseRangeY = DateImpreciseRange (testDatePY0,testDatePY1)
 
 ------------------------------------------------------------
 
 tests ∷ TestTree
-tests = testGroup "DateImprecise" [ datePRangeTests, datePRPrintableTests
-                                  , datePRTextualTests, datePRParsecableTests
-                                  , datePRFromJSONTests, datePRToJSONTests
+tests = testGroup "DateImprecise" [ dateImpreciseRangeTests
+                                  , dateImpreciseRangePrintableTests
+                                  , dateImpreciseRangeTextualTests
+                                  , dateImpreciseRangeParsecableTests
+                                  , dateImpreciseRangeFromJSONTests
+                                  , dateImpreciseRangeToJSONTests
                                   ]
 
 ----------------------------------------

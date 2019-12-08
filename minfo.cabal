@@ -58,9 +58,9 @@ library
                      , MInfo.Types.Dateish
 
                      , MInfo.Types
-                     , MInfo.Types.DateImprecise
                      , MInfo.Types.Date.Error
-                     , MInfo.Types.DatePR
+                     , MInfo.Types.DateImprecise
+                     , MInfo.Types.DateImpreciseRange
                      , MInfo.Types.DayOfM
                      , MInfo.Types.FromI
                      , MInfo.Types.Info
