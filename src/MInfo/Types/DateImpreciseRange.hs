@@ -25,12 +25,15 @@ import Data.Either        ( Either( Left, Right ) )
 import Data.Eq            ( Eq )
 import Data.Function      ( ($) )
 import Data.Maybe         ( Maybe( Just ) )
-import Data.Ord           ( (<) )
 import Data.String        ( String )
 import Data.Tuple         ( uncurry )
 import System.Exit        ( ExitCode )
 import System.IO          ( IO )
 import Text.Show          ( Show( show ) )
+
+-- base-unicode-symbols ----------------
+
+import Data.Ord.Unicode  ( (≤) )
 
 -- data-textual ------------------------
 
@@ -103,19 +106,19 @@ import Data.Yaml  ( FromJSON( parseJSON ), ToJSON( toJSON ), Value( String ) )
 --                     local imports                      --
 ------------------------------------------------------------
 
-import MInfo.Util              ( __fromString, mkQuasiQuoterExp )
-import MInfo.YamlPlus          ( unYaml )
-import MInfo.YamlPlus.Error    ( YamlParseError )
+import MInfo.Util                 ( __fromString, mkQuasiQuoterExp )
+import MInfo.YamlPlus             ( unYaml )
+import MInfo.YamlPlus.Error       ( YamlParseError )
 
-import MInfo.Types.DateImprecise       ( DateImprecise
-                               , dateDay', dateMonth, dateImprecise, dateYear, toDay )
+import MInfo.Types.DateImprecise  ( DateImprecise, dateDay', dateMonth
+                                  , dateImprecise, dateYear, toDay )
 
-import MInfo.Types.Date.Error  ( AsDateError, DateError_
-                               , dateRangeError, dateRangeError_ )
+import MInfo.Types.Date.Error     ( AsDateError, DateError_
+                                  , dateRangeError, dateRangeError_ )
 
-import MInfo.Types.DayOfM      ( dayOfM )
-import MInfo.Types.Month       ( month )
-import MInfo.Types.Year        ( year )
+import MInfo.Types.DayOfM         ( dayOfM )
+import MInfo.Types.Month          ( month )
+import MInfo.Types.Year           ( year )
 
 --------------------------------------------------------------------------------
 
@@ -127,7 +130,7 @@ newtype DateImpreciseRange = DateImpreciseRange (DateImprecise,DateImprecise)
 
 dateImpreciseR ∷ (AsDateError DateImprecise ε, MonadError ε η) ⇒
                      DateImprecise → DateImprecise → η DateImpreciseRange
-dateImpreciseR start end = if toDay start < toDay end
+dateImpreciseR start end = if toDay start ≤ toDay end
                                then return $ DateImpreciseRange (start,end)
                                else dateRangeError start end
 
@@ -145,11 +148,16 @@ dateImpreciseRangeTests =
                   Right testDateImpreciseRange
                 ≟ dateImpreciseR @DateError [dateImprecise|2019-11-14|]
                                                 [dateImprecise|2019-11-26|]
-            , testCase "2019-11-14:2019-11-14" $
+            , testCase "2019-11-14:2019-11-13" $
                   Left (dateRangeError_ [dateImprecise|2019-11-14|]
-                                        [dateImprecise|2019-11-14|])
+                                        [dateImprecise|2019-11-13|])
                 ≟ dateImpreciseR @DateError [dateImprecise|2019-11-14|]
-                                                    [dateImprecise|2019-11-14|]
+                                            [dateImprecise|2019-11-13|]
+            , testCase "2019-11-14:2019-11-14" $
+                  Right (DateImpreciseRange ([dateImprecise|2019-11-14|]
+                                            ,[dateImprecise|2019-11-14|]))
+                ≟ dateImpreciseR @DateError [dateImprecise|2019-11-14|]
+                                            [dateImprecise|2019-11-14|]
             ]
 
 
