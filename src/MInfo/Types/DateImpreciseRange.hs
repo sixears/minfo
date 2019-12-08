@@ -158,6 +158,16 @@ dateImpreciseRangeTests =
                                             ,[dateImprecise|2019-11-14|]))
                 ≟ dateImpreciseR @DateError [dateImprecise|2019-11-14|]
                                             [dateImprecise|2019-11-14|]
+            , testCase "2019:2019" $
+                  Right (DateImpreciseRange ([dateImprecise|2019|]
+                                            ,[dateImprecise|2019|]))
+                ≟ dateImpreciseR @DateError [dateImprecise|2019|]
+                                            [dateImprecise|2019|]
+            , testCase "2019:2018" $
+                  Left (dateRangeError_ [dateImprecise|2019|]
+                                        [dateImprecise|2018|])
+                ≟ dateImpreciseR @DateError [dateImprecise|2019|]
+                                            [dateImprecise|2018|]
             ]
 
 
