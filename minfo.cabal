@@ -114,10 +114,10 @@ executable minfo
   main-is:             minfo.hs
   hs-source-dirs:      bin
   build-depends:       base, base-unicode-symbols, data-textual, lens, mtl
-                     , optparse-applicative, tasty, tasty-hunit, text
+                     , optparse-applicative, text
 
-                     , exited >= 1.0.2.0, fluffy, fpath, monaderror-io
-                     , more-unicode, non-empty-containers, tasty-plus, tfmt
+                     , exited >= 1.0.2.0, fpath, monaderror-io
+                     , more-unicode, tfmt
 
                      , minfo
   default-extensions:  NoImplicitPrelude
