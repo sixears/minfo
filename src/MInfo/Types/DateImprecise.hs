@@ -4,6 +4,7 @@
 {-# LANGUAGE PatternSynonyms   #-}
 {-# LANGUAGE QuasiQuotes       #-}
 {-# LANGUAGE TemplateHaskell   #-}
+{-# LANGUAGE TypeApplications  #-}
 {-# LANGUAGE TypeFamilies      #-}
 {-# LANGUAGE UnicodeSyntax     #-}
 {-# LANGUAGE ViewPatterns      #-}
@@ -71,7 +72,7 @@ import Data.Time  ( Day, toGregorian )
 --                     local imports                      --
 ------------------------------------------------------------
 
-import MInfo.Util                     ( __fromString, mkQuasiQuoterExp, mkQQC )
+import MInfo.Util                     ( mkQQC )
 
 import MInfo.Types.Date.Error         ( AsDateError_, DateErrorImprecise
                                       , badDateError, emap )

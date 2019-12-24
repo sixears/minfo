@@ -55,8 +55,6 @@ library
                      , MInfo.YamlPlus
                      , MInfo.YamlPlus.Error
 
-                     , MInfo.Types.Dateish
-
                      , MInfo.Types
                      , MInfo.Types.DayBounds
                      , MInfo.Types.Date.Error
@@ -71,7 +69,6 @@ library
                      , MInfo.Types.T.Year
                      , MInfo.Types.DateImprecise
                      , MInfo.Types.DateImpreciseRange
-                     , MInfo.Types.DateImpreciseRanges
                      , MInfo.Types.Info
                      , MInfo.Types.ReleaseInfo
                      , MInfo.Types.Track

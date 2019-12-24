@@ -14,7 +14,7 @@
 {-# LANGUAGE ViewPatterns               #-}
 
 module MInfo.Types.DayOfM
-  ( DayOfM( DayOfM ), dayOfM, tests )
+  ( DayOfM( DayOfM, DoM, D ), dayOfM, tests )
 where
 
 import Prelude  ( Integer, Integral, (+), (-), error, fromInteger, toInteger )
@@ -172,6 +172,12 @@ pattern DayOfM i ← ((+1) ∘ toNum ∘ unDayOfM → i)
 -- not bi-directional, because DayOfM i would be partial (would fail on
 -- out-of-bounds values)
 --                  where DayOfM i = __fromI i
+{- | Short-name convenience alias for `pattern DayOfM` -}
+pattern DoM ∷ Integral α ⇒ α → DayOfM
+pattern DoM i ← ((+1) ∘ toNum ∘ unDayOfM → i)
+{- | Short-name convenience alias for `pattern DayOfM` -}
+pattern D ∷ Integral α ⇒ α → DayOfM
+pattern D i ← ((+1) ∘ toNum ∘ unDayOfM → i)
 
 dayOfMPatternTests ∷ TestTree
 dayOfMPatternTests =

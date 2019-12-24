@@ -35,14 +35,13 @@ import qualified  MInfo.Types.T.DayOfM
 import qualified  MInfo.Types.Month
 import qualified  MInfo.Types.T.Month
 import qualified  MInfo.Types.Year
-import qualified  MInfo.Types.Dateish
+import qualified  MInfo.Types.T.Year
 import qualified  MInfo.Types.Track
 import qualified  MInfo.Types.Tracks
 import qualified  MInfo.Types.Info
 import qualified  MInfo.Types.DateImprecise
 import qualified  MInfo.Types.DateImpreciseType
 import qualified  MInfo.Types.DateImpreciseRange
-import qualified  MInfo.Types.DateImpreciseRanges
 import qualified  MInfo.PYaml
 
 --------------------------------------------------------------------------------
@@ -52,7 +51,6 @@ tests =
   testGroup "MInfo" [ MInfo.BoundedN.tests
                     , MInfo.Types.tests
 
-                    , MInfo.Types.Dateish.tests
                     , MInfo.Types.DayOfM.tests
                     , MInfo.Types.T.DayOfM.tests
                     , MInfo.Types.Month.tests
@@ -64,7 +62,6 @@ tests =
                     , MInfo.Types.DateImprecise.tests
                     , MInfo.Types.DateImpreciseType.tests
                     , MInfo.Types.DateImpreciseRange.tests
-                    , MInfo.Types.DateImpreciseRanges.tests
 
                     , MInfo.Types.Info.tests
                     , MInfo.PYaml.tests

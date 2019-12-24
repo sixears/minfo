@@ -14,7 +14,7 @@
 {-# LANGUAGE ViewPatterns               #-}
 
 module MInfo.Types.Year
-  ( Year, pattern Year, year, tests )
+  ( Year( Year, Y ), year, tests )
 where
 
 import Prelude  ( Integer, Integral, (+), (-), error, fromInteger, toInteger )
@@ -173,6 +173,9 @@ pattern Year i ← ((+1900) ∘ toNum ∘ unYear → i)
 -- not bi-directional, because Year i would be partial (would fail on
 -- out-of-bounds values)
 --                  where Year i = __fromI i
+{- | Short-name convenience alias for `pattern Year` -}
+pattern Y ∷ Integral α ⇒ α → Year
+pattern Y i ← ((+1900) ∘ toNum ∘ unYear → i)
 
 yearPatternTests ∷ TestTree
 yearPatternTests =

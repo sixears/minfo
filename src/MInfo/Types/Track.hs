@@ -88,12 +88,13 @@ import Data.Yaml  ( FromJSON( parseJSON ), ToJSON( toJSON )
 --                     local imports                      --
 ------------------------------------------------------------
 
-import MInfo.YamlPlus        ( unYaml )
-import MInfo.YamlPlus.Error  ( YamlParseError )
+import MInfo.YamlPlus             ( unYaml )
+import MInfo.YamlPlus.Error       ( YamlParseError )
 
-import MInfo.Types          ( Artist, LiveLocation, LiveType( Live, NotLive )
-                            , TrackTitle, TrackVersion )
-import MInfo.Types.Dateish  ( Dateish, __dateish' )
+import MInfo.Types                ( Artist, LiveLocation
+                                  , LiveType( Live, NotLive ), TrackTitle
+                                  , TrackVersion )
+import MInfo.Types.DateImprecise  ( DateImprecise, dateImprecise )
 
 --------------------------------------------------------------------------------
 
@@ -102,7 +103,7 @@ data Track = Track { _artist        ∷ Maybe Artist
                    , _version       ∷ Maybe TrackVersion
                    , _live_type     ∷ LiveType
                    , _live_location ∷ Maybe LiveLocation
-                   , _live_date     ∷ Maybe Dateish
+                   , _live_date     ∷ Maybe DateImprecise
                    }
   deriving (Eq, Generic, Show)
 
@@ -118,7 +119,7 @@ live_type     = lens _live_type     (\ r y → r { _live_type = y })
 live_location ∷ Lens' Track (Maybe LiveLocation)
 live_location = lens _live_location (\ r l → r { _live_location = l })
 
-live_date     ∷ Lens' Track (Maybe Dateish)
+live_date     ∷ Lens' Track (Maybe DateImprecise)
 live_date     = lens _live_date     (\ r d → r { _live_date = d })
 
 instance FromJSON Track where
@@ -143,7 +144,7 @@ trackFromJSONTests =
       e0 = Track Nothing (Just "Condemnation") Nothing NotLive Nothing Nothing
       e1 ∷ Track
       e1 = Track Nothing (Just "Judas") Nothing Live Nothing
-                 (Just $ __dateish' 1993 07 29)
+                 (Just $ [dateImprecise|1993-07-29|])
    in testGroup "trackFromJSON"
                 [ testCase "t0" $ Right e0 ≟ unYaml @YamlParseError t0
                 , testCase "t1" $ Right e1 ≟ unYaml @YamlParseError t1

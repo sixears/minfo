@@ -1,6 +1,7 @@
 {-# LANGUAGE DeriveGeneric     #-}
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE QuasiQuotes       #-}
 {-# LANGUAGE TypeApplications  #-}
 {-# LANGUAGE UnicodeSyntax     #-}
 
@@ -88,13 +89,15 @@ import MInfo.YamlPlus.Error  ( YamlParseError )
 
 import qualified  MInfo.T.TestData  as  TestData
 
-import MInfo.Types.Dateish      ( __dateish', __dateishy' )
-import MInfo.Types              ( LiveType( Demo, Live, NotLive, Session )
-                                )
-import MInfo.Types.ReleaseInfo  ( ReleaseInfo( ReleaseInfo )
-                                , blankReleaseInfo, releaseInfoFields )
-import MInfo.Types.Track        ( Track( Track ), blankTrack )
-import MInfo.Types.Tracks       ( Tracks( Tracks, unTracks ), flatTracks )
+import MInfo.Types.DateImprecise       ( dateImprecise )
+import MInfo.Types.DateImpreciseRange  ( dateImpreciseRange )
+import MInfo.Types                     ( LiveType( Demo, Live, NotLive
+                                                 , Session ) )
+import MInfo.Types.ReleaseInfo         ( ReleaseInfo( ReleaseInfo )
+                                       , blankReleaseInfo, releaseInfoFields )
+import MInfo.Types.Track               ( Track( Track ), blankTrack )
+import MInfo.Types.Tracks              ( Tracks( Tracks, unTracks )
+                                       , flatTracks )
 
 --------------------------------------------------------------------------------
 
@@ -119,7 +122,7 @@ info1 = Info (ReleaseInfo ("Depeche Mode") Nothing Nothing Nothing
                           Nothing
                           Live
                           (Just "Alsterdorfer Sporthalle, Hamburg")
-                          (Just (__dateish' 1984 12 14))
+                          (Just ([dateImpreciseRange|1984-12-14|]))
              )
              (Tracks [ [ Track Nothing (Just "Something to Do") Nothing
                                NotLive Nothing Nothing
@@ -138,7 +141,7 @@ tracks2 ∷ Tracks
 tracks2 = let mkTrack t = Track Nothing (Just t) Nothing
                           Live
                           (Just "Stade Couvert Régional, Liévin, France")
-                          (Just (__dateish' 1993 07 29))
+                          (Just ([dateImprecise|1993-07-29|]))
            in Tracks [ mkTrack ⊳ [ "Higher Love"
                                  , "World in my Eyes"
                                  , "Walking in my Shoes"
@@ -168,10 +171,10 @@ info2 = Info releaseInfo2 tracks2
 
 releaseInfo3 ∷ ReleaseInfo
 releaseInfo3 = ReleaseInfo ("Depeche Mode") (Just "12345")
-                           (Just (__dateishy' 1993)) Nothing
+                           (Just ([dateImprecise|1993|])) Nothing
                            (Just "Radio 1 in Concert") Nothing
                            Live (Just "Crystal Palace")
-                           (Just (__dateish' 1993 07 31))
+                           (Just ([dateImpreciseRange|1993-07-31|]))
 tracks3 ∷ Tracks
 tracks3 = let mkTrack t = Track Nothing (Just t) Nothing NotLive Nothing Nothing
            in Tracks [ mkTrack ⊳ [ "Walking in my Shoes"
@@ -197,7 +200,7 @@ info3 = Info releaseInfo3 tracks3
 releaseInfo4 ∷ ReleaseInfo
 releaseInfo4 =
   ReleaseInfo ("Depeche Mode") (Just "BX Stumm 300")
-              (Just (__dateish' 2009 04 17))
+              (Just ([dateImprecise|2009-04-17|]))
               Nothing
               (Just "Sounds of the Universe  (Deluxe Box Set)")
                 Nothing
@@ -266,7 +269,7 @@ info4 = Info releaseInfo4 tracks4
 releaseInfo5 ∷ ReleaseInfo
 releaseInfo5 =
   ReleaseInfo ("Depeche Mode") Nothing
-              (Just (__dateish' 2009 04 17))
+              (Just ([dateImprecise|2009-04-17|]))
               Nothing
               (Just "Sounds of the Universe  (Deluxe Box Set)") Nothing
               NotLive Nothing Nothing
@@ -278,7 +281,7 @@ tracks5 = let mkTrack t = Track Nothing (Just t) Nothing NotLive Nothing Nothing
               mkTrackD t = Track Nothing (Just t) (Just "Demo")
                                  NotLive Nothing Nothing
               mkTrackS t = Track Nothing (Just t) Nothing
-                                 Session Nothing (Just (__dateish' 2008 12 08))
+                                 Session Nothing (Just ([dateImprecise|2008-12-08|]))
            in Tracks [ mkTrack ⊳ [ "In Chains"
                                  , "Hole to Feed"
                                  , "Wrong"
@@ -366,7 +369,7 @@ info5 = Info releaseInfo5 tracks5
 
 infos ∷ Info
 infos = Info (ReleaseInfo ("Depeche Mode") Nothing
-                          (Just (__dateish' 2009 04 17))
+                          (Just ([dateImprecise|2009-04-17|]))
                           Nothing (Just "Sounds of the Universe")
                           (Just "Deluxe Box Set") NotLive Nothing Nothing)
              (Tracks [ [ Track Nothing (Just "In Chains") Nothing

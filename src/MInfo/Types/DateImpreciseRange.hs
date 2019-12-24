@@ -1,20 +1,22 @@
-{-# LANGUAGE FlexibleContexts  #-}
-{-# LANGUAGE InstanceSigs      #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE PatternSynonyms   #-}
-{-# LANGUAGE QuasiQuotes       #-}
-{-# LANGUAGE TemplateHaskell   #-}
-{-# LANGUAGE TypeApplications  #-}
-{-# LANGUAGE TypeFamilies      #-}
-{-# LANGUAGE UnicodeSyntax     #-}
+{-# LANGUAGE FlexibleContexts    #-}
+{-# LANGUAGE InstanceSigs        #-}
+{-# LANGUAGE OverloadedStrings   #-}
+{-# LANGUAGE PatternSynonyms     #-}
+{-# LANGUAGE QuasiQuotes         #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TemplateHaskell     #-}
+{-# LANGUAGE TypeApplications    #-}
+{-# LANGUAGE TypeFamilies        #-}
+{-# LANGUAGE UnicodeSyntax       #-}
 
 {- | Date range, utilizing DateImprecise for varying precisions -}
 
 module MInfo.Types.DateImpreciseRange
-  ( DateImpreciseRange, dateImpreciseRange, tests )
+  ( DateImpreciseRange, dateImpreciseRange, dateImpreciseR, dateImpreciseR'
+  , tests )
 where
 
-import Prelude  ( undefined )
+import Prelude  ( Int )
 
 -- aeson -------------------------------
 
@@ -42,7 +44,6 @@ import Text.Show           ( Show( show ) )
 import Data.Bool.Unicode      ( (∧) )
 import Data.Eq.Unicode        ( (≡), (≢) )
 import Data.Function.Unicode  ( (∘) )
-import Data.Monoid.Unicode    ( (⊕) )
 import Data.Ord.Unicode       ( (≤), (≥) )
 
 -- data-textual ------------------------
@@ -52,25 +53,16 @@ import Data.Textual  ( Parsed( Parsed, Malformed ), Printable( print )
                      , parseText, fromString, toString, toText
                      )
 
--- monaderror-io -----------------------
-
-import MonadError  ( mapMError )
-
 -- more-unicode ------------------------
 
 import Data.MoreUnicode.Applicative  ( (⊵), (⋪) )
 import Data.MoreUnicode.Functor      ( (⊳) )
-import Data.MoreUnicode.Monad        ( (≫) )
 import Data.MoreUnicode.Natural      ( ℕ )
 import Data.MoreUnicode.Tasty        ( (≟), (≣) )
 
 -- mtl ---------------------------------
 
 import Control.Monad.Except  ( MonadError )
-
--- non-empty-containers ----------------
-
-import NonEmptyContainers.SeqNE  ( (⋗) )
 
 -- parsec-plus -------------------------
 
@@ -118,7 +110,7 @@ import Text.Fmt  ( fmt )
 
 -- time --------------------------------
 
-import Data.Time  ( Day, fromGregorian, toGregorian )
+import Data.Time  ( Day, fromGregorian )
 
 -- yaml --------------------------------
 
@@ -135,21 +127,17 @@ import MInfo.YamlPlus.Error       ( YamlParseError )
 import MInfo.Types.DateImprecise  ( DateImprecise
                                   , pattern DayDate , pattern MonthDate
                                   , pattern YearDate
-                                  , dateDay, dateDay', dateDayM, dateDay_
-                                  , dateMonth, dateImprecise, dateYear, dayDate
-                                  , endDateOfMonth, endDayOfM, toGregory
+                                  , dateDayM, dateDay_, dateMonth, dateImprecise
+                                  , dateYear, dayDate, endDateOfMonth, toGregory
                                   )
-import MInfo.Types.Date.Error     ( AsDateError_, DateError_, DateErrorImprecise
-                                  , dateRangeError, dateRangeError_, emap )
+import MInfo.Types.Date.Error     ( AsDateError_, DateErrorImprecise
+                                  , dateRangeError, dateRangeError_ )
 import MInfo.Types.DayBounds      ( DayBounds( endDay, startDay ) )
-import MInfo.Types.DayOfM         ( DayOfM( DayOfM ), dayOfM )
-import MInfo.Types.FromI          ( fromI, __fromI )
-import MInfo.Types.Month          ( Month, pattern Month, month )
+import MInfo.Types.DayOfM         ( DayOfM( D ), dayOfM )
+import MInfo.Types.Month          ( Month( M ), month )
 import MInfo.Types.Year           ( Year, year )
 
 --------------------------------------------------------------------------------
-
-type DateError = DateError_ DateImprecise
 
 {- | A date, with variable precision -}
 newtype DateImpreciseRange = DateImpreciseRange (DateImprecise,DateImprecise)
@@ -545,54 +533,35 @@ dayBoundsTests =
 
 ----------------------------------------
 
-{-
-xx d = case toGregory $ startDay d of
-         (sy, [month|1|], _) → dateYear sy
-         (sy, [month|13|], _) → dateYear sy
---         (sy, Month 1, _) → dateYear sy
-
-yy d = case toGregory $ startDay d of
-         (sy, [month|1|], _) → dateYear sy
-         (sy, Month 1, _) → dateYear sy
-         (sy, Month 13, _) → dateYear sy
--}
-
 {- | Convert to the most general representation available;
      e.g., 2019-01-01:2019-01-31 generalizes to 2019-01. -}
 generalize ∷ DateImpreciseRange → DateImpreciseRange
 generalize d =
-  let -- (sy,sm,sd) = toGregory $ startDay d
-      -- (ey,em,ed) = toGregory $ endDay d
-      sd = startDay d
+  let sd = startDay d
       ed = endDay   d
-      s = case toGregory $ startDay d of
---                         (sy, [month|1|], [dayofm|1|]) → dateYear sy
-            (sy, [month|1|], _) → dateYear sy
-   in {- if sd ≡ __fromI 1 ∧ endDayOfM ey em ≡ ed
-      then DateImpreciseRange (dateMonth sy sm, dateMonth ey em)
-      else DateImpreciseRange (s,s) --  d -}
-      
-      case bimap toGregory toGregory (startDay d, endDay d) of
-        ((sy,Month 1,DayOfM 1),(ey,Month 12,DayOfM 31)) →
-                                    DateImpreciseRange (dateYear sy,dateYear ey)
-        ((sy,Month 1,DayOfM 1),(ey,em,edom)) | ed ≡ endDateOfMonth ey em →
-                                DateImpreciseRange (dateYear sy,dateMonth ey em)
-                                             | otherwise →
-                                     DateImpreciseRange (dateYear sy,dayDate ed)
-        ((sy,sm,DayOfM 1),(ey,em,edom)) | ed ≡ endDateOfMonth ey em →
-                            DateImpreciseRange (dateMonth sy sm,dateMonth ey em)
-                                             | otherwise →
-                                 DateImpreciseRange (dateMonth sy sm,dayDate ed)
-        ((sy,sm,sdom),(ey,em,edom)) | sm ≢ em ∧ ed ≡ endDateOfMonth ey em →
-                            DateImpreciseRange (dayDate sd,dateMonth ey em)
-                                             | otherwise →
-                                 DateImpreciseRange (dayDate sd,dayDate ed)
-        _                                                → d
+      dirYs y0 y1       = DateImpreciseRange (dateYear y0,dateYear y1)
+      dirYM y0 y1 m1    = DateImpreciseRange (dateYear y0,dateMonth y1 m1)
+      dirMs y0 m0 y1 m1 = DateImpreciseRange (dateMonth y0 m0,dateMonth y1 m1)
+      dirYD y0 d1       = DateImpreciseRange (dateYear y0,dayDate d1)
+      dirMD y0 m0 d1    = DateImpreciseRange (dateMonth y0 m0,dayDate d1)
+      dirDM d0 y1 m1    = DateImpreciseRange (dayDate d0,dateMonth y1 m1)
+      dirDs d0 d1       = DateImpreciseRange (dayDate d0,dayDate d1)
+   in case bimap toGregory toGregory (startDay d, endDay d) of
+        ((sy,M (1∷Int),D (1∷Int)),(ey,M (12∷Int),D (31∷Int))) → dirYs sy ey
+        ((sy,M (1∷Int),D (1∷Int)),(ey,em,_))
+                          | ed ≡ endDateOfMonth ey em → dirYM sy ey em
+                          | otherwise                 → dirYD sy ed
+        ((sy,sm,D (1∷Int)),(ey,em,_))
+                          | ed ≡ endDateOfMonth ey em → dirMs sy sm ey em
+                          | otherwise                 → dirMD sy sm ed
+        ((_,sm,_),(ey,em,_))
+                          | sm ≢ em ∧ ed ≡ endDateOfMonth ey em → dirDM sd ey em
+                          | otherwise                           → dirDs sd ed
 
 generalizeTests ∷ TestTree
 generalizeTests =
   let check r0 r1 d0 d1 = let d = DateImpreciseRange (d0,d1)
-                              g@(DateImpreciseRange (g0,g1)) = generalize d
+                              DateImpreciseRange (g0,g1) = generalize d
                            in testCase ([fmt|%T:%T -> %T:%T (%T:%T)|]
                                              d0 d1    r0 r1  g0 g1) $
                                   (r0,r1) ≟ (g0,g1)
@@ -639,31 +608,18 @@ generalizeTests =
      2019-01-01:2019-01-31.
  -}
 specifize ∷ DateImpreciseRange → DateImpreciseRange
-specifize a = a
+specifize a = DateImpreciseRange (dayDate $ startDay a, dayDate $ endDay a)
 
 specifizeTests ∷ TestTree
 specifizeTests =
-  let check r0 r1 d0 d1 = let d = DateImpreciseRange (d0,d1)
-                           in testCase (toString d) $
-                                  DateImpreciseRange (r0,r1) ≟ specifize d
-   in testGroup "specifize"
-                [ check [dateImprecise|2019-01-01|] [dateImprecise|2019-01-31|]
-                        [dateImprecise|2019-01|]    [dateImprecise|2019-01|]
-
-                , check [dateImprecise|2019-01-01|] [dateImprecise|2019-05-31|]
-                        [dateImprecise|2019|]       [dateImprecise|2019-05|]
-                , check [dateImprecise|2019-01-01|] [dateImprecise|2019-12-31|]
-                        [dateImprecise|2019|]       [dateImprecise|2019|]
-                , check [dateImprecise|2018-01-01|] [dateImprecise|2019-12-31|]
-                        [dateImprecise|2018|]       [dateImprecise|2019|]
-                , check [dateImprecise|2019-01-01|] [dateImprecise|2019-12-30|]
-                        [dateImprecise|2019|]       [dateImprecise|2019-12-30|]
-                , check [dateImprecise|2019-01-02|] [dateImprecise|2019-12-30|]
-                        [dateImprecise|2019-01-02|] [dateImprecise|2019-12-30|]
-                , check [dateImprecise|2020-01-01|] [dateImprecise|2020-02-29|]
-                        [dateImprecise|2020-01|]    [dateImprecise|2020-02|]
-                , testProperty "maintainBounds" (\ r → specifize r ≣ r)
-                ]
+  testGroup "specifize"
+            [ testProperty "maintainBounds" (\ r → let s = specifize r
+                                                       ss = startDay s
+                                                       se = endDay   s
+                                                       rs = startDay r
+                                                       re = endDay   r
+                                                    in (ss,se) ≣ (rs,re))
+            ]
 
 {- | If two ranges overlap or are precisely consecutive (i.e., one finishes on
      date x, the other starts on date x+1), then merge them into one range.

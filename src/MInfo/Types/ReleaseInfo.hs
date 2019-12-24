@@ -44,21 +44,23 @@ import Data.Yaml  ( FromJSON( parseJSON ), ToJSON( toJSON ), (.=), object )
 --                     local imports                      --
 ------------------------------------------------------------
 
-import MInfo.Types.Dateish  ( Dateish )
-
-import MInfo.Types          ( Artist, Catno, LiveLocation, LiveType( NotLive ) )
+import MInfo.Types.DateImprecise       ( DateImprecise )
+import MInfo.Types.DateImpreciseRange  ( DateImpreciseRange )
+import MInfo.Types                     ( Artist, Catno, LiveLocation
+                                       , LiveType( NotLive ), Source
+                                       , SourceVersion )
 
 --------------------------------------------------------------------------------
 
 data ReleaseInfo = ReleaseInfo { _artist           ∷ Artist
                                , _catno            ∷ Maybe Catno
-                               , _release          ∷ Maybe Dateish
-                               , _original_release ∷ Maybe Dateish
-                               , _source           ∷ Maybe Text
-                               , _source_version   ∷ Maybe Text
+                               , _release          ∷ Maybe DateImprecise
+                               , _original_release ∷ Maybe DateImprecise
+                               , _source           ∷ Maybe Source
+                               , _source_version   ∷ Maybe SourceVersion
                                , _live_type        ∷ LiveType
                                , _live_location    ∷ Maybe LiveLocation
-                               , _live_date        ∷ Maybe Dateish
+                               , _live_date        ∷ Maybe DateImpreciseRange
                                }
   deriving (Eq,Show)
 
@@ -69,7 +71,7 @@ live_type = lens _live_type (\ i y → i { _live_type = y})
 live_location ∷ Lens' ReleaseInfo (Maybe LiveLocation)
 live_location = lens _live_location (\ i l → i { _live_location = l})
 
-live_date ∷ Lens' ReleaseInfo (Maybe Dateish)
+live_date ∷ Lens' ReleaseInfo (Maybe DateImpreciseRange)
 live_date = lens _live_date (\ i d → i { _live_date = d})
 
 instance FromJSON ReleaseInfo where

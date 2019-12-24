@@ -1,7 +1,9 @@
-{-# LANGUAGE InstanceSigs     #-}
-{-# LANGUAGE TemplateHaskell  #-}
-{-# LANGUAGE TypeApplications #-}
-{-# LANGUAGE UnicodeSyntax    #-}
+{-# LANGUAGE InstanceSigs      #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE QuasiQuotes       #-}
+{-# LANGUAGE TemplateHaskell   #-}
+{-# LANGUAGE TypeApplications  #-}
+{-# LANGUAGE UnicodeSyntax     #-}
 
 module MInfo.Types.DateImpreciseType
   ( DateImprecise(..), cdayToDate, dateDay_, dateMonth, dateYear, endDateOfMonth
@@ -131,14 +133,10 @@ instance Lift DateImprecise where
                                                          (litI y))
                                                    (litI m))
                                              (litI dom))
-  lift (DateMonth (y,m)) = do let litN ∷ ToNum α ⇒ α → Exp
-                                  litN = LitE ∘ IntegerL ∘ toNum
-                              y' ← lift y
+  lift (DateMonth (y,m)) = do y' ← lift y
                               m' ← lift m
                               return $ AppE (ConE 'DateMonth) (TupE [ y', m' ])
-  lift (DateYear y) = do let litN ∷ ToNum α ⇒ α → Exp
-                             litN = LitE ∘ IntegerL ∘ toNum
-                         y' ← lift y
+  lift (DateYear y) = do y' ← lift y
                          return $ AppE (ConE 'DateYear) y'
 
 ----------------------------------------

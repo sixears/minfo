@@ -10,7 +10,10 @@
 {-# LANGUAGE UnicodeSyntax              #-}
 
 module MInfo.Types
-  ( Artist, Catno, LiveLocation, LiveType(..), TrackTitle, TrackVersion, tests )
+  ( Artist, Catno, LiveLocation, LiveType(..), Source, SourceVersion, TrackTitle
+  , TrackVersion
+
+  , tests )
 where
 
 import Prelude  ( Float, Int )
@@ -76,6 +79,22 @@ newtype Artist = Artist Text
 
 instance Printable Artist where
   print (Artist t) = P.text t
+
+------------------------------------------------------------
+
+newtype Source = Source Text
+  deriving (Eq,FromJSON,Generic,IsString,Show,ToJSON)
+
+instance Printable Source where
+  print (Source t) = P.text t
+
+------------------------------------------------------------
+
+newtype SourceVersion = SourceVersion Text
+  deriving (Eq,FromJSON,Generic,IsString,Show,ToJSON)
+
+instance Printable SourceVersion where
+  print (SourceVersion t) = P.text t
 
 ------------------------------------------------------------
 

@@ -13,7 +13,7 @@
 {-# LANGUAGE ViewPatterns               #-}
 
 module MInfo.Types.Month
-  ( Month, pattern Month, month, tests )
+  ( Month( Month, M ), month, tests )
 where
 
 import Prelude  ( Integer, Integral, (+), (-), error, fromInteger, toInteger )
@@ -168,6 +168,9 @@ pattern Month i ← ((+1) ∘ toNum ∘ unMonth → i)
 -- not bi-directional, because Month i would be partial (would fail on
 -- out-of-bounds values)
 --                  where Month i = __fromI i
+{- | Short-name convenience alias for `pattern Month` -}
+pattern M ∷ Integral α ⇒ α → Month
+pattern M i ← ((+1) ∘ toNum ∘ unMonth → i)
 
 monthPatternTests ∷ TestTree
 monthPatternTests =
