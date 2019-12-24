@@ -2,7 +2,7 @@
 
 {-# LANGUAGE FlexibleInstances          #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE LambdaCase                 #-}
+-- {-# LANGUAGE LambdaCase                 #-}
 {-# LANGUAGE NoImplicitPrelude          #-}
 {-# LANGUAGE OverloadedStrings          #-}
 {-# LANGUAGE QuasiQuotes                #-}
@@ -16,14 +16,12 @@ import Prelude  ( error )
 -- base --------------------------------
 
 import Control.Applicative     ( pure )
-import Control.Exception       ( Exception )
 import Control.Monad           ( forM_, mapM_, return, sequence )
 import Control.Monad.IO.Class  ( MonadIO, liftIO )
 import Data.Bool               ( Bool )
 import Data.Either             ( Either( Left, Right ) )
-import Data.Eq                 ( Eq )
 import Data.Foldable           ( Foldable )
-import Data.Function           ( ($), id )
+import Data.Function           ( ($) )
 import Data.Functor            ( fmap )
 import Data.List               ( zip )
 import Data.List.NonEmpty      ( NonEmpty( (:|) ) )
@@ -45,7 +43,7 @@ import Data.Monoid.Unicode    ( (⊕) )
 
 -- data-textual ------------------------
 
-import Data.Textual  ( Parsed( Malformed, Parsed ), Printable( print ), Textual
+import Data.Textual  ( Parsed( Malformed, Parsed ), Printable, Textual
                      , fromText, parseText, toString, toText )
 
 -- exited ------------------------------
@@ -58,19 +56,15 @@ import Fluffy.Foldable  ( length )
 
 -- fpath -------------------------------
 
-import FPath.Error.FPathComponentError
-                              ( AsFPathComponentError( _FPathComponentError )
-                              , FPathComponentError )
-import FPath.File             ( File( FileR ) )
-import FPath.FileLike         ( (⊙) )
-import FPath.PathComponent    ( PathComponent, parsePathC, pc )
-import FPath.RelFile          ( RelFile, relfile )
+import FPath.Error.FPathComponentError ( AsFPathComponentError )
+import FPath.File                      ( File( FileR ) )
+import FPath.FileLike                  ( (⊙) )
+import FPath.PathComponent             ( PathComponent, parsePathC, pc )
+import FPath.RelFile                   ( RelFile, relfile )
 
 -- lens --------------------------------
 
-import Control.Lens.Lens    ( Lens', lens )
-import Control.Lens.Prism   ( Prism', prism )
-import Control.Lens.Review  ( (#) )
+import Control.Lens.Lens  ( Lens', lens )
 
 -- monaderror-io -----------------------
 
@@ -89,7 +83,7 @@ import Data.MoreUnicode.Tasty        ( (≟) )
 
 -- mtl ---------------------------------
 
-import Control.Monad.Except  ( MonadError, throwError )
+import Control.Monad.Except  ( MonadError )
 
 -- non-empty-containers ----------------
 
@@ -122,10 +116,6 @@ import TastyPlus  ( assertListEqR, runTestsP, runTestsReplay, runTestTree )
 import Data.Text     ( Text, intercalate, pack, replace )
 import Data.Text.IO  ( putStrLn )
 
--- text-printer ------------------------
-
-import qualified  Text.Printer  as  P
-
 -- tfmt --------------------------------
 
 import Text.Fmt  ( fmt, fmtT )
@@ -134,33 +124,38 @@ import Text.Fmt  ( fmt, fmtT )
 --                     local imports                      --
 ------------------------------------------------------------
 
-import MInfo.YamlPlus        ( unYamlFile )
-import MInfo.YamlPlus.Error  ( AsYamlParseError( _YamlParseError )
-                             , YamlParseError )
+import MInfo.YamlPlus             ( unYamlFile )
+import MInfo.YamlPlus.Error       ( AsYamlParseError )
 
 import qualified  MInfo.Types.ReleaseInfo  as  ReleaseInfo
 import qualified  MInfo.Types.Track        as  Track
 
-import MInfo.Types          ( LiveLocation
-                            , LiveType( Live, NotLive, Session )
-                            )
-import MInfo.Types.Dateish  ( Dateish, __dateish', __dateishy' )
+import MInfo.Errors                    ( AsInfoError, InfoError, InfoFPCError
+                                       , YamlParseInfoFPCError
+                                       , throwIllegalFileName
+                                       )
+import MInfo.Types                     ( LiveLocation
+                                       , LiveType( Live, NotLive, Session )
+                                       )
+import MInfo.Types.DateImprecise       ( dateImprecise )
+import MInfo.Types.DateImpreciseRange  ( DateImpreciseRange
+                                       , dateImpreciseRange )
 
-import MInfo.Types.Info         ( Info( Info ), blankInfo, info1, infos
-                                , trackCount )
-import MInfo.Types.ReleaseInfo  ( ReleaseInfo( ReleaseInfo ) )
-import MInfo.Types.Track        ( Track( Track ) )
-import MInfo.Types.Tracks       ( Tracks( unTracks ) )
+import MInfo.Types.Info                ( Info( Info ), blankInfo, info1, infos
+                                       , trackCount )
+import MInfo.Types.ReleaseInfo         ( ReleaseInfo( ReleaseInfo ) )
+import MInfo.Types.Track               ( Track( Track ) )
+import MInfo.Types.Tracks              ( Tracks( unTracks ) )
 
 --------------------------------------------------------------------------------
 
--- this looks like a monadic fold, or somesuch.  Maybe of MaybeT?
+-- this looks like a monadic fold, or somesuch.  Maybe foldM or MaybeT?
 maybeList ∷ [Maybe α] → Maybe α
 maybeList [] = Nothing
 maybeList (Just a : _)   = Just a
 maybeList (Nothing : as) = maybeList as
 
-lName ∷ LiveType → Maybe LiveLocation → Maybe Dateish → Maybe Text
+lName ∷ LiveType → Maybe LiveLocation → Maybe DateImpreciseRange → Maybe Text
 lName NotLive _ _ = Nothing
 lName lType lLocY lDateY =
   Just $ intercalate " " (toText lType : catMaybes [ toText ⊳ lLocY
@@ -173,7 +168,7 @@ lNameTests =
             , testCase "live" $
                   Just "Live Hammersmith Odeon 1970-01-01"
                 ≟ lName Live (Just "Hammersmith Odeon")
-                        (Just $ __dateish' 1970 01 01)
+                             (Just [dateImpreciseRange|1970-01-01|])
             ]
 
 liveName ∷ ReleaseInfo → Track → Maybe Text
@@ -310,33 +305,11 @@ mp3NamesTests =
 
 ------------------------------------------------------------
 
-
-
-------------------------------------------------------------
-
-{-
-class HasInfoYaml α where
-  infoYaml ∷ Lens' α FilePath
--}
-
 data RunMode = ModeWrite Natural
              | ModeTrackCount File
              | ModeFlacList File
              | ModeMp3List File
   deriving Show
-
-{-
-instance HasInfoYaml RunMode where
-  infoYaml = lens get set
-             where get (ModeWrite _    f) = f
-                   get (ModeTrackCount f) = f
-                   get (ModeFlacList   f) = f
-                   get (ModeMp3List    f) = f
-                   set (ModeWrite n    _) f = ModeWrite n f
-                   set (ModeTrackCount _) f = ModeTrackCount f
-                   set (ModeFlacList   _) f = ModeFlacList   f
-                   set (ModeMp3List    _) f = ModeMp3List    f
--}
 
 trackCountP ∷ Parser Natural
 trackCountP = let c = completer (listCompleter $ show ⊳ [ 1∷Natural .. 99])
@@ -409,13 +382,6 @@ modeP =
 data Options = Options { _runMode ∷ RunMode}
   deriving Show
 
-{-
-instance HasInfoYaml Options where
-  infoYaml = lens get set
-             where get (Options rm) = rm ⊣ infoYaml
-                   set (Options rm) f = runMode ∘ infoYaml
--}
-
 runMode ∷ Lens' Options RunMode
 runMode = lens _runMode (\ o r → o { _runMode = r })
 
@@ -443,70 +409,6 @@ say = liftIO ∘ putStrLn ∘ toText
 
 ------------------------------------------------------------
 
-data InfoError = IllegalFileName Text
-  deriving (Eq,Show)
-
-instance Exception InfoError
-
-instance Printable InfoError where
-  print (IllegalFileName t) = P.text $ [fmt|Illegal file name: '%t'|] t
-
-class AsInfoError ε where
-  _InfoError :: Prism' ε InfoError
-
-instance AsInfoError InfoError where
-  _InfoError = id
-
-throwIllegalFileName :: (AsInfoError ε, MonadError ε η) ⇒ Text → η α
-throwIllegalFileName t = throwError $ (_InfoError #) (IllegalFileName t)
-
-------------------------------------------------------------
-
-data InfoFPCError = IFPCInfoError             InfoError
-                  | IFPCFPathComponenentError FPathComponentError
-  deriving (Eq,Show)
-
-instance Exception InfoFPCError
-
-instance Printable InfoFPCError where
-  print (IFPCInfoError e)             = print e
-  print (IFPCFPathComponenentError e) = print e
-
-instance AsInfoError InfoFPCError where
-  _InfoError = prism IFPCInfoError
-                     (\ case IFPCInfoError e → Right e; e → Left e)
-
-instance AsFPathComponentError InfoFPCError where
-  _FPathComponentError = prism IFPCFPathComponenentError
-                               (\ case IFPCFPathComponenentError e → Right e
-                                       e                           → Left  e)
-
-------------------------------------------------------------
-
-data YamlParseInfoFPCError = YPIFPCParseError   YamlParseError
-                           | YPIFPCInfoFPCError InfoFPCError
-  deriving (Eq,Show)
-
-_YPIFPCInfoFPCError ∷ Prism' YamlParseInfoFPCError InfoFPCError
-_YPIFPCInfoFPCError = prism YPIFPCInfoFPCError
-                           (\ case YPIFPCInfoFPCError e → Right e; e → Left e)
-
-instance Exception YamlParseInfoFPCError
-
-instance Printable YamlParseInfoFPCError where
-  print (YPIFPCParseError   e) = print e
-  print (YPIFPCInfoFPCError e) = print e
-
-instance AsYamlParseError YamlParseInfoFPCError where
-  _YamlParseError = prism YPIFPCParseError
-                          (\ case YPIFPCParseError  e -> Right e; e -> Left e)
-
-instance AsInfoError YamlParseInfoFPCError where
-  _InfoError = _YPIFPCInfoFPCError ∘ _InfoError
-
-instance AsFPathComponentError YamlParseInfoFPCError where
-  _FPathComponentError = _YPIFPCInfoFPCError ∘ _FPathComponentError
-
 ------------------------------------------------------------
 
 {- | Print some function of Info. -}
@@ -519,7 +421,7 @@ pInfo' ∷ (MonadIO μ,AsYamlParseError ε,MonadError ε μ,Foldable φ,Printabl
 
 pInfo' f fn = do
   inf ← ѥ $ unYamlFile fn
-  xs ← inf ≫ f
+  xs  ← inf ≫ f
   forM_ xs say
   return ()
 
@@ -543,28 +445,29 @@ track1 = Track Nothing (Just "track title") Nothing NotLive Nothing Nothing
 
 trackL ∷ Track
 trackL = Track Nothing (Just "live track") Nothing
-               Live (Just "Hammersmith Odeon") (Just (__dateish' 1970 01 01))
+               Live (Just "Hammersmith Odeon") (Just [dateImpreciseRange|1970-01-01|])
 
 trackL' ∷ Track
 trackL' = Track Nothing (Just "Live Track") Nothing
-                NotLive Nothing (Just (__dateish' 1990 02 02))
+                NotLive Nothing (Just [dateImpreciseRange|1990-02-02|])
 
 trackS ∷ Track
 trackS = Track Nothing (Just "Sesh") (Just "Acoustic")
-               Session Nothing (Just (__dateish' 1980 01 01))
+               Session Nothing (Just [dateImpreciseRange|1980-01-01|])
 
 releaseInfo1 ∷ ReleaseInfo
 releaseInfo1 = ReleaseInfo ("artie") (Just "123X")
-                           (Just (__dateish' 1979 12 31))
+                           (Just [dateImprecise|1979-12-31|])
                            Nothing (Just "Elpee") Nothing NotLive Nothing
                            Nothing
 
 releaseInfol ∷ ReleaseInfo
 releaseInfol = ReleaseInfo ("simon") (Just "124XX")
-                           (Just (__dateish' 1979 12 31))
+                           (Just [dateImprecise|1979-12-31|])
                            Nothing
                            (Just "An LP Title") Nothing
-                           Live (Just "Sweden") (Just $ __dateishy' 1990)
+                           Live (Just "Sweden")
+                           (Just [dateImpreciseRange|1990|])
 
 ------------------------------------------------------------
 

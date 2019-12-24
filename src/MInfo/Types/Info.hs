@@ -141,7 +141,7 @@ tracks2 ∷ Tracks
 tracks2 = let mkTrack t = Track Nothing (Just t) Nothing
                           Live
                           (Just "Stade Couvert Régional, Liévin, France")
-                          (Just ([dateImprecise|1993-07-29|]))
+                          (Just [dateImpreciseRange|1993-07-29|])
            in Tracks [ mkTrack ⊳ [ "Higher Love"
                                  , "World in my Eyes"
                                  , "Walking in my Shoes"
@@ -281,7 +281,8 @@ tracks5 = let mkTrack t = Track Nothing (Just t) Nothing NotLive Nothing Nothing
               mkTrackD t = Track Nothing (Just t) (Just "Demo")
                                  NotLive Nothing Nothing
               mkTrackS t = Track Nothing (Just t) Nothing
-                                 Session Nothing (Just ([dateImprecise|2008-12-08|]))
+                                 Session Nothing
+                                 (Just [dateImpreciseRange|2008-12-08|])
            in Tracks [ mkTrack ⊳ [ "In Chains"
                                  , "Hole to Feed"
                                  , "Wrong"

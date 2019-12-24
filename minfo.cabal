@@ -55,6 +55,8 @@ library
                      , MInfo.YamlPlus
                      , MInfo.YamlPlus.Error
 
+                     , MInfo.Errors
+
                      , MInfo.Types
                      , MInfo.Types.DayBounds
                      , MInfo.Types.Date.Error
@@ -113,7 +115,6 @@ executable minfo
   hs-source-dirs:      bin
   build-depends:       base, base-unicode-symbols, data-textual, lens, mtl
                      , optparse-applicative, tasty, tasty-hunit, text
-                     , text-printer
 
                      , exited >= 1.0.2.0, fluffy, fpath, monaderror-io
                      , more-unicode, non-empty-containers, tasty-plus, tfmt

@@ -80,12 +80,12 @@ import Data.Yaml  ( FromJSON( parseJSON ), ToJSON( toJSON ) )
 --                     local imports                      --
 ------------------------------------------------------------
 
-import MInfo.YamlPlus             ( unYaml )
+import MInfo.YamlPlus                  ( unYaml )
 
-import MInfo.Types.DateImprecise  ( dateImprecise )
-import MInfo.Types                ( LiveType( Demo, Live, Session ) )
-import MInfo.Types.Track          ( Track( Track ) )
-import MInfo.YamlPlus.Error       ( YamlParseError )
+import MInfo.Types.DateImpreciseRange  ( dateImpreciseRange )
+import MInfo.Types                     ( LiveType( Demo, Live, Session ) )
+import MInfo.Types.Track               ( Track( Track ) )
+import MInfo.YamlPlus.Error            ( YamlParseError )
 
 --------------------------------------------------------------------------------
 
@@ -121,10 +121,10 @@ tracksFromJSONTests =
                                ]
       e1 ∷ Track
       e1 = Track Nothing (Just "Judas") Nothing Demo Nothing
-                 (Just $ [dateImprecise|1993-07-29|])
+                 (Just $ [dateImpreciseRange|1993-07-29|])
       e2 ∷ Track
       e2 = Track Nothing (Just "Mercy in You") Nothing Session Nothing
-                 (Just $ [dateImprecise|1993-07-29|])
+                 (Just $ [dateImpreciseRange|1993-07-29|])
       t3 ∷ ByteString
       t3 = BS.intercalate "\n" [ "-"
                                , "  - title: Judas"
@@ -140,7 +140,7 @@ tracksFromJSONTests =
                                ]
       e3 ∷ Track
       e3 = Track Nothing (Just "I Feel You") Nothing Live Nothing
-                 (Just $ [dateImprecise|1993-07-29|])
+                 (Just $ [dateImpreciseRange|1993-07-29|])
    in testGroup "tracksFromJSON"
                 [ testCase "t1"  $ Right [e1,e2] ≟ unYaml @YamlParseError t1
                 , testCase "t1'" $
