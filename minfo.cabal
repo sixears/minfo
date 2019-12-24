@@ -51,6 +51,7 @@ library
   -- Modules exported by the library.
   exposed-modules:     MInfo.BoundedN
                      , MInfo.PYaml
+                     , TextualPlus
                      , MInfo.Util
                      , MInfo.YamlPlus
                      , MInfo.YamlPlus.Error
@@ -117,7 +118,7 @@ executable minfo
                      , optparse-applicative, text
 
                      , exited >= 1.0.2.0, fpath, monaderror-io
-                     , more-unicode, tfmt
+                     , more-unicode
 
                      , minfo
   default-extensions:  NoImplicitPrelude

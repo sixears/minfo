@@ -1,32 +1,20 @@
 {-# OPTIONS_GHC -Wall #-}
 
-{-# LANGUAGE FlexibleInstances          #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
--- {-# LANGUAGE LambdaCase                 #-}
+-- {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE NoImplicitPrelude          #-}
 {-# LANGUAGE OverloadedStrings          #-}
 {-# LANGUAGE QuasiQuotes                #-}
-{-# LANGUAGE RankNTypes                 #-}
--- {-# LANGUAGE ScopedTypeVariables        #-}
 {-# LANGUAGE TypeApplications           #-}
 {-# LANGUAGE UnicodeSyntax              #-}
-{-# LANGUAGE ViewPatterns               #-}
-
-import Prelude  ( error )
 
 -- base --------------------------------
 
 import Control.Monad           ( forM_, mapM_, return )
 import Control.Monad.IO.Class  ( MonadIO, liftIO )
-import Data.Bool               ( Bool )
-import Data.Either             ( Either( Left, Right ) )
 import Data.Foldable           ( Foldable )
 import Data.Function           ( ($) )
-import Data.Maybe              ( Maybe( Just, Nothing ) )
-import Data.String             ( String )
-import Data.Typeable           ( Typeable, typeOf )
+import Data.Typeable           ( Typeable )
 import Data.Word               ( Word8 )
-import Numeric.Natural         ( Natural )
 import System.IO               ( IO )
 import Text.Show               ( Show( show ) )
 
@@ -37,8 +25,7 @@ import Data.Monoid.Unicode    ( (⊕) )
 
 -- data-textual ------------------------
 
-import Data.Textual  ( Parsed( Malformed, Parsed ), Printable, Textual
-                     , parseText, toString, toText )
+import Data.Textual  ( Printable, Textual, toString, toText )
 
 -- exited ------------------------------
 
@@ -63,6 +50,7 @@ import Data.MoreUnicode.Applicative  ( (⊴) )
 import Data.MoreUnicode.Functor      ( (⊳) )
 import Data.MoreUnicode.Lens         ( (⊣) )
 import Data.MoreUnicode.Monad        ( (≫) )
+import Data.MoreUnicode.Natural      ( ℕ )
 
 -- mtl ---------------------------------
 
@@ -83,14 +71,11 @@ import Options.Applicative  ( ArgumentFields, CommandFields, Mod, Parser, ReadM
 import Data.Text     ( Text )
 import Data.Text.IO  ( putStrLn )
 
--- tfmt --------------------------------
-
-import Text.Fmt  ( fmtT )
-
 ------------------------------------------------------------
 --                     local imports                      --
 ------------------------------------------------------------
 
+import TextualPlus           ( parseTextual )
 import MInfo.YamlPlus        ( unYamlFile )
 import MInfo.YamlPlus.Error  ( AsYamlParseError )
 
@@ -101,61 +86,21 @@ import MInfo.Types.Info      ( Info
 
 --------------------------------------------------------------------------------
 
-type 𝔹 = Bool
-
-------------------------------------------------------------
-
--- this looks like a monadic fold, or somesuch.  Maybe foldM or MaybeT?
-maybeList ∷ [Maybe α] → Maybe α
-maybeList [] = Nothing
-maybeList (Just a : _)   = Just a
-maybeList (Nothing : as) = maybeList as
-
-------------------------------------------------------------
-
-data RunMode = ModeWrite Natural
+data RunMode = ModeWrite ℕ
              | ModeTrackCount File
              | ModeFlacList File
              | ModeMp3List File
   deriving Show
 
-trackCountP ∷ Parser Natural
-trackCountP = let c = completer (listCompleter $ show ⊳ [ 1∷Natural .. 99])
+trackCountP ∷ Parser ℕ
+trackCountP = let c = completer (listCompleter $ show ⊳ [ 1∷ℕ .. 99])
                in argument auto (metavar "TRACK-COUNT" ⊕ c)
 
-class PrintOut σ where
-  toP ∷ Printable ρ ⇒ ρ → σ
-
-instance PrintOut Text where
-  toP = toText
-
-instance PrintOut String where
-  toP = toString
-
-{- | Parse a printable value, give user-friendly error messages. -}
-parseTextual ∷ ∀ β τ α .
-      (Textual β, PrintOut τ, Printable α, Typeable β) ⇒
-      α → Either τ β
-parseTextual (toText → z) =
-  let fromParsed (Parsed a)      = a
-      -- this function exists solely to provide a hypothetical value to reflect
-      -- on
-      fromParsed (Malformed _ _) = error "this should never be evaluated"
-      parsedZ                    = parseText z
-      typ                        = typeOf $ fromParsed parsedZ
-   in case parsedZ of
-        Parsed a       → Right a
-        Malformed [] x → Left ∘ toP $
-                           [fmtT|failed to parse '%t' as '%w': %s|] z typ x
-        Malformed xs x → let msg = [fmtT|failed to parse '%t' as '%w': [%L] %s|]
-                                   z typ xs x
-                          in Left (toP msg)
-
-readS ∷ (Textual α, Typeable α) ⇒ ReadM α
-readS = eitherReader parseTextual
+readT ∷ (Textual α, Typeable α) ⇒ ReadM α
+readT = eitherReader parseTextual
 
 argS ∷ (Textual α, Typeable α) ⇒ Mod ArgumentFields α → Parser α
-argS = argument readS
+argS = argument readT
 
 modeP ∷ Parser RunMode
 modeP =
