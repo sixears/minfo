@@ -58,23 +58,29 @@ library
                      , MInfo.Types.Dateish
 
                      , MInfo.Types
+                     , MInfo.Types.DayBounds
                      , MInfo.Types.Date.Error
+                     , MInfo.Types.ToWord16
+                     , MInfo.Types.FromI
+                     , MInfo.Types.ToNum
+                     , MInfo.Types.DayOfM
+                     , MInfo.Types.Month
+                     , MInfo.Types.T.DayOfM
+                     , MInfo.Types.T.Month
+                     , MInfo.Types.Year
+                     , MInfo.Types.T.Year
                      , MInfo.Types.DateImprecise
                      , MInfo.Types.DateImpreciseRange
-                     , MInfo.Types.DayOfM
-                     , MInfo.Types.FromI
+                     , MInfo.Types.DateImpreciseRanges
                      , MInfo.Types.Info
-                     , MInfo.Types.Month
                      , MInfo.Types.ReleaseInfo
-                     , MInfo.Types.ToWord16
                      , MInfo.Types.Track
                      , MInfo.Types.Tracks
-                     , MInfo.Types.Year
                      , MInfo.T.TestData
                      , MInfo.T.Tests
 
   -- modules included in this library but not exported.
-  other-modules:  
+  other-modules:       MInfo.Types.DateImpreciseType
 
   default-extensions: NoImplicitPrelude
   -- LANGUAGE extensions used by modules in this package.
@@ -83,14 +89,14 @@ library
   -- Other library packages from which modules are imported.
   build-depends:       aeson, base, base-unicode-symbols, bytestring
                      , data-textual, deepseq, finite-typelits, genvalidity, lens
-                     , ListLike, mtl, parsers, QuickCheck, scientific, tasty
-                     , tasty-hunit, tasty-quickcheck, template-haskell, text
-                     , text-printer, time, unordered-containers, validity
-                     , vector, yaml
+                     , ListLike, mono-traversable, mtl, parsers, QuickCheck
+                     , scientific, tasty, tasty-hunit, tasty-quickcheck
+                     , template-haskell, text, text-printer, time
+                     , unordered-containers, validity, vector, yaml
 
                      , fluffy >= 0.2.13.2, fpath >= 1.0.3.0
                      , monaderror-io >= 1.0.2.0, more-unicode >= 0.0.9.0
-                     , non-empty-containers >= 1.0.0.0, parsec-plus >= 1.0.1.0
+                     , non-empty-containers >= 1.2.0.0, parsec-plus >= 1.0.1.0
                      , tasty-plus >= 1.1.0.0, tfmt >= 0.2.1.0
 
   -- Directories containing source files.
@@ -112,10 +118,8 @@ executable minfo
                      , optparse-applicative, tasty, tasty-hunit, text
                      , text-printer
 
-                     , exited >= 1.0.2.0, fluffy >= 0.2.13.2, fpath >= 1.0.3.0
-                     , monaderror-io >= 1.0.1.1, more-unicode >= 0.0.9.0
-                     , non-empty-containers >= 1.0.0.0, tasty-plus >= 1.0.1.0
-                     , tfmt >= 0.2.1.0
+                     , exited >= 1.0.2.0, fluffy, fpath, monaderror-io
+                     , more-unicode, non-empty-containers, tasty-plus, tfmt
 
                      , minfo
   default-extensions:  NoImplicitPrelude

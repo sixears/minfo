@@ -4,7 +4,7 @@
 {-# LANGUAGE UnicodeSyntax     #-}
 
 module MInfo.YamlPlus
-  ( unYaml, unYamlFile )
+  ( unYaml, unYaml', unYamlFile )
 where
 
 -- base --------------------------------
@@ -22,6 +22,10 @@ import Data.Function.Unicode  ( (∘) )
 -- bytestring --------------------------
 
 import Data.ByteString  ( ByteString )
+
+-- data-textual ------------------------
+
+import Data.Textual  ( Printable, toText )
 
 -- fpath -------------------------------
 
@@ -41,6 +45,10 @@ import Data.MoreUnicode.Lens     ( (⫥) )
 
 import Control.Monad.Except  ( MonadError )
 
+-- text --------------------------------
+
+import Data.Text.Encoding  ( encodeUtf8 )
+
 -- yaml --------------------------------
 
 import Data.Yaml  ( FromJSON, decodeEither', decodeFileEither )
@@ -56,6 +64,11 @@ import MInfo.YamlPlus.Error  ( AsYamlParseError, asYamlParseError )
 unYaml ∷ ∀ ε α μ . (FromJSON α, MonadError ε μ, AsYamlParseError ε) ⇒
          ByteString → μ α
 unYaml = fromRight ∘ asYamlParseError ∘ decodeEither'
+
+unYaml' ∷ ∀ ε α μ τ .
+          (FromJSON α, MonadError ε μ, AsYamlParseError ε, Printable τ) ⇒
+          τ → μ α
+unYaml' = fromRight ∘ asYamlParseError ∘ decodeEither' ∘ encodeUtf8 ∘ toText
 
 {- | Decode a yaml file; IO errors (e.g., file not found) are thrown as
      YamlParseErrors (this is the doing of `Data.Yaml.decodeFileEither`, not

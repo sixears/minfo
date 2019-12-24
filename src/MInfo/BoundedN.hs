@@ -10,6 +10,7 @@
 {-# LANGUAGE OverloadedStrings          #-}
 {-# LANGUAGE PatternSynonyms            #-}
 {-# LANGUAGE QuasiQuotes                #-}
+{-# LANGUAGE TemplateHaskell            #-}
 {-# LANGUAGE TypeApplications           #-}
 {-# LANGUAGE UnicodeSyntax              #-}
 {-# LANGUAGE ViewPatterns               #-}
@@ -17,7 +18,9 @@
 module MInfo.BoundedN
   ( -- don't export the constructor, so clients can't create out-of-range values
     BoundedN, 𝕎, pattern 𝕎, pattern 𝕎', pattern W, pattern W'
-  , checkBoundedN, checkBoundedN', 𝕨, tests
+  , checkBoundedN, checkBoundedN', 𝕨
+
+  , tests
   )
 where
 
@@ -104,6 +107,12 @@ import TastyPlus  ( assertAnyException, runTestsP, runTestsReplay, runTestTree )
 
 import Test.Tasty.QuickCheck  ( testProperty )
 
+-- template-haskell --------------------
+
+import Language.Haskell.TH         ( Exp( AppE, ConE, LitE ), ExpQ
+                                   , Lit( IntegerL ) )
+import Language.Haskell.TH.Syntax  ( Lift( lift ) )
+
 -- tfmt --------------------------------
 
 import Text.Fmt  ( fmt )
@@ -111,6 +120,13 @@ import Text.Fmt  ( fmt )
 -- validity ----------------------------
 
 import Data.Validity  ( Validation, Validity( validate ), check )
+
+------------------------------------------------------------
+--                     local imports                      --
+------------------------------------------------------------
+
+import MInfo.Types.FromI  ( FromI( fromI, fromI', __fromI, __fromI' ) )
+import MInfo.Types.ToNum  ( ToNum( toNum ) )
 
 --------------------------------------------------------------------------------
 
@@ -129,7 +145,7 @@ type 𝕎 = BoundedN
 
 instance KnownNat ν ⇒ Validity (BoundedN ν) where
   validate ∷ BoundedN ν → Validation
-  validate b = let m = toNum @Integer $ maxOf b
+  validate b = let m = toNum @_ @Integer $ maxOf b
                    i = toNum b
                    checkMsg = [fmt|value %d does not exceed upper bound %d|] i m
                 in check (i ≤ m) checkMsg
@@ -143,6 +159,12 @@ instance KnownNat ν ⇒ GenValid (BoundedN ν) where
   shrinkValid (𝕎 0) = []
   shrinkValid (𝕎 n) = enumFromTo (𝕎 0) (𝕎 (n-1))
   shrinkValid  _     = error "shrinkValid failed to pattern-match on 𝕎"
+
+instance KnownNat ν ⇒ Lift (BoundedN ν) where
+  lift ∷ BoundedN ν → ExpQ
+  -- λ> runQ [|  W 7 |]
+  -- AppE (ConE MInfo.BoundedN.W) (LitE (IntegerL 7))
+  lift (BoundedN n) = return $ AppE (ConE 'W) (LitE $ IntegerL (getFinite n))
 
 ----------------------------------------
 
@@ -181,7 +203,7 @@ checkBoundedN i | i < 0 = inputTooLow i
                 | otherwise = -- we 'let' the result, to bind a name to the
                               -- return type, so that inputTooHigh' can use it
                               -- to infer the upper bound
-                              let result = case toBoundedN i of
+                              let result = case fromI i of
                                              Just n  → return n
                                              Nothing → inputTooHigh' i
                                in result
@@ -196,16 +218,19 @@ toBoundedN ∷ (KnownNat ν, Integral α) ⇒ α → Maybe (𝕎 ν)
 -- checkBoundedN uses toBoundedN…
 toBoundedN = BoundedN ⩺ packFinite ∘ toInteger
 
+instance KnownNat ν ⇒ FromI (BoundedN ν) where
+  fromI = toBoundedN
+
 {- | Alias for `toBoundedN`, with Integer to avoid type ambiguity -}
 toBoundedN' ∷ KnownNat ν ⇒ Integer → Maybe (𝕎 ν)
-toBoundedN' = toBoundedN
+toBoundedN' = fromI'
 
 --------------------
 
 {- | Alias for @toBoundedN@, specifying Integer input for ease of literal
      use. -}
 𝕨 ∷ KnownNat ν ⇒ Integer → Maybe (𝕎 ν)
-𝕨 = toBoundedN
+𝕨 = fromI
 
 --------------------
 
@@ -222,13 +247,6 @@ toBoundedNTests =
 
 {- | *PARTIAL* Convert an Integral to a 𝕎' (or bust). -}
 __toBoundedN ∷ (KnownNat ν, Integral α, Show α) ⇒ α → 𝕎 ν
-{-
-__toBoundedN i | i < 0     = error $ [fmt|%d < 0|] i
-               | otherwise = result
-                             where result = case toBoundedN i of
-                                              Just n  → n
-                                              Nothing → error $ [fmt|out of bounds: %d|] i
--}
 __toBoundedN = __bang__ ∘ checkBoundedN'
 
 {- | Alias for `__toBoundedN`, with Integer to avoid type ambiguity.
@@ -252,26 +270,27 @@ __toBoundedNTests =
  -}
 pattern 𝕎 ∷ KnownNat ν ⇒ Integer → 𝕎 ν
 pattern 𝕎 i ← ((getFinite ∘ toFinite) → i)
-              where 𝕎 i = __toBoundedN i
+              where 𝕎 i = __fromI' i
 
 {- | Non-unicode alias for 𝕎 -}
 pattern W ∷ KnownNat ν ⇒ Integer → 𝕎 ν
 pattern W i ← ((getFinite ∘ toFinite) → i)
-              where W i = __toBoundedN i
+              where W i = __fromI' i
 
 {- | Alias for 𝕎, for any @Integral@. -}
 pattern 𝕎' ∷ (KnownNat ν, Integral α, Show α) ⇒ α → 𝕎 ν
 pattern 𝕎' i ← ((fromInteger ∘ getFinite ∘ toFinite) → i)
-              where 𝕎' i = __toBoundedN i
+              where 𝕎' i = __fromI i
 
 {- | Non-unicode alias for 𝕎' -}
 pattern W' ∷ (KnownNat ν, Integral α, Show α) ⇒ α → 𝕎 ν
 pattern W' i ← ((fromInteger ∘ getFinite ∘ toFinite) → i)
-              where W' i = __toBoundedN i
+              where W' i = __fromI i
 
-toNum ∷ (Num α, KnownNat ν) ⇒ 𝕎 ν → α
-toNum (𝕎 i) = fromInteger $ toInteger i
-toNum _      = error "failed to convert BoundedN to num"
+instance KnownNat ν ⇒ ToNum (BoundedN ν) where
+  toNum ∷ Num α ⇒ 𝕎 ν → α
+  toNum (𝕎 i) = fromInteger $ toInteger i
+  toNum _      = error "failed to convert BoundedN to num"
 
 --------------------
 
