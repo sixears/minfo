@@ -1,6 +1,5 @@
 {-# OPTIONS_GHC -Wall #-}
 
--- {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE NoImplicitPrelude          #-}
 {-# LANGUAGE OverloadedStrings          #-}
 {-# LANGUAGE QuasiQuotes                #-}
@@ -13,7 +12,6 @@ import Control.Monad           ( forM_, mapM_, return )
 import Control.Monad.IO.Class  ( MonadIO, liftIO )
 import Data.Foldable           ( Foldable )
 import Data.Function           ( ($) )
-import Data.Typeable           ( Typeable )
 import Data.Word               ( Word8 )
 import System.IO               ( IO )
 import Text.Show               ( Show( show ) )
@@ -25,7 +23,7 @@ import Data.Monoid.Unicode    ( (⊕) )
 
 -- data-textual ------------------------
 
-import Data.Textual  ( Printable, Textual, toString, toText )
+import Data.Textual  ( Printable, toString, toText )
 
 -- exited ------------------------------
 
@@ -58,12 +56,11 @@ import Control.Monad.Except  ( MonadError )
 
 -- optparse-applicative ----------------
 
-import Options.Applicative  ( ArgumentFields, CommandFields, Mod, Parser, ReadM
+import Options.Applicative  ( CommandFields, Mod, Parser
                             , action, argument, auto, command, completer
-                            , customExecParser, eitherReader, failureCode
-                            , fullDesc, helper, info, listCompleter, metavar
-                            , prefs, progDesc, showHelpOnEmpty, showHelpOnError
-                            , subparser, value
+                            , customExecParser, failureCode, fullDesc, helper
+                            , info, listCompleter, metavar, prefs, progDesc
+                            , showHelpOnEmpty, showHelpOnError, subparser, value
                             )
 
 -- text --------------------------------
@@ -75,7 +72,7 @@ import Data.Text.IO  ( putStrLn )
 --                     local imports                      --
 ------------------------------------------------------------
 
-import TextualPlus           ( parseTextual )
+import OptParsePlus          ( argS )
 import MInfo.YamlPlus        ( unYamlFile )
 import MInfo.YamlPlus.Error  ( AsYamlParseError )
 
@@ -95,12 +92,6 @@ data RunMode = ModeWrite ℕ
 trackCountP ∷ Parser ℕ
 trackCountP = let c = completer (listCompleter $ show ⊳ [ 1∷ℕ .. 99])
                in argument auto (metavar "TRACK-COUNT" ⊕ c)
-
-readT ∷ (Textual α, Typeable α) ⇒ ReadM α
-readT = eitherReader parseTextual
-
-argS ∷ (Textual α, Typeable α) ⇒ Mod ArgumentFields α → Parser α
-argS = argument readT
 
 modeP ∷ Parser RunMode
 modeP =
