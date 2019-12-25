@@ -51,6 +51,7 @@ library
   -- Modules exported by the library.
   exposed-modules:     MInfo.BoundedN
                      , MInfo.PYaml
+                     , MonadIO
                      , OptParsePlus
                      , TextualPlus
                      , MInfo.Util

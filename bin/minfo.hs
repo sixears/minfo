@@ -8,13 +8,12 @@
 
 -- base --------------------------------
 
-import Control.Monad           ( forM_, mapM_, return )
-import Control.Monad.IO.Class  ( MonadIO, liftIO )
-import Data.Foldable           ( Foldable )
-import Data.Function           ( ($) )
-import Data.Word               ( Word8 )
-import System.IO               ( IO )
-import Text.Show               ( Show( show ) )
+import Control.Monad  ( forM_, mapM_, return )
+import Data.Foldable  ( Foldable )
+import Data.Function  ( ($) )
+import Data.Word      ( Word8 )
+import System.IO      ( IO )
+import Text.Show      ( Show( show ) )
 
 -- base-unicode-symbols ----------------
 
@@ -23,7 +22,7 @@ import Data.Monoid.Unicode    ( (⊕) )
 
 -- data-textual ------------------------
 
-import Data.Textual  ( Printable, toString, toText )
+import Data.Textual  ( Printable, toString )
 
 -- exited ------------------------------
 
@@ -66,12 +65,12 @@ import Options.Applicative  ( CommandFields, Mod, Parser
 -- text --------------------------------
 
 import Data.Text     ( Text )
-import Data.Text.IO  ( putStrLn )
 
 ------------------------------------------------------------
 --                     local imports                      --
 ------------------------------------------------------------
 
+import MonadIO               ( MonadIO, liftIO, say )
 import OptParsePlus          ( argS )
 import MInfo.YamlPlus        ( unYamlFile )
 import MInfo.YamlPlus.Error  ( AsYamlParseError )
@@ -144,14 +143,6 @@ optParser t i =
 
 parseOpts ∷ Parser Options
 parseOpts = Options ⊳ modeP
-
-----------------------------------------
-
--- move to MonadIO
-say ∷ (MonadIO μ, Printable τ) ⇒ τ → μ ()
-say = liftIO ∘ putStrLn ∘ toText
-
-------------------------------------------------------------
 
 ------------------------------------------------------------
 
