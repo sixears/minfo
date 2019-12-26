@@ -13,7 +13,7 @@ import Prelude  ( error )
 
 -- base --------------------------------
 
-import Data.Either    ( Either( Left, Right ) )
+import Control.Monad  ( return )
 import Data.Function  ( ($) )
 import Data.String    ( String )
 import Data.Typeable  ( Typeable, typeOf )
@@ -26,6 +26,10 @@ import Data.Function.Unicode  ( (∘) )
 
 import Data.Textual  ( Parsed( Malformed, Parsed ), Printable, Textual
                      , parseText, toText, toString )
+
+-- mtl ---------------------------------
+
+import Control.Monad.Except  ( MonadError, throwError )
 
 -- text --------------------------------
 
@@ -50,9 +54,9 @@ instance PrintOut String where
      This is mostly an adapter from `Printable` to `Either`; to work with, e.g.,
      `Options.Applicative.eitherReader`.
  -}
-parseTextual ∷ ∀ β τ α .
-      (Textual β, PrintOut τ, Printable α, Typeable β) ⇒
-      α → Either τ β
+parseTextual ∷ ∀ β ε α η .
+      (Textual β, PrintOut ε, Printable α, Typeable β, MonadError ε η) ⇒
+      α → η β
 parseTextual (toText → z) =
   let fromParsed (Parsed a)      = a
       -- this function exists solely to provide a hypothetical value to reflect
@@ -61,11 +65,11 @@ parseTextual (toText → z) =
       parsedZ                    = parseText z
       typ                        = typeOf $ fromParsed parsedZ
    in case parsedZ of
-        Parsed a       → Right a
-        Malformed [] x → Left ∘ toP $
+        Parsed a       → return a
+        Malformed [] x → throwError ∘ toP $
                            [fmtT|failed to parse '%t' as '%w': %s|] z typ x
         Malformed xs x → let msg = [fmtT|failed to parse '%t' as '%w': [%L] %s|]
                                    z typ xs x
-                          in Left (toP msg)
+                          in throwError (toP msg)
 
 -- that's all, folks! ----------------------------------------------------------
