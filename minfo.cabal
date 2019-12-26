@@ -50,21 +50,25 @@ library
   ghc-options:        -W -Wall -fhelpful-errors
   -- Modules exported by the library.
   exposed-modules:     MInfo.BoundedN
+
                      , MInfo.PYaml
+
                      , MonadIO
+
                      , OptParsePlus
+
                      , TextualPlus
-                     , MInfo.Options
-                     , MInfo.Util
+
                      , MInfo.YamlPlus
                      , MInfo.YamlPlus.Error
 
-                     , MInfo.Errors
+                     , MInfo.Util
 
-                     , MInfo.Types
+                     , MInfo.Errors
+                     , MInfo.Options
+
                      , MInfo.Types.DayBounds
                      , MInfo.Types.Date.Error
-                     , MInfo.Types.ToWord16
                      , MInfo.Types.FromI
                      , MInfo.Types.ToNum
                      , MInfo.Types.DayOfM
@@ -75,6 +79,8 @@ library
                      , MInfo.Types.T.Year
                      , MInfo.Types.DateImprecise
                      , MInfo.Types.DateImpreciseRange
+
+                     , MInfo.Types
                      , MInfo.Types.Info
                      , MInfo.Types.ReleaseInfo
                      , MInfo.Types.Track

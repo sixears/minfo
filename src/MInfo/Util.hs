@@ -175,6 +175,6 @@ ePatSymExhaustive s =
 
 tries ∷ (ToMonoSeqNonEmpty ψ, Parsing η, Element ψ ~ η α) ⇒ ψ → η α
 tries (toSeqNE → ts :⫸ t) = foldl1 (∤) (toList ((try ⊳ ts) ⋗ t))
-tries _                        = ePatSymExhaustive "tries"
+tries _                   = ePatSymExhaustive "tries"
 
 -- that's all, folks! ----------------------------------------------------------
