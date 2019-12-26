@@ -11,6 +11,7 @@
 import Control.Monad  ( forM_, mapM_, return )
 import Data.Foldable  ( Foldable )
 import Data.Function  ( ($) )
+import Data.Maybe     ( Maybe( Nothing ) )
 import Data.Word      ( Word8 )
 import System.IO      ( IO )
 import Text.Show      ( Show( show ) )
@@ -22,7 +23,7 @@ import Data.Monoid.Unicode    ( (⊕) )
 
 -- data-textual ------------------------
 
-import Data.Textual  ( Printable, toString )
+import Data.Textual  ( Printable )
 
 -- exited ------------------------------
 
@@ -43,11 +44,10 @@ import MonadError  ( ѥ )
 
 -- more-unicode ------------------------
 
-import Data.MoreUnicode.Applicative  ( (⊴) )
-import Data.MoreUnicode.Functor      ( (⊳) )
-import Data.MoreUnicode.Lens         ( (⊣) )
-import Data.MoreUnicode.Monad        ( (≫) )
-import Data.MoreUnicode.Natural      ( ℕ )
+import Data.MoreUnicode.Functor  ( (⊳) )
+import Data.MoreUnicode.Lens     ( (⊣) )
+import Data.MoreUnicode.Monad    ( (≫) )
+import Data.MoreUnicode.Natural  ( ℕ )
 
 -- mtl ---------------------------------
 
@@ -56,22 +56,16 @@ import Control.Monad.Except  ( MonadError )
 -- optparse-applicative ----------------
 
 import Options.Applicative  ( CommandFields, Mod, Parser
-                            , action, argument, auto, command, completer
-                            , customExecParser, failureCode, fullDesc, helper
-                            , info, listCompleter, metavar, prefs, progDesc
-                            , showHelpOnEmpty, showHelpOnError, subparser, value
+                            , action, argument, auto, command, completer, info
+                            , listCompleter, metavar, progDesc, subparser, value
                             )
-
--- text --------------------------------
-
-import Data.Text     ( Text )
 
 ------------------------------------------------------------
 --                     local imports                      --
 ------------------------------------------------------------
 
-import MonadIO               ( MonadIO, liftIO, say )
-import OptParsePlus          ( argS )
+import MonadIO               ( MonadIO, say )
+import OptParsePlus          ( argS, parseOpts )
 import MInfo.YamlPlus        ( unYamlFile )
 import MInfo.YamlPlus.Error  ( AsYamlParseError )
 
@@ -130,19 +124,8 @@ runMode = lens _runMode (\ o r → o { _runMode = r })
 
 --------------------
 
-optParser :: (MonadIO μ) => Text     -- prog description
-                         -> Parser α -- options parser
-                         -> μ α
-optParser t i =
-  let infoMod = fullDesc ⊕ progDesc (toString t) ⊕ failureCode 2
-      parserPrefs = prefs $ showHelpOnError ⊕ showHelpOnEmpty
-
-   in liftIO ∘ customExecParser parserPrefs $ info (i ⊴ helper) infoMod
-
---------------------
-
-parseOpts ∷ Parser Options
-parseOpts = Options ⊳ modeP
+parseOptions ∷ Parser Options
+parseOptions = Options ⊳ modeP
 
 ------------------------------------------------------------
 
@@ -163,8 +146,8 @@ pInfo' f fn = do
 
 main ∷ IO ()
 main = doMain @YamlParseInfoFPCError @Word8 $ do
-  opts ← optParser "read & write info.yaml" parseOpts
-
+  opts ← parseOpts Nothing "read & write info.yaml" parseOptions
+  
   case opts ⊣ runMode of
     ModeWrite      tc → say $ blankInfo tc
     ModeTrackCount fn → pInfo  ((:[]) ∘ show ∘ trackCount) fn
