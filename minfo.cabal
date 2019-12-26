@@ -54,6 +54,7 @@ library
                      , MonadIO
                      , OptParsePlus
                      , TextualPlus
+                     , MInfo.Options
                      , MInfo.Util
                      , MInfo.YamlPlus
                      , MInfo.YamlPlus.Error
@@ -116,8 +117,7 @@ executable minfo
   -- add ?RTS -xt -hy to produce a usage graph
   main-is:             minfo.hs
   hs-source-dirs:      bin
-  build-depends:       base, base-unicode-symbols, data-textual, lens, mtl
-                     , optparse-applicative
+  build-depends:       base, base-unicode-symbols, data-textual, mtl
 
                      , exited, fpath, monaderror-io, more-unicode
 
