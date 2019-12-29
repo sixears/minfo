@@ -40,8 +40,10 @@ import qualified  MInfo.Types.Track
 import qualified  MInfo.Types.Tracks
 import qualified  MInfo.Types.Info
 import qualified  MInfo.Types.DateImprecise
+import qualified  MInfo.Types.T.DateImprecise
 import qualified  MInfo.Types.DateImpreciseType
 import qualified  MInfo.Types.DateImpreciseRange
+import qualified  MInfo.Types.T.DateImpreciseRange
 import qualified  MInfo.PYaml
 
 --------------------------------------------------------------------------------
@@ -60,8 +62,10 @@ tests =
                     , MInfo.Types.Track.tests
                     , MInfo.Types.Tracks.tests
                     , MInfo.Types.DateImprecise.tests
+                    , MInfo.Types.T.DateImprecise.tests
                     , MInfo.Types.DateImpreciseType.tests
                     , MInfo.Types.DateImpreciseRange.tests
+                    , MInfo.Types.T.DateImpreciseRange.tests
 
                     , MInfo.Types.Info.tests
                     , MInfo.PYaml.tests

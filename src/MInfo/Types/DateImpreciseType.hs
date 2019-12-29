@@ -106,9 +106,9 @@ import Data.Yaml  ( FromJSON( parseJSON ), ToJSON( toJSON )
 --                     local imports                      --
 ------------------------------------------------------------
 
-import MInfo.Util            ( tries )
-import MInfo.YamlPlus        ( unYaml )
-import MInfo.YamlPlus.Error  ( YamlParseError )
+import ParserPlus             ( tries )
+import MInfo.YamlPlus         ( unYaml )
+import MInfo.YamlPlus.Error   ( YamlParseError )
 
 import MInfo.Types.DayBounds  ( DayBounds( endDay, startDay ) )
 import MInfo.Types.DayOfM     ( DayOfM, dayOfM )

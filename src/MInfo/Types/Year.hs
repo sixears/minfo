@@ -163,8 +163,6 @@ year =
   mkQQCP "Year" yearQQ
                 (\ s → maybe (fail $ [fmt|failed to parse day-of-month '%s'|] s)
                              (Just ∘ return ∘ yearPat) $ readYI s)
---  mkQuasiQuoterExpP "Year" (\ s → ⟦ __fromString @Year s ⟧)
---                           (mkWPatQf (subtract 1900) 'Year_)
 
 ----------------------------------------
 

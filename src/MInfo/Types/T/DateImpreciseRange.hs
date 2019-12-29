@@ -4,12 +4,13 @@
 {-# LANGUAGE QuasiQuotes       #-}
 {-# LANGUAGE UnicodeSyntax     #-}
 
-module MInfo.Types.T.DateImprecise
+module MInfo.Types.T.DateImpreciseRange
   ( tests )
 where
 
 -- base --------------------------------
 
+import Data.Either    ( Either( Right ) )
 import Data.Function  ( ($) )
 import Data.String    ( String )
 import System.Exit    ( ExitCode )
@@ -40,22 +41,31 @@ import Data.Time  ( fromGregorian )
 --                     local imports                      --
 ------------------------------------------------------------
 
-import MInfo.Types.DateImprecise  ( dateImprecise, dayDate
-                                  , pattern MonthDate, pattern YearDate )
-import MInfo.Types.Month          ( month )
-import MInfo.Types.Year           ( year )
+import MInfo.Types.DateImpreciseRange
+                              ( dateImpreciseR', dateImpreciseRange )
+import MInfo.Types.DateImprecise
+                              ( dayDate, pattern MonthDate, pattern YearDate )
+import MInfo.Types.Month      ( month )
+import MInfo.Types.Year       ( year )
 
 --------------------------------------------------------------------------------
 
-dateImpreciseTests ∷ TestTree
-dateImpreciseTests =
-  testGroup "dateImprecise"
-            [ testCase "DateImprecise 2019-12-24" $
-                dayDate (fromGregorian 2019 12 24) ≟ [dateImprecise|2019-12-24|]
-            , testCase "DateImprecise 2019-12" $
-                MonthDate [year|2019|] [month|12|] ≟ [dateImprecise|2019-12|]
-            , testCase "DateImprecise 2019" $
-                YearDate [year|2019|]              ≟ [dateImprecise|2019|]
+qqTests ∷ TestTree
+qqTests =
+  let d0s = YearDate [year|2019|]
+      d0e = dayDate (fromGregorian 2019 12 24)
+      d0 = dateImpreciseR' d0s d0e
+      d1s = YearDate [year|2017|]
+      d1e = MonthDate [year|2019|] [month|12|]
+      d1 = dateImpreciseR' d1s d1e
+      d2 = dateImpreciseR' d0s d0s
+   in testGroup "dateImpreciseRangeQQ"
+                [ testCase "DateImpreciseRange 2019-12-24" $
+                    d0 ≟ Right [dateImpreciseRange|2019:12-24|]
+                , testCase "DateImpreciseRange 2019-12" $
+                    d1 ≟ Right [dateImpreciseRange|2017:2019-12|]
+                , testCase "DateImpreciseRange 2019" $
+                    d2 ≟ Right [dateImpreciseRange|2019|]
             ]
 
 --------------------------------------------------------------------------------
@@ -63,8 +73,8 @@ dateImpreciseTests =
 --------------------------------------------------------------------------------
 
 tests ∷ TestTree
-tests = testGroup "DateImpreciseQQ" [ dateImpreciseTests ]
-                
+tests = testGroup "DateImpreciseRangeQQ" [ qqTests ]
+
 ----------------------------------------
 
 _test ∷ IO ExitCode

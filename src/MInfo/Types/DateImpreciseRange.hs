@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveLift          #-}
 {-# LANGUAGE FlexibleContexts    #-}
 {-# LANGUAGE InstanceSigs        #-}
 {-# LANGUAGE OverloadedStrings   #-}
@@ -56,7 +57,7 @@ import Data.Textual  ( Parsed( Parsed, Malformed ), Printable( print )
 -- more-unicode ------------------------
 
 import Data.MoreUnicode.Applicative  ( (⊵), (⋪) )
-import Data.MoreUnicode.Functor      ( (⊳) )
+import Data.MoreUnicode.Functor      ( (⊳), (⩺) )
 import Data.MoreUnicode.Natural      ( ℕ )
 import Data.MoreUnicode.Tasty        ( (≟), (≣) )
 
@@ -94,7 +95,8 @@ import Test.Tasty.QuickCheck  ( Gen, suchThat, testProperty )
 
 -- template-haskell --------------------
 
-import Language.Haskell.TH.Quote  ( QuasiQuoter )
+import Language.Haskell.TH.Quote   ( QuasiQuoter )
+import Language.Haskell.TH.Syntax  ( Lift )
 
 -- text --------------------------------
 
@@ -120,7 +122,8 @@ import Data.Yaml  ( FromJSON( parseJSON ), ToJSON( toJSON ) )
 --                     local imports                      --
 ------------------------------------------------------------
 
-import MInfo.Util                 ( __fromString, mkQuasiQuoterExp, tries )
+import ParserPlus                 ( tries )
+import MInfo.Util                 ( mkQQC )
 import MInfo.YamlPlus             ( unYaml' )
 import MInfo.YamlPlus.Error       ( YamlParseError )
 
@@ -141,7 +144,7 @@ import MInfo.Types.Year           ( Year, year )
 
 {- | A date, with variable precision -}
 newtype DateImpreciseRange = DateImpreciseRange (DateImprecise,DateImprecise)
-  deriving Show
+  deriving (Lift,Show)
 
 instance Eq DateImpreciseRange where
   d == d' = startDay d ≡ startDay d' ∧ endDay   d ≡ endDay   d'
@@ -224,7 +227,7 @@ dateImpreciseRangePrintableTests =
                 , check "2019"                  testDateImpreciseRangeY2
                 , check "2019-11:11-14"         testDateImpreciseRangeMD0
                 , check "2019-05:11-26"         testDateImpreciseRangeMD1
-                , check "2019:11-14"            testDateImpreciseRangeYD
+                , check "2019:11-14"            testDateImpreciseRangeYD1
                 , check "2019:05"               testDateImpreciseRangeYM
                 ]
 
@@ -255,7 +258,7 @@ dateImpreciseRangeParsecableTests =
                 , check "2019"                  testDateImpreciseRangeY2
                 , check "2019-11:11-14"         testDateImpreciseRangeMD0
                 , check "2019-05:11-26"         testDateImpreciseRangeMD1
-                , check "2019:11-14"            testDateImpreciseRangeYD
+                , check "2019:11-14"            testDateImpreciseRangeYD1
                 , check "2019:05"               testDateImpreciseRangeYM
                 ]
 
@@ -364,6 +367,7 @@ dateImpreciseYMD (y,m1,d1) = do
 
 ----------
 
+{- | Parse year, followed by month then day of month. -}
 parseYMD ∷ (Monad η, CharParsing η) ⇒ η DateImpreciseRange
 parseYMD = do
   (y,m1,d1) ← (,,) ⊳ textual ⋪ string ":" ⊵ textual ⋪ string "-" ⊵ textual
@@ -414,7 +418,8 @@ dateImpreciseRangeTextualTests =
                 , check "2019"                  testDateImpreciseRangeY2
                 , check "2019-11:11-14"         testDateImpreciseRangeMD0
                 , check "2019-05:11-26"         testDateImpreciseRangeMD1
-                , check "2019:11-14"            testDateImpreciseRangeYD
+                , check "2019:11-14"            testDateImpreciseRangeYD1
+                , check "2019:12-24"            testDateImpreciseRangeYD2
                 , check "2019:05"               testDateImpreciseRangeYM
                 , testProperty "invertibleText"
                     (propInvertibleText @DateImprecise)
@@ -464,7 +469,8 @@ dateImpreciseRangeFromJSONTests =
                 , check "2019"                  testDateImpreciseRangeY2
                 , check "2019-11:11-14"         testDateImpreciseRangeMD0
                 , check "2019-05:11-26"         testDateImpreciseRangeMD1
-                , check "2019:11-14"            testDateImpreciseRangeYD
+                , check "2019:11-14"            testDateImpreciseRangeYD1
+                , check "2019:12-24"            testDateImpreciseRangeYD2
                 , check "2019:05"               testDateImpreciseRangeYM
                 ]
 
@@ -489,7 +495,8 @@ dateImpreciseRangeToJSONTests =
                 , check "2019"                  testDateImpreciseRangeY2
                 , check "2019-11:11-14"         testDateImpreciseRangeMD0
                 , check "2019-05:11-26"         testDateImpreciseRangeMD1
-                , check "2019:11-14"            testDateImpreciseRangeYD
+                , check "2019:11-14"            testDateImpreciseRangeYD1
+                , check "2019:12-24"            testDateImpreciseRangeYD2
                 , check "2019:05"               testDateImpreciseRangeYM
                 ]
 
@@ -497,8 +504,7 @@ dateImpreciseRangeToJSONTests =
 
 dateImpreciseRange ∷ QuasiQuoter
 dateImpreciseRange =
-  mkQuasiQuoterExp "DateImpreciseRange"
-                   (\ s → ⟦ __fromString @DateImpreciseRange s ⟧)
+  mkQQC "DateImprecise" ((\ r → ⟦r⟧) ⩺ fromString @DateImpreciseRange)
 
 ----------------------------------------
 
@@ -527,7 +533,8 @@ dayBoundsTests =
                 , check 2019 05 01 2019 11 26 testDateImpreciseRangeMD1
                 , check 2017 01 01 2019 12 31 testDateImpreciseRangeY
                 , check 2019 01 01 2019 12 31 testDateImpreciseRangeY2
-                , check 2019 01 01 2019 11 14 testDateImpreciseRangeYD
+                , check 2019 01 01 2019 11 14 testDateImpreciseRangeYD1
+                , check 2019 01 01 2019 12 24 testDateImpreciseRangeYD2
                 , check 2019 01 01 2019 05 31 testDateImpreciseRangeYM
                 ]
 
@@ -689,6 +696,9 @@ testDateP1 = dateDay_ [year|2019|] [month|11|] [dayOfM|26|]
 testDateP2 ∷ DateImprecise
 testDateP2 = dateDay_ [year|2017|] [month|11|] [dayOfM|26|]
 
+testDateP3 ∷ DateImprecise
+testDateP3 = dateDay_ [year|2019|] [month|12|] [dayOfM|24|]
+
 testDateImpreciseRange ∷ DateImpreciseRange
 testDateImpreciseRange = DateImpreciseRange (testDateP0,testDateP1)
 
@@ -734,8 +744,11 @@ testDateImpreciseRangeY = DateImpreciseRange (testDatePY0,testDatePY1)
 testDateImpreciseRangeY2 ∷ DateImpreciseRange
 testDateImpreciseRangeY2 = DateImpreciseRange (testDatePY1,testDatePY1)
 
-testDateImpreciseRangeYD ∷ DateImpreciseRange
-testDateImpreciseRangeYD = DateImpreciseRange (testDatePY1,testDateP0)
+testDateImpreciseRangeYD1 ∷ DateImpreciseRange
+testDateImpreciseRangeYD1 = DateImpreciseRange (testDatePY1,testDateP0)
+
+testDateImpreciseRangeYD2 ∷ DateImpreciseRange
+testDateImpreciseRangeYD2 = DateImpreciseRange (testDatePY1,testDateP3)
 
 testDateImpreciseRangeYM ∷ DateImpreciseRange
 testDateImpreciseRangeYM = DateImpreciseRange (testDatePY1,testDatePM2)
