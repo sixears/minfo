@@ -25,7 +25,7 @@ where
 
 import Control.Monad  ( Monad, fail, return )
 import Data.Either    ( Either( Left, Right ) )
-import Data.Function  ( ($) )
+import Data.Function  ( ($), (&) )
 import Data.Maybe     ( Maybe( Just, Nothing ) )
 import Data.String    ( String )
 import System.Exit    ( ExitCode )
@@ -34,6 +34,10 @@ import System.IO      ( IO )
 -- base-unicode-symbols ----------------
 
 import Data.Eq.Unicode  ( (≡) )
+
+-- data-default ------------------------
+
+import Data.Default  ( def )
 
 -- data-textual ------------------------
 
@@ -45,8 +49,9 @@ import MonadError  ( mapMError )
 
 -- more-unicode ------------------------
 
-import Data.MoreUnicode.Functor      ( (⩺) )
-import Data.MoreUnicode.Natural      ( ℕ )
+import Data.MoreUnicode.Functor  ( (⩺) )
+import Data.MoreUnicode.Lens     ( (⊩) )
+import Data.MoreUnicode.Natural  ( ℕ )
 
 -- mtl ---------------------------------
 
@@ -72,7 +77,7 @@ import Data.Time  ( Day, toGregorian )
 --                     local imports                      --
 ------------------------------------------------------------
 
-import MInfo.Util                     ( mkQQC )
+import QuasiQuoting                   ( exp, mkQQ )
 
 import MInfo.Types.Date.Error         ( AsDateError_, DateErrorImprecise
                                       , badDateError, emap )
@@ -174,7 +179,7 @@ toGregory d = let (y,m,dom) = toGregorian d
 
 dateImprecise ∷ QuasiQuoter
 dateImprecise =
-  mkQQC "DateImprecise" ((\ d → ⟦d⟧) ⩺ fromString @DateImprecise)
+  mkQQ "DateImprecise" $ def & exp ⊩ ((\ d → ⟦d⟧) ⩺ fromString @DateImprecise)
 
 -- testing ---------------------------------------------------------------------
 

@@ -22,7 +22,7 @@ import Prelude  ( Integer, Integral, (+), (-), error, fromInteger, toInteger )
 
 import Control.Monad  ( fail, return )
 import Data.Eq        ( Eq )
-import Data.Function  ( ($) )
+import Data.Function  ( ($), (&) )
 import Data.Maybe     ( Maybe( Just, Nothing ), maybe )
 import Data.Ord       ( Ord )
 import Data.String    ( String )
@@ -36,6 +36,10 @@ import Text.Show      ( Show )
 
 import Data.Function.Unicode  ( (∘) )
 
+-- data-default ------------------------
+
+import Data.Default  ( def )
+
 -- data-textual ------------------------
 
 import Data.Textual           ( Printable( print ), Textual( textual )
@@ -48,10 +52,11 @@ import Control.DeepSeq  ( NFData )
 
 -- more-unicode ------------------------
 
-import Data.MoreUnicode.Functor      ( (⊳), (⩺) )
-import Data.MoreUnicode.Monad        ( (≫) )
-import Data.MoreUnicode.Natural      ( ℕ )
-import Data.MoreUnicode.Tasty        ( (≟) )
+import Data.MoreUnicode.Functor  ( (⊳), (⩺) )
+import Data.MoreUnicode.Lens     ( (⊩) )
+import Data.MoreUnicode.Monad    ( (≫) )
+import Data.MoreUnicode.Natural  ( ℕ )
+import Data.MoreUnicode.Tasty    ( (≟) )
 
 -- QuickCheck --------------------------
 
@@ -76,7 +81,8 @@ import Test.Tasty.QuickCheck  ( testProperty )
 
 -- template-haskell --------------------
 
-import Language.Haskell.TH         ( ExpQ, Lit( IntegerL ), Pat( ConP, LitP ) )
+import Language.Haskell.TH         ( ExpQ, Lit( IntegerL ), Pat( ConP, LitP )
+                                   , PatQ )
 import Language.Haskell.TH.Quote   ( QuasiQuoter )
 import Language.Haskell.TH.Syntax  ( Lift )
 
@@ -92,9 +98,9 @@ import Text.Fmt  ( fmt )
 --                     local imports                      --
 ------------------------------------------------------------
 
+import QuasiQuoting          ( mkQQ, exp, pat )
 import MInfo.BoundedN        ( 𝕎, pattern 𝕎, 𝕨 )
 import MInfo.Types.ToNum     ( ToNum( toNum, toNumW16 ) )
-import MInfo.Util            ( mkQQCP )
 
 import MInfo.Types.FromI     ( FromI( fromI, fromI', __fromI' ) )
 
@@ -150,17 +156,21 @@ readY s = readMaybe s ≫ fromI' @Month
 readYI ∷ String → Maybe Integer
 readYI = toInteger ∘ toNumW16 ⩺ readY
 
+-- λ> runQ [p| Month_ (W 1) |]
+-- ConP MInfo.Types.Month.Month_ [ConP MInfo.BoundedN.W [LitP (IntegerL 1)]]
 monthPat ∷ Integer → Pat
 monthPat i = ConP 'Month_ [ConP '𝕎 [LitP (IntegerL (i-1))]]
 
 monthQQ ∷ String → Maybe ExpQ
 monthQQ = (\ m → ⟦m⟧) ⩺ readY
 
+monthQQP ∷ String → Maybe PatQ
+monthQQP s = maybe (fail $ [fmt|failed to parse month '%s'|] s)
+                   (Just ∘ return ∘ monthPat) $ readYI s
+
 month ∷ QuasiQuoter
-month = mkQQCP "Month" monthQQ
-                       (\s → maybe (fail $ [fmt|failed to parse month '%s'|] s)
-                                   (Just ∘ return ∘ monthPat) $ readYI s)
-                                                       
+month = mkQQ "Month" $ def & exp ⊩ monthQQ & pat ⊩ monthQQP
+                                                     
 ----------------------------------------
 
 pattern Month ∷ Integral α ⇒ α → Month

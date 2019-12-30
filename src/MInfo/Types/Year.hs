@@ -23,7 +23,7 @@ import Prelude  ( Integer, Integral, (+), (-), error, fromInteger, toInteger )
 
 import Control.Monad  ( fail, return )
 import Data.Eq        ( Eq )
-import Data.Function  ( ($) )
+import Data.Function  ( ($), (&) )
 import Data.Maybe     ( Maybe( Just ), maybe )
 import Data.Ord       ( Ord )
 import Data.String    ( String )
@@ -37,6 +37,10 @@ import Text.Show      ( Show )
 
 import Data.Function.Unicode  ( (∘) )
 
+-- data-default ------------------------
+
+import Data.Default  ( def )
+
 -- data-textual ------------------------
 
 import Data.Textual  ( Printable( print ), Textual( textual )
@@ -44,10 +48,11 @@ import Data.Textual  ( Printable( print ), Textual( textual )
 
 -- more-unicode ------------------------
 
-import Data.MoreUnicode.Functor      ( (⊳), (⩺) )
-import Data.MoreUnicode.Monad        ( (≫) )
-import Data.MoreUnicode.Natural      ( ℕ )
-import Data.MoreUnicode.Tasty        ( (≟) )
+import Data.MoreUnicode.Functor  ( (⊳), (⩺) )
+import Data.MoreUnicode.Lens     ( (⊩) )
+import Data.MoreUnicode.Monad    ( (≫) )
+import Data.MoreUnicode.Natural  ( ℕ )
+import Data.MoreUnicode.Tasty    ( (≟) )
 
 -- QuickCheck --------------------------
 
@@ -77,7 +82,8 @@ import Test.Tasty.QuickCheck  ( testProperty )
 
 -- template-haskell --------------------
 
-import Language.Haskell.TH         ( ExpQ, Lit( IntegerL ), Pat( ConP, LitP ) )
+import Language.Haskell.TH         ( ExpQ, Lit( IntegerL ), Pat( ConP, LitP )
+                                   , PatQ )
 import Language.Haskell.TH.Quote   ( QuasiQuoter )
 import Language.Haskell.TH.Syntax  ( Lift )
 
@@ -95,7 +101,7 @@ import Text.Fmt  ( fmt )
 
 import MInfo.BoundedN        ( 𝕎, pattern 𝕎, 𝕨 )
 import MInfo.Types.ToNum     ( ToNum( toNum, toNumW16 ) )
-import MInfo.Util            ( mkQQCP )
+import QuasiQuoting          ( mkQQ, exp, pat )
 
 import MInfo.Types.FromI     ( FromI( fromI, fromI', __fromI' ) )
 
@@ -151,18 +157,19 @@ readYI ∷ String → Maybe Integer
 readYI = toInteger ∘ toNumW16 ⩺ readY
 
 yearPat ∷ Integer → Pat
+-- λ> runQ [p| Month_ (W 1) |]
+-- ConP MInfo.Types.Month.Month_ [ConP MInfo.BoundedN.W [LitP (IntegerL 1)]]
 yearPat i = ConP 'Year_ [ConP '𝕎 [LitP (IntegerL (i-1900))]]
 
 yearQQ ∷ String → Maybe ExpQ
 yearQQ = (\ y → ⟦y⟧) ⩺ readY
 
+yearQQP ∷ String → Maybe PatQ
+yearQQP s = maybe (fail $ [fmt|failed to parse year '%s'|] s)
+                  (Just ∘ return ∘ yearPat) $ readYI s
+
 year ∷ QuasiQuoter
-year = 
-  -- λ> runQ [p| Month_ (W 1) |]
-  -- ConP MInfo.Types.Month.Month_ [ConP MInfo.BoundedN.W [LitP (IntegerL 1)]]
-  mkQQCP "Year" yearQQ
-                (\ s → maybe (fail $ [fmt|failed to parse day-of-month '%s'|] s)
-                             (Just ∘ return ∘ yearPat) $ readYI s)
+year = mkQQ "Year" $ def & exp ⊩ yearQQ & pat ⊩ yearQQP
 
 ----------------------------------------
 

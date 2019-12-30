@@ -30,7 +30,7 @@ import Data.Bifunctor      ( bimap )
 import Data.Bool           ( Bool( False, True ), otherwise )
 import Data.Either         ( Either( Left, Right ) )
 import Data.Eq             ( Eq( (==) ) )
-import Data.Function       ( ($) )
+import Data.Function       ( ($), (&) )
 import Data.List.NonEmpty  ( NonEmpty( (:|) ) )
 import Data.Maybe          ( Maybe( Just, Nothing ) )
 import Data.Ord            ( (<), max, min )
@@ -47,6 +47,10 @@ import Data.Eq.Unicode        ( (≡), (≢) )
 import Data.Function.Unicode  ( (∘) )
 import Data.Ord.Unicode       ( (≤), (≥) )
 
+-- data-default ------------------------
+
+import Data.Default  ( def )
+
 -- data-textual ------------------------
 
 import Data.Textual  ( Parsed( Parsed, Malformed ), Printable( print )
@@ -58,6 +62,7 @@ import Data.Textual  ( Parsed( Parsed, Malformed ), Printable( print )
 
 import Data.MoreUnicode.Applicative  ( (⊵), (⋪) )
 import Data.MoreUnicode.Functor      ( (⊳), (⩺) )
+import Data.MoreUnicode.Lens         ( (⊩) )
 import Data.MoreUnicode.Natural      ( ℕ )
 import Data.MoreUnicode.Tasty        ( (≟), (≣) )
 
@@ -123,7 +128,7 @@ import Data.Yaml  ( FromJSON( parseJSON ), ToJSON( toJSON ) )
 ------------------------------------------------------------
 
 import ParserPlus                 ( tries )
-import MInfo.Util                 ( mkQQC )
+import QuasiQuoting               ( exp, mkQQ )
 import MInfo.YamlPlus             ( unYaml' )
 import MInfo.YamlPlus.Error       ( YamlParseError )
 
@@ -504,7 +509,8 @@ dateImpreciseRangeToJSONTests =
 
 dateImpreciseRange ∷ QuasiQuoter
 dateImpreciseRange =
-  mkQQC "DateImprecise" ((\ r → ⟦r⟧) ⩺ fromString @DateImpreciseRange)
+  mkQQ "DateImpreciseRange" $
+    def & exp ⊩ ((\ r → ⟦r⟧) ⩺ fromString @DateImpreciseRange)
 
 ----------------------------------------
 
