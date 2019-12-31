@@ -51,12 +51,9 @@ import qualified  Text.Printer  as  P
 
 import Text.Fmt  ( fmt )
 
-------------------------------------------------------------
---                     local imports                      --
-------------------------------------------------------------
+-- yaml-plus ---------------------------
 
-import MInfo.YamlPlus.Error       ( AsYamlParseError( _YamlParseError )
-                                  , YamlParseError )
+import YamlPlus.Error  ( AsYamlParseError( _YamlParseError ), YamlParseError )
 
 --------------------------------------------------------------------------------
 

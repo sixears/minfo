@@ -76,16 +76,18 @@ import Data.Vector  ( (!?) )
 
 import Data.Yaml  ( FromJSON( parseJSON ), ToJSON( toJSON ) )
 
+-- yaml-plus ---------------------------
+
+import YamlPlus        ( unYaml )
+import YamlPlus.Error  ( YamlParseError )
+
 ------------------------------------------------------------
 --                     local imports                      --
 ------------------------------------------------------------
 
-import MInfo.YamlPlus                  ( unYaml )
-
 import MInfo.Types.DateImpreciseRange  ( dateImpreciseRange )
 import MInfo.Types                     ( LiveType( Demo, Live, Session ) )
 import MInfo.Types.Track               ( Track( Track ) )
-import MInfo.YamlPlus.Error            ( YamlParseError )
 
 --------------------------------------------------------------------------------
 

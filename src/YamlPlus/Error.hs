@@ -2,7 +2,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE UnicodeSyntax     #-}
 
-module MInfo.YamlPlus.Error
+module YamlPlus.Error
   ( YamlParseError, AsYamlParseError( _YamlParseError ), asYamlParseError )
 where
 

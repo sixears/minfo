@@ -3,7 +3,7 @@
 {-# LANGUAGE RankNTypes        #-}
 {-# LANGUAGE UnicodeSyntax     #-}
 
-module MInfo.YamlPlus
+module YamlPlus
   ( unYaml, unYaml', unYamlFile )
 where
 
@@ -57,7 +57,7 @@ import Data.Yaml  ( FromJSON, decodeEither', decodeFileEither )
 --                     local imports                      --
 ------------------------------------------------------------
 
-import MInfo.YamlPlus.Error  ( AsYamlParseError, asYamlParseError )
+import YamlPlus.Error  ( AsYamlParseError, asYamlParseError )
 
 --------------------------------------------------------------------------------
 

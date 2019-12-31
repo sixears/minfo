@@ -4,7 +4,10 @@
 {-# LANGUAGE UnicodeSyntax     #-}
 {-# LANGUAGE ViewPatterns      #-}
 
-module MInfo.PYaml
+{- | YAML printer, producing 'nicer' (to my eyes) output than `Data.Aeson.Yaml`
+ -}
+
+module PYaml
   ( pyaml, tests )
 where
 
@@ -71,7 +74,7 @@ import TastyPlus  ( runTestsP, runTestsReplay, runTestTree )
 
 import qualified  Data.Text  as  Text
 
-import Data.Text     ( Text, init, intercalate, lines )
+import Data.Text  ( Text, init, intercalate, lines )
 
 -- tfmt --------------------------------
 
@@ -84,10 +87,6 @@ import qualified  Data.HashMap.Strict  as  HashMap
 -- yaml --------------------------------
 
 import Data.Yaml  ( ToJSON( toJSON ), decodeEither', encode, object )
-
-------------------------------------------------------------
---                     local imports                      --
-------------------------------------------------------------
 
 --------------------------------------------------------------------------------
 
@@ -167,15 +166,6 @@ pyamlTests =
         testGroup name
                   [ testCase "expect" $ expect ≟ pyaml val
                   , testCase "parse"  $ Right val ≟ decodeText (pyaml val)]
-
-
-{-
-      check' ∷ TestName → Text → Value → TestTree
-      check' name expect value =
-        testGroup name
-                  [ testCase "expect" $ expect ≟ pyaml value
-                  , testCase "parse"  $ Right value ≟ decodeTexts (pyaml value)]
--}
 
    in testGroup "pyaml"
                 [ check "foo"  foo       (String foo)

@@ -84,12 +84,15 @@ import qualified  Text.Printer  as  P
 import Data.Yaml  ( FromJSON( parseJSON ), ToJSON( toJSON )
                   , (.=), object )
 
+
+-- yaml-plus ---------------------------
+
+import YamlPlus        ( unYaml )
+import YamlPlus.Error  ( YamlParseError )
+
 ------------------------------------------------------------
 --                     local imports                      --
 ------------------------------------------------------------
-
-import MInfo.YamlPlus                  ( unYaml )
-import MInfo.YamlPlus.Error            ( YamlParseError )
 
 import MInfo.Types                     ( Artist, LiveLocation
                                        , LiveType( Live, NotLive ), TrackTitle

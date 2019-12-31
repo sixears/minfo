@@ -44,7 +44,6 @@ import qualified  MInfo.Types.T.DateImprecise
 import qualified  MInfo.Types.DateImpreciseType
 import qualified  MInfo.Types.DateImpreciseRange
 import qualified  MInfo.Types.T.DateImpreciseRange
-import qualified  MInfo.PYaml
 
 --------------------------------------------------------------------------------
 
@@ -68,7 +67,6 @@ tests =
                     , MInfo.Types.T.DateImpreciseRange.tests
 
                     , MInfo.Types.Info.tests
-                    , MInfo.PYaml.tests
                     ]
 
 --------------------------------------------------------------------------------

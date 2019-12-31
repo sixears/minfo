@@ -74,9 +74,17 @@ import Control.Monad.Except  ( MonadError )
 
 import ParsecPlus  ( Parsecable( parser ), parsec' )
 
+-- parser-plus -------------------------
+
+import ParserPlus  ( tries )
+
 -- parsers ------------------------------
 
 import Text.Parser.Char  ( CharParsing, string )
+
+-- quasiquoting ------------------------
+
+import QuasiQuoting  ( exp, mkQQ )
 
 -- QuickCheck --------------------------
 
@@ -123,14 +131,14 @@ import Data.Time  ( Day, fromGregorian )
 
 import Data.Yaml  ( FromJSON( parseJSON ), ToJSON( toJSON ) )
 
+-- yaml-plus ---------------------------
+
+import YamlPlus        ( unYaml' )
+import YamlPlus.Error  ( YamlParseError )
+
 ------------------------------------------------------------
 --                     local imports                      --
 ------------------------------------------------------------
-
-import ParserPlus                 ( tries )
-import QuasiQuoting               ( exp, mkQQ )
-import MInfo.YamlPlus             ( unYaml' )
-import MInfo.YamlPlus.Error       ( YamlParseError )
 
 import MInfo.Types.DateImprecise  ( DateImprecise
                                   , pattern DayDate , pattern MonthDate

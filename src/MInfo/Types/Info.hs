@@ -108,13 +108,15 @@ import Text.Fmt  ( fmt, fmtT )
 
 import Data.Yaml  ( FromJSON( parseJSON ), ToJSON( toJSON ), object )
 
+-- yaml-plus ---------------------------
+
+import PYaml           ( pyaml )
+import YamlPlus        ( unYaml )
+import YamlPlus.Error  ( YamlParseError )
+
 ------------------------------------------------------------
 --                     local imports                      --
 ------------------------------------------------------------
-
-import MInfo.PYaml           ( pyaml )
-import MInfo.YamlPlus        ( unYaml )
-import MInfo.YamlPlus.Error  ( YamlParseError )
 
 import qualified  MInfo.Types.ReleaseInfo  as  ReleaseInfo
 import qualified  MInfo.T.TestData         as  TestData

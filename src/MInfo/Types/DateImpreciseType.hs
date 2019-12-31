@@ -50,6 +50,10 @@ import Data.MoreUnicode.Tasty        ( (≟) )
 
 import ParsecPlus  ( Parsecable( parser ), parsec' )
 
+-- parser-plus -------------------------
+
+import ParserPlus  ( tries )
+
 -- parsers ------------------------------
 
 import Text.Parser.Char  ( string )
@@ -102,13 +106,14 @@ import Data.Time  ( Day, addDays, fromGregorian, toGregorian )
 import Data.Yaml  ( FromJSON( parseJSON ), ToJSON( toJSON )
                   , Value( Number, String ) )
 
+-- yaml-plus ---------------------------
+
+import YamlPlus         ( unYaml )
+import YamlPlus.Error   ( YamlParseError )
+
 ------------------------------------------------------------
 --                     local imports                      --
 ------------------------------------------------------------
-
-import ParserPlus             ( tries )
-import MInfo.YamlPlus         ( unYaml )
-import MInfo.YamlPlus.Error   ( YamlParseError )
 
 import MInfo.Types.DayBounds  ( DayBounds( endDay, startDay ) )
 import MInfo.Types.DayOfM     ( DayOfM, dayOfM )
