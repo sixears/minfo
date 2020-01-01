@@ -37,6 +37,10 @@ import Text.Show      ( Show )
 
 import Data.Function.Unicode  ( (∘) )
 
+-- boundedn ----------------------------
+
+import BoundedN  ( 𝕎, pattern 𝕎, 𝕨 )
+
 -- data-default ------------------------
 
 import Data.Default  ( def )
@@ -53,6 +57,10 @@ import Data.MoreUnicode.Lens     ( (⊩) )
 import Data.MoreUnicode.Monad    ( (≫) )
 import Data.MoreUnicode.Natural  ( ℕ )
 import Data.MoreUnicode.Tasty    ( (≟) )
+
+-- quasiquoting ------------------------
+
+import QuasiQuoting  ( mkQQ, exp, pat )
 
 -- QuickCheck --------------------------
 
@@ -99,11 +107,8 @@ import Text.Fmt  ( fmt )
 --                     local imports                      --
 ------------------------------------------------------------
 
-import MInfo.BoundedN        ( 𝕎, pattern 𝕎, 𝕨 )
-import MInfo.Types.ToNum     ( ToNum( toNum, toNumW16 ) )
-import QuasiQuoting          ( mkQQ, exp, pat )
-
-import MInfo.Types.FromI     ( FromI( fromI, fromI', __fromI' ) )
+import MInfo.Types.ToNum  ( ToNum( toNum, toNumW16 ) )
+import MInfo.Types.FromI  ( FromI( fromI, fromI', __fromI' ) )
 
 --------------------------------------------------------------------------------
 

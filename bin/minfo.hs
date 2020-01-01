@@ -36,6 +36,10 @@ import FPath.File     ( File )
 
 import MonadError  ( ѥ )
 
+-- monadio-plus ------------------------
+
+import MonadIO  ( MonadIO, say )
+
 -- more-unicode ------------------------
 
 import Data.MoreUnicode.Lens   ( (⊣) )
@@ -45,18 +49,20 @@ import Data.MoreUnicode.Monad  ( (≫) )
 
 import Control.Monad.Except  ( MonadError )
 
+-- yaml-plus ---------------------------
+
+import YamlPlus        ( unYamlFile )
+import YamlPlus.Error  ( AsYamlParseError )
+
 ------------------------------------------------------------
 --                     local imports                      --
 ------------------------------------------------------------
 
-import MonadIO               ( MonadIO, say )
 import OptParsePlus          ( parseOpts )
 import MInfo.Options         ( RunMode( ModeFlacList, ModeMp3List
                                       , ModeTrackCount, ModeWrite )
                              , parseOptions, runMode
                              )
-import MInfo.YamlPlus        ( unYamlFile )
-import MInfo.YamlPlus.Error  ( AsYamlParseError )
 
 import MInfo.Errors          ( YamlParseInfoFPCError )
 

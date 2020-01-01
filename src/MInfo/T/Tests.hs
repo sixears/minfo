@@ -28,7 +28,7 @@ import TastyPlus  ( runTestsP, runTestsReplay, runTestTree )
 --                     local imports                      --
 ------------------------------------------------------------
 
-import qualified  MInfo.BoundedN
+import qualified  BoundedN
 import qualified  MInfo.Types
 import qualified  MInfo.Types.DayOfM
 import qualified  MInfo.Types.T.DayOfM
@@ -49,7 +49,7 @@ import qualified  MInfo.Types.T.DateImpreciseRange
 
 tests ∷ TestTree
 tests =
-  testGroup "MInfo" [ MInfo.BoundedN.tests
+  testGroup "MInfo" [ BoundedN.tests
                     , MInfo.Types.tests
 
                     , MInfo.Types.DayOfM.tests
