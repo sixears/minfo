@@ -35,6 +35,11 @@ import System.IO      ( IO )
 
 import Data.Eq.Unicode  ( (≡) )
 
+-- boundedn ----------------------------
+
+import FromI  ( __fromI )
+import ToNum  ( toNum )
+
 -- data-default ------------------------
 
 import Data.Default  ( def )
@@ -57,6 +62,10 @@ import Data.MoreUnicode.Natural  ( ℕ )
 
 import Control.Monad.Except  ( MonadError )
 
+-- quasiquoting ------------------------
+
+import QuasiQuoting  ( exp, mkQQ )
+
 -- tasty -------------------------------
 
 import Test.Tasty  ( TestTree, testGroup )
@@ -77,16 +86,12 @@ import Data.Time  ( Day, toGregorian )
 --                     local imports                      --
 ------------------------------------------------------------
 
-import QuasiQuoting                   ( exp, mkQQ )
-
 import MInfo.Types.Date.Error         ( AsDateError_, DateErrorImprecise
                                       , badDateError, emap )
 import MInfo.Types.DateImpreciseType  ( DateImprecise(..), dateDay_, dateMonth
                                       , dateYear, endDateOfMonth )
 import MInfo.Types.DayBounds          ( DayBounds( startDay ) )
 import MInfo.Types.DayOfM             ( DayOfM )
-import MInfo.Types.FromI              ( __fromI )
-import MInfo.Types.ToNum              ( toNum )
 import MInfo.Types.Month              ( Month )
 import MInfo.Types.Year               ( Year )
 

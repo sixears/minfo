@@ -40,6 +40,8 @@ import Data.Function.Unicode  ( (∘) )
 -- boundedn ----------------------------
 
 import BoundedN  ( 𝕎, pattern 𝕎, 𝕨 )
+import ToNum     ( ToNum( toNum, toNumW16 ) )
+import FromI     ( FromI( fromI, fromI', __fromI' ) )
 
 -- data-default ------------------------
 
@@ -102,13 +104,6 @@ import qualified  Text.Printer  as  P
 -- tfmt --------------------------------
 
 import Text.Fmt  ( fmt )
-
-------------------------------------------------------------
---                     local imports                      --
-------------------------------------------------------------
-
-import MInfo.Types.ToNum  ( ToNum( toNum, toNumW16 ) )
-import MInfo.Types.FromI  ( FromI( fromI, fromI', __fromI' ) )
 
 --------------------------------------------------------------------------------
 

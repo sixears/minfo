@@ -34,6 +34,11 @@ import Text.Show           ( Show )
 
 import Data.Function.Unicode  ( (∘) )
 
+-- boundedn ----------------------------
+
+import FromI  ( fromI, __fromI )
+import ToNum  ( ToNum( toNum, toNumW8, toNumW16 ) )
+
 -- data-textual ------------------------
 
 import Data.Textual  ( Parsed( Parsed, Malformed ), Printable( print )
@@ -117,8 +122,6 @@ import YamlPlus.Error   ( YamlParseError )
 
 import MInfo.Types.DayBounds  ( DayBounds( endDay, startDay ) )
 import MInfo.Types.DayOfM     ( DayOfM, dayOfM )
-import MInfo.Types.FromI      ( fromI, __fromI )
-import MInfo.Types.ToNum      ( ToNum( toNum, toNumW8, toNumW16 ) )
 import MInfo.Types.Month      ( Month, month )
 import MInfo.Types.Year       ( Year, year )
 

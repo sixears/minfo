@@ -17,6 +17,10 @@ import Data.String    ( String )
 import System.Exit    ( ExitCode )
 import System.IO      ( IO )
 
+-- boundedn ----------------------------
+
+import FromI  ( fromI' )
+
 -- more-unicode ------------------------
 
 import Data.MoreUnicode.Natural  ( ℕ )
@@ -38,7 +42,6 @@ import TastyPlus  ( runTestsP, runTestsReplay, runTestTree )
 --                     local imports                      --
 ------------------------------------------------------------
 
-import MInfo.Types.FromI  ( fromI' )
 import MInfo.Types.Year  ( year )
 
 --------------------------------------------------------------------------------
