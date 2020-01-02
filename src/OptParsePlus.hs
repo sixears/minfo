@@ -57,16 +57,17 @@ import Options.Applicative.Types
 
 import Exited  ( exitWith' )
 
+-- monadio-plus ------------------------
+
+import MonadIO  ( MonadIO, liftIO, warn )
+
+-- textual-plus ------------------------
+
+import TextualPlus  ( parseTextual )
+
 -- text --------------------------------
 
 import Data.Text  ( Text, pack, unpack )
-
-------------------------------------------------------------
---                     local imports                      --
-------------------------------------------------------------
-
-import MonadIO      ( MonadIO, liftIO, warn )
-import TextualPlus  ( parseTextual )
 
 --------------------------------------------------------------------------------
 
