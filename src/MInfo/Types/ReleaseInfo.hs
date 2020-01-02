@@ -22,6 +22,11 @@ import Text.Show      ( Show )
 
 import Data.Function.Unicode  ( (∘) )
 
+-- date-imprecise ----------------------
+
+import DateImprecise.DateImprecise       ( DateImprecise )
+import DateImprecise.DateImpreciseRange  ( DateImpreciseRange )
+
 -- lens --------------------------------
 
 import Control.Lens.Lens    ( Lens', lens )
@@ -44,8 +49,6 @@ import Data.Yaml  ( FromJSON( parseJSON ), ToJSON( toJSON ), (.=), object )
 --                     local imports                      --
 ------------------------------------------------------------
 
-import MInfo.Types.DateImprecise       ( DateImprecise )
-import MInfo.Types.DateImpreciseRange  ( DateImpreciseRange )
 import MInfo.Types                     ( Artist, Catno, LiveLocation
                                        , LiveType( NotLive ), Source
                                        , SourceVersion )

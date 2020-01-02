@@ -41,6 +41,10 @@ import Data.ByteString  ( ByteString )
 
 import Data.Textual  ( Printable( print ), toText )
 
+-- date-imprecise ----------------------
+
+import DateImprecise.DateImpreciseRange  ( dateImpreciseRange )
+
 -- more-unicode ------------------------
 
 import Data.MoreUnicode.Functor  ( (⊳) )
@@ -85,7 +89,6 @@ import YamlPlus.Error  ( YamlParseError )
 --                     local imports                      --
 ------------------------------------------------------------
 
-import MInfo.Types.DateImpreciseRange  ( dateImpreciseRange )
 import MInfo.Types                     ( LiveType( Demo, Live, Session ) )
 import MInfo.Types.Track               ( Track( Track ) )
 

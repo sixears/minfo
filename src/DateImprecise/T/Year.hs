@@ -4,16 +4,22 @@
 {-# LANGUAGE QuasiQuotes       #-}
 {-# LANGUAGE UnicodeSyntax     #-}
 
-module MInfo.Types.T.DateImprecise
+module DateImprecise.T.Year
   ( tests )
 where
 
 -- base --------------------------------
 
+import Data.Bool      ( Bool( False, True ), not )
 import Data.Function  ( ($) )
+import Data.Maybe     ( Maybe( Just ) )
 import Data.String    ( String )
 import System.Exit    ( ExitCode )
 import System.IO      ( IO )
+
+-- boundedn ----------------------------
+
+import FromI  ( fromI' )
 
 -- more-unicode ------------------------
 
@@ -26,44 +32,37 @@ import Test.Tasty  ( TestTree, testGroup )
 
 -- tasty-hunit -------------------------
 
-import Test.Tasty.HUnit  ( testCase )
+import Test.Tasty.HUnit  ( assertBool, testCase )
 
 -- tasty-plus --------------------------
 
 import TastyPlus  ( runTestsP, runTestsReplay, runTestTree )
 
--- time --------------------------------
-
-import Data.Time  ( fromGregorian )
-
 ------------------------------------------------------------
 --                     local imports                      --
 ------------------------------------------------------------
 
-import MInfo.Types.DateImprecise  ( dateImprecise, dayDate
-                                  , pattern MonthDate, pattern YearDate )
-import MInfo.Types.Month          ( month )
-import MInfo.Types.Year           ( year )
+import DateImprecise.Year  ( year )
 
 --------------------------------------------------------------------------------
 
-dateImpreciseTests ∷ TestTree
-dateImpreciseTests =
-  testGroup "dateImprecise"
-            [ testCase "DateImprecise 2019-12-24" $
-                dayDate (fromGregorian 2019 12 24) ≟ [dateImprecise|2019-12-24|]
-            , testCase "DateImprecise 2019-12" $
-                MonthDate [year|2019|] [month|12|] ≟ [dateImprecise|2019-12|]
-            , testCase "DateImprecise 2019" $
-                YearDate [year|2019|]              ≟ [dateImprecise|2019|]
-            ]
+yearTests ∷ TestTree
+yearTests =
+  let t i = case i of
+              [year|2017|] → True
+              _            → False
+      bool s x = testCase s $ assertBool s x
+  in testGroup "year" [ testCase "Year 2017" $ fromI' 2017 ≟ Just [year|2017|]
+                      , bool "pattern Year 2017" (t [year|2017|])
+                      , bool "pattern ! Year 2016" (not $ t [year|2016|])
+                      ]
 
 --------------------------------------------------------------------------------
 --                                   tests                                    --
 --------------------------------------------------------------------------------
 
 tests ∷ TestTree
-tests = testGroup "DateImpreciseQQ" [ dateImpreciseTests ]
+tests = testGroup "YearQQ" [ yearTests ]
                 
 ----------------------------------------
 

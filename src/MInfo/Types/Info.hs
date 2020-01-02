@@ -47,6 +47,12 @@ import Data.Monoid.Unicode    ( (⊕) )
 
 import Data.Textual  ( Printable( print ), fromText, toText )
 
+-- date-imprecise ----------------------
+
+import DateImprecise.DateImprecise       ( dateImprecise )
+import DateImprecise.DateImpreciseRange  ( DateImpreciseRange
+                                         , dateImpreciseRange )
+
 -- fluffy ------------------------------
 
 import Fluffy.Foldable  ( length )
@@ -127,9 +133,6 @@ import MInfo.Errors                    ( AsInfoError, InfoError, InfoFPCError
                                        , throwIllegalFileName
                                        )
 
-import MInfo.Types.DateImprecise       ( dateImprecise )
-import MInfo.Types.DateImpreciseRange  ( DateImpreciseRange
-                                       , dateImpreciseRange )
 import MInfo.Types                     ( LiveLocation
                                        , LiveType( Demo, Live, NotLive
                                                  , Session )

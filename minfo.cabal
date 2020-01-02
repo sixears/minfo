@@ -49,18 +49,16 @@ cabal-version:       >=1.10
 library
   ghc-options:        -W -Wall -fhelpful-errors
   -- Modules exported by the library.
-  exposed-modules:     MInfo.Types.DayBounds
-                     , MInfo.Types.Date.Error
-                     , MInfo.Types.DayOfM
-                     , MInfo.Types.Month
-                     , MInfo.Types.T.DayOfM
-                     , MInfo.Types.T.Month
-                     , MInfo.Types.Year
-                     , MInfo.Types.T.Year
-                     , MInfo.Types.DateImprecise
-                     , MInfo.Types.T.DateImprecise
-                     , MInfo.Types.DateImpreciseRange
-                     , MInfo.Types.T.DateImpreciseRange
+  exposed-modules:     DateImprecise.DayBounds
+                     , DateImprecise.Error
+                     , DateImprecise.DayOfM , DateImprecise.T.DayOfM
+                     , DateImprecise.Month  , DateImprecise.T.Month
+                     , DateImprecise.Year   , DateImprecise.T.Year
+                     , DateImprecise.DateImprecise
+                                            , DateImprecise.T.DateImprecise
+                     , DateImprecise.DateImpreciseRange
+                                            , DateImprecise.T.DateImpreciseRange
+                     , DateImprecise.T.Tests
 
                      , MInfo.Errors
                      , MInfo.Options
@@ -74,7 +72,7 @@ library
                      , MInfo.T.Tests
 
   -- modules included in this library but not exported.
-  other-modules:       MInfo.Types.DateImpreciseType
+  other-modules:       DateImprecise.DateImpreciseType
 
   default-extensions: NoImplicitPrelude
   -- LANGUAGE extensions used by modules in this package.

@@ -2,7 +2,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE UnicodeSyntax     #-}
 
-module MInfo.T.Tests
+module DateImprecise.T.Tests
   ( tests )
 where
 
@@ -28,21 +28,33 @@ import TastyPlus  ( runTestsP, runTestsReplay, runTestTree )
 --                     local imports                      --
 ------------------------------------------------------------
 
-import qualified  MInfo.Types
-import qualified  MInfo.Types.Track
-import qualified  MInfo.Types.Tracks
-import qualified  MInfo.Types.Info
+import qualified  DateImprecise.DayOfM
+import qualified  DateImprecise.T.DayOfM
+import qualified  DateImprecise.Month
+import qualified  DateImprecise.T.Month
+import qualified  DateImprecise.Year
+import qualified  DateImprecise.T.Year
+import qualified  DateImprecise.DateImprecise
+import qualified  DateImprecise.T.DateImprecise
+import qualified  DateImprecise.DateImpreciseType
+import qualified  DateImprecise.DateImpreciseRange
+import qualified  DateImprecise.T.DateImpreciseRange
 
 --------------------------------------------------------------------------------
 
 tests ∷ TestTree
 tests =
-  testGroup "MInfo" [ MInfo.Types.tests
-
-                    , MInfo.Types.Track.tests
-                    , MInfo.Types.Tracks.tests
-
-                    , MInfo.Types.Info.tests
+  testGroup "MInfo" [ DateImprecise.DayOfM.tests
+                    , DateImprecise.T.DayOfM.tests
+                    , DateImprecise.Month.tests
+                    , DateImprecise.T.Month.tests
+                    , DateImprecise.Year.tests
+                    , DateImprecise.T.Year.tests
+                    , DateImprecise.DateImprecise.tests
+                    , DateImprecise.T.DateImprecise.tests
+                    , DateImprecise.DateImpreciseType.tests
+                    , DateImprecise.DateImpreciseRange.tests
+                    , DateImprecise.T.DateImpreciseRange.tests
                     ]
 
 --------------------------------------------------------------------------------

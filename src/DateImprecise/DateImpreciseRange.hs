@@ -12,7 +12,7 @@
 
 {- | Date range, utilizing DateImprecise for varying precisions -}
 
-module MInfo.Types.DateImpreciseRange
+module DateImprecise.DateImpreciseRange
   ( DateImpreciseRange, dateImpreciseRange, dateImpreciseR, dateImpreciseR'
   , tests )
 where
@@ -140,18 +140,19 @@ import YamlPlus.Error  ( YamlParseError )
 --                     local imports                      --
 ------------------------------------------------------------
 
-import MInfo.Types.DateImprecise  ( DateImprecise
-                                  , pattern DayDate , pattern MonthDate
-                                  , pattern YearDate
-                                  , dateDayM, dateDay_, dateMonth, dateImprecise
-                                  , dateYear, dayDate, endDateOfMonth, toGregory
-                                  )
-import MInfo.Types.Date.Error     ( AsDateError_, DateErrorImprecise
-                                  , dateRangeError, dateRangeError_ )
-import MInfo.Types.DayBounds      ( DayBounds( endDay, startDay ) )
-import MInfo.Types.DayOfM         ( DayOfM( D ), dayOfM )
-import MInfo.Types.Month          ( Month( M ), month )
-import MInfo.Types.Year           ( Year, year )
+import DateImprecise.DateImprecise  ( DateImprecise
+                                    , pattern DayDate , pattern MonthDate
+                                    , pattern YearDate
+                                    , dateDayM, dateDay_, dateMonth
+                                    , dateImprecise, dateYear, dayDate
+                                    , endDateOfMonth, toGregory
+                                    )
+import DateImprecise.Error          ( AsDateError_, DateErrorImprecise
+                                    , dateRangeError, dateRangeError_ )
+import DateImprecise.DayBounds      ( DayBounds( endDay, startDay ) )
+import DateImprecise.DayOfM         ( DayOfM( D ), dayOfM )
+import DateImprecise.Month          ( Month( M ), month )
+import DateImprecise.Year           ( Year, year )
 
 --------------------------------------------------------------------------------
 

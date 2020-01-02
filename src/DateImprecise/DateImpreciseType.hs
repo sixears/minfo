@@ -5,7 +5,7 @@
 {-# LANGUAGE TypeApplications  #-}
 {-# LANGUAGE UnicodeSyntax     #-}
 
-module MInfo.Types.DateImpreciseType
+module DateImprecise.DateImpreciseType
   ( DateImprecise(..), cdayToDate, dateDay_, dateMonth, dateYear, endDateOfMonth
   , tests ) 
 where
@@ -120,10 +120,10 @@ import YamlPlus.Error   ( YamlParseError )
 --                     local imports                      --
 ------------------------------------------------------------
 
-import MInfo.Types.DayBounds  ( DayBounds( endDay, startDay ) )
-import MInfo.Types.DayOfM     ( DayOfM, dayOfM )
-import MInfo.Types.Month      ( Month, month )
-import MInfo.Types.Year       ( Year, year )
+import DateImprecise.DayBounds  ( DayBounds( endDay, startDay ) )
+import DateImprecise.DayOfM     ( DayOfM, dayOfM )
+import DateImprecise.Month      ( Month, month )
+import DateImprecise.Year       ( Year, year )
 
 --------------------------------------------------------------------------------
 

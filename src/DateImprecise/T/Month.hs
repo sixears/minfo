@@ -4,7 +4,7 @@
 {-# LANGUAGE QuasiQuotes       #-}
 {-# LANGUAGE UnicodeSyntax     #-}
 
-module MInfo.Types.T.DayOfM
+module DateImprecise.T.Month
   ( tests )
 where
 
@@ -42,27 +42,27 @@ import TastyPlus  ( runTestsP, runTestsReplay, runTestTree )
 --                     local imports                      --
 ------------------------------------------------------------
 
-import MInfo.Types.DayOfM  ( dayOfM )
+import DateImprecise.Month  ( month )
 
 --------------------------------------------------------------------------------
 
-dayOfMTests ∷ TestTree
-dayOfMTests =
+monthTests ∷ TestTree
+monthTests =
   let t i = case i of
-              [dayOfM|7|] → True
+              [month|7|] → True
               _          → False
       bool s x = testCase s $ assertBool s x
-  in testGroup "dayOfM" [ testCase "DayOfM 7" $ fromI' 7 ≟ Just [dayOfM|7|]
-                        , bool "pattern DayOfM 7" (t [dayOfM|7|])
-                        , bool "pattern ! DayOfM 6" (not $ t [dayOfM|6|])
-                        ]
+  in testGroup "month" [ testCase "Month 7" $ fromI' 7 ≟ Just [month|7|]
+                       , bool "pattern Month 7" (t [month|7|])
+                       , bool "pattern ! Month 6" (not $ t [month|6|])
+                       ]
 
 --------------------------------------------------------------------------------
 --                                   tests                                    --
 --------------------------------------------------------------------------------
 
 tests ∷ TestTree
-tests = testGroup "DayOfMQQ" [ dayOfMTests ]
+tests = testGroup "MonthQQ" [ monthTests ]
                 
 ----------------------------------------
 

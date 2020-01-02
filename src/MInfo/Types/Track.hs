@@ -47,6 +47,11 @@ import Data.ByteString  ( ByteString )
 
 import Data.Textual  ( Printable( print ), toText )
 
+-- date-imprecise ----------------------
+
+import DateImprecise.DateImpreciseRange  ( DateImpreciseRange
+                                         , dateImpreciseRange )
+
 -- lens --------------------------------
 
 import Control.Lens.Lens    ( Lens', lens )
@@ -97,8 +102,6 @@ import YamlPlus.Error  ( YamlParseError )
 import MInfo.Types                     ( Artist, LiveLocation
                                        , LiveType( Live, NotLive ), TrackTitle
                                        , TrackVersion )
-import MInfo.Types.DateImpreciseRange  ( DateImpreciseRange
-                                       , dateImpreciseRange )
 
 --------------------------------------------------------------------------------
 

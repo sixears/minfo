@@ -11,7 +11,7 @@
 
 {- | Date, with varying precisions - day, month, year. -}
 
-module MInfo.Types.DateImprecise
+module DateImprecise.DateImprecise
   ( DateImprecise
   , pattern DayDate, pattern MonthDate, pattern YearDate
   , dateDay, dateDay', dateDayM, dateDay_, dateMonth, dateYear, dateImprecise
@@ -86,14 +86,14 @@ import Data.Time  ( Day, toGregorian )
 --                     local imports                      --
 ------------------------------------------------------------
 
-import MInfo.Types.Date.Error         ( AsDateError_, DateErrorImprecise
-                                      , badDateError, emap )
-import MInfo.Types.DateImpreciseType  ( DateImprecise(..), dateDay_, dateMonth
-                                      , dateYear, endDateOfMonth )
-import MInfo.Types.DayBounds          ( DayBounds( startDay ) )
-import MInfo.Types.DayOfM             ( DayOfM )
-import MInfo.Types.Month              ( Month )
-import MInfo.Types.Year               ( Year )
+import DateImprecise.Error              ( AsDateError_, DateErrorImprecise
+                                        , badDateError, emap )
+import DateImprecise.DateImpreciseType  ( DateImprecise(..), dateDay_, dateMonth
+                                        , dateYear, endDateOfMonth )
+import DateImprecise.DayBounds          ( DayBounds( startDay ) )
+import DateImprecise.DayOfM             ( DayOfM )
+import DateImprecise.Month              ( Month )
+import DateImprecise.Year               ( Year )
 
 --------------------------------------------------------------------------------
 

@@ -12,7 +12,7 @@
 {-# LANGUAGE UnicodeSyntax              #-}
 {-# LANGUAGE ViewPatterns               #-}
 
-module MInfo.Types.Month
+module DateImprecise.Month
   ( Month( Month, M ), month, tests )
 where
 
@@ -157,7 +157,7 @@ readYI ∷ String → Maybe Integer
 readYI = toInteger ∘ toNumW16 ⩺ readY
 
 -- λ> runQ [p| Month_ (W 1) |]
--- ConP MInfo.Types.Month.Month_ [ConP MInfo.BoundedN.W [LitP (IntegerL 1)]]
+-- ConP DateImprecise.Month.Month_ [ConP MInfo.BoundedN.W [LitP (IntegerL 1)]]
 monthPat ∷ Integer → Pat
 monthPat i = ConP 'Month_ [ConP '𝕎 [LitP (IntegerL (i-1))]]
 

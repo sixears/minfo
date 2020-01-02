@@ -13,8 +13,8 @@
 {-# LANGUAGE UnicodeSyntax              #-}
 {-# LANGUAGE ViewPatterns               #-}
 
-module MInfo.Types.Year
-  ( Year( Year, Y ), year, tests )
+module DateImprecise.DayOfM
+  ( DayOfM( DayOfM, DoM, D ), dayOfM, tests )
 where
 
 import Prelude  ( Integer, Integral, (+), (-), error, fromInteger, toInteger )
@@ -24,13 +24,12 @@ import Prelude  ( Integer, Integral, (+), (-), error, fromInteger, toInteger )
 import Control.Monad  ( fail, return )
 import Data.Eq        ( Eq )
 import Data.Function  ( ($), (&) )
-import Data.Maybe     ( Maybe( Just ), maybe )
+import Data.Maybe     ( Maybe( Just, Nothing ), maybe )
 import Data.Ord       ( Ord )
 import Data.String    ( String )
-import GHC.Generics   ( Generic )
 import System.Exit    ( ExitCode )
 import System.IO      ( IO )
-import Text.Read      ( read, readMaybe )
+import Text.Read      ( readMaybe )
 import Text.Show      ( Show )
 
 -- base-unicode-symbols ----------------
@@ -40,8 +39,9 @@ import Data.Function.Unicode  ( (∘) )
 -- boundedn ----------------------------
 
 import BoundedN  ( 𝕎, pattern 𝕎, 𝕨 )
-import ToNum     ( ToNum( toNum, toNumW16 ) )
 import FromI     ( FromI( fromI, fromI', __fromI' ) )
+import ToNum     ( ToNum( toNum, toNumW16 ) )
+
 
 -- data-default ------------------------
 
@@ -51,6 +51,7 @@ import Data.Default  ( def )
 
 import Data.Textual  ( Printable( print ), Textual( textual )
                      , fromText, toString )
+import Data.Textual.Integral  ( Decimal( Decimal ), nnUpTo )
 
 -- more-unicode ------------------------
 
@@ -66,12 +67,7 @@ import QuasiQuoting  ( mkQQ, exp, pat )
 
 -- QuickCheck --------------------------
 
-import Test.QuickCheck.Arbitrary ( Arbitrary( arbitrary ) )
-
--- parsers ------------------------------
-
-import Text.Parser.Char         ( digit )
-import Text.Parser.Combinators  ( count )
+import Test.QuickCheck.Arbitrary  ( Arbitrary( arbitrary ) )
 
 -- tasty -------------------------------
 
@@ -112,92 +108,105 @@ ePatSymExhaustive = error "https://gitlab.haskell.org/ghc/ghc/issues/10339"
 
 ------------------------------------------------------------
 
-newtype Year = Year_ { unYear ∷ 𝕎 200 }
-  deriving (Eq,Generic,Lift,Ord,Show)
+newtype DayOfM = DayOfM_ { unDayOfM ∷ 𝕎 31 }
+  deriving (Eq,Lift,Ord,Show)
 
-instance FromI Year where
-  fromI i = Year_ ⊳ 𝕨 (toInteger i-1900)
+instance FromI DayOfM where
+  fromI i = DayOfM_ ⊳ 𝕨 (toInteger i-1)
 
-instance ToNum Year where
-  toNum (Year_ (𝕎 i)) = fromInteger i + 1900
-  toNum (Year_ _)      = ePatSymExhaustive
+instance ToNum DayOfM where
+  toNum (DayOfM_ (𝕎 i)) = fromInteger i + 1
+  toNum (DayOfM_ _)      = ePatSymExhaustive
 
-instance Printable Year where
-  print y = P.text $ [fmt|%04d|] (toNumW16 y)
+instance Printable DayOfM where
+  print d = P.text $ [fmt|%02d|] (toNumW16 d)
 
-yearPrintableTests ∷ TestTree
-yearPrintableTests =
+
+dayOfMPrintableTests ∷ TestTree
+dayOfMPrintableTests =
   let check s m = testCase s $ s ≟ toString m
    in testGroup "Printable"
-                [ check "1900"         (Year_ $ 𝕎 0)
-                , check "1908"         (Year_ $ 𝕎 8)
-                , check "2011"         (Year_ $ 𝕎 111)
+                [ check "01"         (DayOfM_ $ 𝕎 0)
+                , check "09"         (DayOfM_ $ 𝕎 8)
+                , check "31"         (DayOfM_ $ 𝕎 30)
                 ]
 
-instance Textual Year where
+instance Textual DayOfM where
   textual = do
-    y ← read ⊳ count 4 digit
-    maybe (fail $ [fmt|bad year value %d|] y) return $ fromI' y
+    m ← nnUpTo Decimal 2
+    maybe (fail $ [fmt|bad day value %d|] m) return $ fromI' m
 
-yearTextualTests ∷ TestTree
-yearTextualTests =
+dayOfMTextualTests ∷ TestTree
+dayOfMTextualTests =
   testGroup "Textual"
-            [ testCase "2014" $ Just (__fromI' 2014) ≟ fromText @Year "2014"
-            , testCase "2019" $ Just (__fromI' 2019) ≟ fromText @Year "2019"
-            , testProperty "invertibleText" (propInvertibleText @Year)
+            [ testCase "12" $ Just (__fromI' 12) ≟ fromText @DayOfM "12"
+            , testCase  "0" $ Nothing @DayOfM    ≟ fromText  "0"
+            , testCase "32" $ Nothing @DayOfM    ≟ fromText "32"
+            , testCase "31" $ Just (__fromI' 31) ≟ fromText @DayOfM "31"
+            , testProperty "invertibleText" (propInvertibleText @DayOfM)
             ]
 
-instance Arbitrary Year where
-  arbitrary = Year_ ⊳ arbitrary
 
-readY ∷ String → Maybe Year
-readY s = readMaybe s ≫ fromI' @Year
+instance Arbitrary DayOfM where
+  arbitrary = DayOfM_ ⊳ arbitrary
+
+readY ∷ String → Maybe DayOfM
+readY s = readMaybe s ≫ fromI' @DayOfM
 
 readYI ∷ String → Maybe Integer
 readYI = toInteger ∘ toNumW16 ⩺ readY
 
-yearPat ∷ Integer → Pat
+dayOfMPat ∷ Integer → Pat
 -- λ> runQ [p| Month_ (W 1) |]
--- ConP MInfo.Types.Month.Month_ [ConP MInfo.BoundedN.W [LitP (IntegerL 1)]]
-yearPat i = ConP 'Year_ [ConP '𝕎 [LitP (IntegerL (i-1900))]]
+-- ConP DateImprecise.Month.Month_ [ConP MInfo.BoundedN.W [LitP (IntegerL 1)]]
+dayOfMPat i = ConP 'DayOfM_ [ConP '𝕎 [LitP (IntegerL (i-1))]]
 
-yearQQ ∷ String → Maybe ExpQ
-yearQQ = (\ y → ⟦y⟧) ⩺ readY
+dayOfMQQ ∷ String → Maybe ExpQ
+dayOfMQQ = (\ dom → ⟦dom⟧) ⩺ readY
 
-yearQQP ∷ String → Maybe PatQ
-yearQQP s = maybe (fail $ [fmt|failed to parse year '%s'|] s)
-                  (Just ∘ return ∘ yearPat) $ readYI s
+dayOfMQQP ∷ String → Maybe PatQ
+dayOfMQQP s = maybe (fail $ [fmt|failed to parse DayOfM '%s'|] s)
+                   (Just ∘ return ∘ dayOfMPat) $ readYI s
 
-year ∷ QuasiQuoter
-year = mkQQ "Year" $ def & exp ⊩ yearQQ & pat ⊩ yearQQP
+dayOfM ∷ QuasiQuoter
+dayOfM = mkQQ "DayOfM" $ def & exp ⊩ dayOfMQQ & pat ⊩ dayOfMQQP
 
 ----------------------------------------
 
-pattern Year ∷ Integral α ⇒ α → Year
-pattern Year i ← ((+1900) ∘ toNum ∘ unYear → i)
--- not bi-directional, because Year i would be partial (would fail on
+pattern DayOfM ∷ Integral α ⇒ α → DayOfM
+pattern DayOfM i ← ((+1) ∘ toNum ∘ unDayOfM → i)
+-- not bi-directional, because DayOfM i would be partial (would fail on
 -- out-of-bounds values)
---                  where Year i = __fromI i
-{- | Short-name convenience alias for `pattern Year` -}
-pattern Y ∷ Integral α ⇒ α → Year
-pattern Y i ← ((+1900) ∘ toNum ∘ unYear → i)
+--                  where DayOfM i = __fromI i
+{- | Short-name convenience alias for `pattern DayOfM` -}
+pattern DoM ∷ Integral α ⇒ α → DayOfM
+pattern DoM i ← ((+1) ∘ toNum ∘ unDayOfM → i)
+{- | Short-name convenience alias for `pattern DayOfM` -}
+pattern D ∷ Integral α ⇒ α → DayOfM
+pattern D i ← ((+1) ∘ toNum ∘ unDayOfM → i)
 
-yearPatternTests ∷ TestTree
-yearPatternTests =
-  let noone      = 1901 ∷ Integer
+dayOfMPatternTests ∷ TestTree
+dayOfMPatternTests =
+  let one        =  1 ∷ Integer
+      seven      =  7 ∷ Integer
+      twelve     = 12 ∷ Integer
+      thirty_one = 31 ∷ Integer
    in testGroup "Pattern"
-                [ testCase "1901" $ let Year i = __fromI'  1901 in i ≟ noone
-                , testCase "1899" $ assertAnyException "1899 out of bounds" $
-                                  let Year i = __fromI' 1899 in (i ∷ Integer)
-                , testCase "2101" $ assertAnyException "2101 out of bounds" $
-                                  let Year i = __fromI' 2101 in (i ∷ Integer)
+                [ testCase  "7" $ let DayOfM i = __fromI'  7 in i ≟ seven
+                , testCase  "1" $ let DayOfM i = __fromI'  1 in i ≟ one
+                , testCase  "0" $ assertAnyException "0 out of bounds" $
+                                  let DayOfM i = __fromI'  0 in (i ∷ Integer)
+                , testCase "12" $ let DayOfM i = __fromI' 12 in i ≟ twelve
+                , testCase "31" $ let DayOfM i = __fromI' 31 in i ≟ thirty_one
+                , testCase "32" $ assertAnyException "13 out of bounds" $
+                                  let DayOfM i = __fromI' 32 in (i ∷ Integer)
                 ]
 
 -- testing ---------------------------------------------------------------------
 
 tests ∷ TestTree
-tests = testGroup "Year" [ yearPrintableTests, yearTextualTests
-                         , yearPatternTests ]
+tests = testGroup "DayOfM" [ dayOfMPrintableTests, dayOfMTextualTests
+                           , dayOfMPatternTests ]
 
 ----------------------------------------
 

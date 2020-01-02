@@ -9,7 +9,7 @@
 
 {- | Date, with varying precisions - day, month, year. -}
 
-module MInfo.Types.Date.Error
+module DateImprecise.Error
   ( AsDateError_( _DateError_ ), DateError_, DateErrorImprecise
   , badDateError, dateRangeError, dateRangeError_, dateRangesOverlap
   , dateRangesOverlap_, emap )
@@ -48,7 +48,7 @@ import Text.Fmt  ( fmt )
 --                     local imports                      --
 ------------------------------------------------------------
 
-import MInfo.Types.DateImpreciseType  ( DateImprecise )
+import DateImprecise.DateImpreciseType  ( DateImprecise )
 
 --------------------------------------------------------------------------------
 

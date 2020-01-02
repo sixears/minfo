@@ -1,6 +1,6 @@
 {-# LANGUAGE UnicodeSyntax #-}
 
-module MInfo.Types.DayBounds
+module DateImprecise.DayBounds
   ( DayBounds( endDay, startDay ) ) 
 where
 
