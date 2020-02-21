@@ -4,8 +4,8 @@
 {-# LANGUAGE UnicodeSyntax     #-}
 
 module MInfo.Errors
-  ( AsInfoError, InfoError, InfoFPCError, YamlParseInfoFPCError
-  , throwIllegalFileName )
+  ( AsInfoError, InfoError, InfoFPCError, YamlFPathIOParseInfoFPCError
+  , YamlParseInfoFPCError, throwIllegalFileName )
 where
 
 -- base --------------------------------
@@ -24,16 +24,21 @@ import Data.Function.Unicode  ( (∘) )
 
 import Data.Textual  ( Printable( print ) )
 
+-- fpath -------------------------------
+
+import FPath.Error.FPathError  ( AsFPathError( _FPathError ), FPathIOError )
+import FPath.Error.FPathComponentError
+                               ( AsFPathComponentError( _FPathComponentError )
+                               , FPathComponentError )
+
 -- lens --------------------------------
 
 import Control.Lens.Prism   ( Prism', prism )
 import Control.Lens.Review  ( (#) )
 
--- fpath -------------------------------
+-- monaderror-io -----------------------
 
-import FPath.Error.FPathComponentError
-                              ( AsFPathComponentError( _FPathComponentError )
-                              , FPathComponentError )
+import MonadError.IO.Error  ( AsIOError( _IOError ) )
 
 -- mtl ---------------------------------
 
@@ -113,12 +118,50 @@ instance Printable YamlParseInfoFPCError where
 
 instance AsYamlParseError YamlParseInfoFPCError where
   _YamlParseError = prism YPIFPCParseError
-                          (\ case YPIFPCParseError  e -> Right e; e -> Left e)
+                          (\ case YPIFPCParseError  e → Right e; e → Left e)
 
 instance AsInfoError YamlParseInfoFPCError where
   _InfoError = _YPIFPCInfoFPCError ∘ _InfoError
 
 instance AsFPathComponentError YamlParseInfoFPCError where
   _FPathComponentError = _YPIFPCInfoFPCError ∘ _FPathComponentError
+
+------------------------------------------------------------
+
+data YamlFPathIOParseInfoFPCError = YFIPIFPCParseError   YamlParseError
+                                  | YFIPIFPCInfoFPCError InfoFPCError
+                                  | YFIPIFPCFPathIOError FPathIOError
+  deriving (Eq,Show)
+
+_YFIPIFPCInfoFPCError ∷ Prism' YamlFPathIOParseInfoFPCError InfoFPCError
+_YFIPIFPCInfoFPCError = prism YFIPIFPCInfoFPCError
+                           (\ case YFIPIFPCInfoFPCError e → Right e; e → Left e)
+
+_YFIPIFPCFPathIOError ∷ Prism' YamlFPathIOParseInfoFPCError FPathIOError
+_YFIPIFPCFPathIOError = prism YFIPIFPCFPathIOError
+                           (\ case YFIPIFPCFPathIOError e → Right e; e → Left e)
+
+instance Exception YamlFPathIOParseInfoFPCError
+
+instance Printable YamlFPathIOParseInfoFPCError where
+  print (YFIPIFPCParseError   e) = print e
+  print (YFIPIFPCInfoFPCError e) = print e
+  print (YFIPIFPCFPathIOError e) = print e
+
+instance AsYamlParseError YamlFPathIOParseInfoFPCError where
+  _YamlParseError = prism YFIPIFPCParseError
+                          (\ case YFIPIFPCParseError  e → Right e; e → Left e)
+
+instance AsInfoError YamlFPathIOParseInfoFPCError where
+  _InfoError = _YFIPIFPCInfoFPCError ∘ _InfoError
+
+instance AsFPathComponentError YamlFPathIOParseInfoFPCError where
+  _FPathComponentError = _YFIPIFPCInfoFPCError ∘ _FPathComponentError
+
+instance AsIOError YamlFPathIOParseInfoFPCError where
+  _IOError = _YFIPIFPCFPathIOError ∘ _IOError
+
+instance AsFPathError YamlFPathIOParseInfoFPCError where
+  _FPathError = _YFIPIFPCFPathIOError ∘ _FPathError
 
 -- that's all, folks! ----------------------------------------------------------

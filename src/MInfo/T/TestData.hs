@@ -217,7 +217,9 @@ info5T =
     [ "---"
     , "artist: Depeche Mode"
     , "release: 2009-04-17"
-    , "source: Sounds of the Universe  (Deluxe Box Set)"
+    , "original_release: 2009-01-01"
+    , "source: Sounds of the Universe"
+    , "source_version: Deluxe Box Set"
     , "tracks:"
     , "  -"
     , "    - title: 'In Chains'"
@@ -341,8 +343,8 @@ info5T =
     , "" -- force a terminating newline
     ]
 
-infosT ∷ ByteString
-infosT =
+info6T ∷ ByteString
+info6T =
   intercalate "\n" [ "---"
   , "artist: Depeche Mode"
   , "release: 2009-04-17"

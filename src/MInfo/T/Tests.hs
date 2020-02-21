@@ -28,10 +28,12 @@ import TastyPlus  ( runTestsP, runTestsReplay, runTestTree )
 --                     local imports                      --
 ------------------------------------------------------------
 
+import qualified  MInfo.SongTitle
 import qualified  MInfo.Types
 import qualified  MInfo.Types.Track
 import qualified  MInfo.Types.Tracks
 import qualified  MInfo.Types.Info
+import qualified  MInfo.Types.TrackInfo
 
 --------------------------------------------------------------------------------
 
@@ -43,6 +45,9 @@ tests =
                     , MInfo.Types.Tracks.tests
 
                     , MInfo.Types.Info.tests
+                    , MInfo.Types.TrackInfo.tests
+
+                    , MInfo.SongTitle.tests
                     ]
 
 --------------------------------------------------------------------------------

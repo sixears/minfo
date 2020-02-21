@@ -50,12 +50,14 @@ library
   ghc-options:        -W -Wall -fhelpful-errors
   -- Modules exported by the library.
   exposed-modules:     MInfo.Errors
+                     , MInfo.SongTitle
                      , MInfo.Options
 
                      , MInfo.Types
                      , MInfo.Types.Info
                      , MInfo.Types.ReleaseInfo
                      , MInfo.Types.Track
+                     , MInfo.Types.TrackInfo
                      , MInfo.Types.Tracks
                      , MInfo.T.TestData
                      , MInfo.T.Tests
@@ -69,18 +71,21 @@ library
 
   -- Other library packages from which modules are imported.
   build-depends:       aeson, base, base-unicode-symbols, bytestring
-                     , data-textual, lens, mtl, optparse-applicative, scientific
-                     , tasty, tasty-hunit, text, text-printer, vector, yaml
+                     , data-textual, lens, mtl, optparse-applicative
+                     , scientific, tasty, tasty-hunit, text, text-printer
+                     , vector, yaml
 
-                     , date-imprecise >= 1.0.0.0
-                     , fluffy >= 0.2.13.2
-                     , fpath >= 1.0.3.0
-                     , more-unicode >= 0.0.9.0
+                     , date-imprecise       >= 1.0.0.0
+                     , fluffy               >= 0.2.13.2
+                     , fpath                >= 1.0.3.0
+                     , index                >= 1.0.0.0
+                     , monaderror-io        >= 1.0.2.0
+                     , more-unicode         >= 0.0.10.1
                      , non-empty-containers >= 1.3.0.0
-                     , optparse-plus >= 1.0.0.0
-                     , tasty-plus >= 1.1.0.0
-                     , tfmt >= 0.2.1.0
-                     , yaml-plus >= 1.0.0.0
+                     , optparse-plus        >= 1.0.0.0
+                     , tasty-plus           >= 1.3.0.0
+                     , tfmt                 >= 0.2.1.0
+                     , yaml-plus            >= 1.0.0.0
 
   -- Directories containing source files.
   hs-source-dirs:      src
@@ -101,7 +106,7 @@ executable minfo
 
                      , exited, fpath, monaderror-io, more-unicode
 
-                     , minfo, monadio-plus, optparse-plus, yaml-plus
+                     , minfo, monadio-plus, yaml-plus
   default-extensions:  NoImplicitPrelude
   default-language:    Haskell2010
 

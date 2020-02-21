@@ -1,10 +1,11 @@
 {-# OPTIONS_GHC -Wall #-}
 
-{-# LANGUAGE NoImplicitPrelude          #-}
-{-# LANGUAGE OverloadedStrings          #-}
-{-# LANGUAGE QuasiQuotes                #-}
-{-# LANGUAGE TypeApplications           #-}
-{-# LANGUAGE UnicodeSyntax              #-}
+{-# LANGUAGE LambdaCase         #-}
+{-# LANGUAGE NoImplicitPrelude  #-}
+{-# LANGUAGE OverloadedStrings  #-}
+{-# LANGUAGE QuasiQuotes        #-}
+{-# LANGUAGE TypeApplications   #-}
+{-# LANGUAGE UnicodeSyntax      #-}
 
 -- base --------------------------------
 
@@ -30,7 +31,9 @@ import Exited  ( doMain )
 
 -- fpath -------------------------------
 
-import FPath.File     ( File )
+import FPath.AbsFile  ( AbsFile )
+import FPath.File     ( File( FileA ) )
+import FPath.IO       ( getCwd )
 
 -- monaderror-io -----------------------
 
@@ -42,8 +45,8 @@ import MonadIO  ( MonadIO, say )
 
 -- more-unicode ------------------------
 
-import Data.MoreUnicode.Lens   ( (⊣) )
-import Data.MoreUnicode.Monad  ( (≫) )
+import Data.MoreUnicode.Lens     ( (⊣) )
+import Data.MoreUnicode.Monad    ( (≫) )
 
 -- mtl ---------------------------------
 
@@ -58,13 +61,12 @@ import YamlPlus.Error  ( AsYamlParseError )
 --                     local imports                      --
 ------------------------------------------------------------
 
-import OptParsePlus          ( parseOpts )
-import MInfo.Options         ( RunMode( ModeFlacList, ModeMp3List
+import MInfo.Errors          ( YamlFPathIOParseInfoFPCError )
+import MInfo.Options         ( OptsOpts( OptsOpts )
+                             , RunMode( ModeFlacList, ModeMp3List
                                       , ModeTrackCount, ModeWrite )
-                             , parseOptions, runMode
+                             , optsParse, runMode
                              )
-
-import MInfo.Errors          ( YamlParseInfoFPCError )
 
 import MInfo.Types.Info      ( Info
                              , blankInfo, flacNames, mp3Names, trackCount )
@@ -75,25 +77,27 @@ import MInfo.Types.Info      ( Info
 
 {- | Print some function of Info. -}
 pInfo ∷ (MonadIO μ, AsYamlParseError ε, MonadError ε μ, Printable τ) ⇒
-        (Info → [τ]) → File → μ ()
-pInfo f fn = unYamlFile fn ≫ mapM_ say ∘ f
+        (Info → [τ]) → AbsFile → μ ()
+pInfo f fn = unYamlFile (FileA fn) ≫ mapM_ say ∘ f
 
 {- | Print some function of Info, that returns a foldable of printables (within
      a `MonadError`. -}
 pInfo' ∷ (MonadIO μ,AsYamlParseError ε,MonadError ε μ,Foldable φ,Printable τ) ⇒
-         (Info → μ (φ τ)) → File → μ ()
+         (Info → μ (φ τ)) → AbsFile → μ ()
 
 pInfo' f fn = do
-  inf ← ѥ $ unYamlFile fn
+  inf ← ѥ $ unYamlFile (FileA fn)
   xs  ← inf ≫ f
   forM_ xs say
   return ()
 
 
 main ∷ IO ()
-main = doMain @YamlParseInfoFPCError @Word8 $ do
-  opts ← parseOpts Nothing "read & write info.yaml" parseOptions
-  
+main = doMain @YamlFPathIOParseInfoFPCError @Word8 $ do
+  cwd ← getCwd
+
+  let summary = "read & write info.yaml"
+  opts ← optsParse Nothing summary (OptsOpts cwd)
   case opts ⊣ runMode of
     ModeWrite      tc → say $ blankInfo tc
     ModeTrackCount fn → pInfo  ((:[]) ∘ show ∘ trackCount) fn

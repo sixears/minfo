@@ -10,8 +10,9 @@
 {-# LANGUAGE UnicodeSyntax              #-}
 
 module MInfo.Types
-  ( Artist, Catno, LiveLocation, LiveType(..), Source, SourceVersion, TrackTitle
-  , TrackVersion
+  ( Artist, Catno, HasLiveDate( liveDate ), HasLiveLocation( liveLocation )
+  , HasLiveType( liveType ), LiveLocation, LiveType(..), MultiDisc(..), Source
+  , SourceVersion, TrackTitle( TrackTitle ), TrackVersion
 
   , tests )
 where
@@ -29,6 +30,7 @@ import Control.Monad   ( fail, return )
 import Data.Either     ( either )
 import Data.Eq         ( Eq )
 import Data.Function   ( ($) )
+import Data.Maybe      ( Maybe )
 import Data.Semigroup  ( Semigroup( (<>) ) )
 import Data.String     ( IsString, String )
 import GHC.Generics    ( Generic )
@@ -43,6 +45,14 @@ import Data.Function.Unicode  ( (∘) )
 -- data-textual ------------------------
 
 import Data.Textual  ( Printable( print ), toText )
+
+-- date-imprecise ----------------------
+
+import DateImprecise.DateImpreciseRange  ( DateImpreciseRange )
+
+-- lens --------------------------------
+
+import Control.Lens.Lens  ( Lens' )
 
 -- more-unicode ------------------------
 
@@ -73,6 +83,10 @@ import qualified  Text.Printer  as  P
 import Text.Fmt  ( fmt )
 
 --------------------------------------------------------------------------------
+
+data MultiDisc = SingleDisc | MultiDisc ℕ
+
+------------------------------------------------------------
 
 newtype Artist = Artist Text
   deriving (Eq,FromJSON,Generic,IsString,Show,ToJSON)
@@ -120,6 +134,12 @@ newtype LiveLocation = LiveLocation Text
 instance Printable LiveLocation where
   print (LiveLocation t) = P.text t
 
+class HasLiveLocation α where
+  liveLocation ∷ Lens' α (Maybe LiveLocation)
+
+class HasLiveDate α where
+  liveDate ∷ Lens' α (Maybe DateImpreciseRange)
+
 ------------------------------------------------------------
 
 newtype Catno = Catno Text
@@ -161,6 +181,9 @@ instance FromJSON LiveType where
 
 instance ToJSON LiveType where
   toJSON l = String (toText l)
+
+class HasLiveType α where
+  liveType ∷ Lens' α LiveType
 
 -- testing ---------------------------------------------------------------------
 

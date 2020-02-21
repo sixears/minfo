@@ -3,6 +3,7 @@
 {-# LANGUAGE DeriveGeneric              #-}
 {-# LANGUAGE FlexibleInstances          #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE InstanceSigs               #-}
 {-# LANGUAGE LambdaCase                 #-}
 {-# LANGUAGE NoImplicitPrelude          #-}
 {-# LANGUAGE OverloadedStrings          #-}
@@ -14,7 +15,11 @@
 
 module MInfo.Types.Track
   ( Track( Track )
-  , blankTrack, live_date, live_location, live_type, title, version, tests )
+  , artist, blankTrack, liveDate, liveLocation, liveType, title, version
+
+  , tests
+  , _track1, _track2, _track3, _track4, _track5
+  )
 where
 
 -- aeson -------------------------------
@@ -62,7 +67,6 @@ import Data.MoreUnicode.Applicative  ( (⊵) )
 import Data.MoreUnicode.Functor      ( (⊳) )
 import Data.MoreUnicode.Monoid       ( ю )
 import Data.MoreUnicode.Natural      ( ℕ )
-import Data.MoreUnicode.Tasty        ( (≟) )
 
 -- tasty -------------------------------
 
@@ -70,11 +74,11 @@ import Test.Tasty  ( TestTree, testGroup )
 
 -- tasty-hunit -------------------------
 
-import Test.Tasty.HUnit  ( testCase )
+import Test.Tasty.HUnit  ( (@=?), testCase )
 
 -- tasty-plus --------------------------
 
-import TastyPlus  ( runTestsP, runTestsReplay, runTestTree )
+import TastyPlus  ( (≟), runTestsP, runTestsReplay, runTestTree )
 
 -- text --------------------------------
 
@@ -99,9 +103,11 @@ import YamlPlus.Error  ( YamlParseError )
 --                     local imports                      --
 ------------------------------------------------------------
 
-import MInfo.Types                     ( Artist, LiveLocation
-                                       , LiveType( Live, NotLive ), TrackTitle
-                                       , TrackVersion )
+import MInfo.Types  ( Artist, HasLiveDate( liveDate )
+                    , HasLiveLocation( liveLocation ), HasLiveType( liveType )
+                    , LiveLocation, LiveType( Demo, Live, NotLive, Session )
+                    , TrackTitle, TrackVersion
+                    )
 
 --------------------------------------------------------------------------------
 
@@ -114,20 +120,26 @@ data Track = Track { _artist        ∷ Maybe Artist
                    }
   deriving (Eq, Generic, Show)
 
+artist        ∷ Lens' Track (Maybe Artist)
+artist        = lens _artist (\ t a → t { _artist = a })
+
 title         ∷ Lens' Track (Maybe TrackTitle)
-title         = lens _title         (\ r t → r { _title = t })
+title         = lens _title (\ r t → r { _title = t })
 
 version       ∷ Lens' Track (Maybe TrackVersion)
 version       = lens _version       (\ r v → r { _version = v })
 
-live_type     ∷ Lens' Track LiveType
-live_type     = lens _live_type     (\ r y → r { _live_type = y })
+instance HasLiveType Track where
+  liveType   ∷ Lens' Track LiveType
+  liveType   = lens _live_type     (\ r y → r { _live_type = y })
 
-live_location ∷ Lens' Track (Maybe LiveLocation)
-live_location = lens _live_location (\ r l → r { _live_location = l })
+instance HasLiveLocation Track where
+  liveLocation ∷ Lens' Track (Maybe LiveLocation)
+  liveLocation = lens _live_location (\ r l → r { _live_location = l })
 
-live_date     ∷ Lens' Track (Maybe DateImpreciseRange)
-live_date     = lens _live_date     (\ r d → r { _live_date = d })
+instance HasLiveDate Track where
+  liveDate     ∷ Lens' Track (Maybe DateImpreciseRange)
+  liveDate     = lens _live_date     (\ r d → r { _live_date = d })
 
 instance FromJSON Track where
   parseJSON = withObject "Track" $ \ v →
@@ -153,8 +165,8 @@ trackFromJSONTests =
       e1 = Track Nothing (Just "Judas") Nothing Live Nothing
                  (Just $ [dateImpreciseRange|1993-07-29|])
    in testGroup "trackFromJSON"
-                [ testCase "t0" $ Right e0 ≟ unYaml @YamlParseError t0
-                , testCase "t1" $ Right e1 ≟ unYaml @YamlParseError t1
+                [ testCase "t0" $ Right e0 @=? unYaml @YamlParseError t0
+                , testCase "t1" $ Right e1 @=? unYaml @YamlParseError t1
                 ]
 
 instance ToJSON Track where
@@ -200,7 +212,7 @@ instance Printable Track where
                                                ⊕ (tom "version" v)
                                                ⊕ case y of
                                                    NotLive → []
-                                                   _ → ["live_type: " ⊕ toText y]
+                                                   _ → ["live_type: "⊕ toText y]
                                                ⊕ (tom' "live_location" l)
                                                ⊕ (tom "live_date" d)
 
@@ -222,6 +234,27 @@ blankTrack = Track Nothing Nothing Nothing NotLive Nothing Nothing
 instance Printable [Track] where
   print ts = P.text $ intercalate "\n" (toText ⊳ ts)
 
+--------------------------------------------------------------------------------
+--                                 test data                                  --
+--------------------------------------------------------------------------------
+
+_track1 ∷ Track
+_track1 = Track (Just "Tricky") (Just "Judas") Nothing Demo Nothing
+           (Just $ [dateImpreciseRange|1993-07-29|])
+_track2 ∷ Track
+_track2 = Track Nothing (Just "Mercy in You") Nothing Session Nothing
+           (Just $ [dateImpreciseRange|1993-07-29|])
+_track3 ∷ Track
+_track3 = Track Nothing (Just "I Feel You") Nothing Live Nothing
+           (Just $ [dateImpreciseRange|1993-07-29|])
+
+_track4 ∷ Track
+_track4 = Track Nothing (Just "Something to Do") Nothing NotLive Nothing Nothing
+
+_track5 ∷ Track
+_track5 = Track Nothing (Just "Two Minute Warning") Nothing
+                NotLive Nothing Nothing
+
 ------------------------------------------------------------
 
 tests ∷ TestTree
@@ -241,4 +274,3 @@ _testr ∷ String → ℕ → IO ExitCode
 _testr = runTestsReplay tests
 
 -- that's all, folks! ----------------------------------------------------------
-
