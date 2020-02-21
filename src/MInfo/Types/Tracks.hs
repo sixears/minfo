@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleInstances     #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE NoImplicitPrelude     #-}
 {-# LANGUAGE OverloadedStrings     #-}
@@ -30,6 +31,7 @@ import Data.Functor         ( fmap )
 import Data.Maybe           ( Maybe( Just, Nothing ) )
 import Data.String          ( String )
 import GHC.Exts             ( fromList, toList )
+import Numeric.Natural      ( Natural )
 import System.Exit          ( ExitCode )
 import System.IO            ( IO )
 import Text.Show            ( Show )
@@ -161,10 +163,10 @@ instance HasIndex Tracks where
 class TrackIndex τ ι where
   track ∷ τ → ι → Maybe Track
 
-instance TrackIndex Tracks ℕ where
+instance TrackIndex Tracks Natural where
   track ts n = ts !! n
 
-instance TrackIndex Tracks (ℕ,ℕ) where
+instance TrackIndex Tracks (Natural,Natural) where
   track (Tracks tss) (d,i) = tss !! d ≫ index i
   
 hasIndexTests ∷ TestTree

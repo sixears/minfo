@@ -1,18 +1,25 @@
 {-# LANGUAGE DeriveGeneric     #-}
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE QuasiQuotes       #-}
 {-# LANGUAGE TemplateHaskell   #-}
 {-# LANGUAGE UnicodeSyntax     #-}
 {-# LANGUAGE ViewPatterns      #-}
 
 module MInfo.Types.TrackInfo
-  ( tests )
+  ( TrackInfo, fromInfo
+
+  , tests
+  )
 where
 
 -- aeson -------------------------------
 
-import Data.Aeson     ( encode )
 import Data.Aeson.TH  ( defaultOptions, deriveJSON )
+
+-- aeson-pretty ------------------------
+
+import Data.Aeson.Encode.Pretty  ( encodePretty )
 
 -- base --------------------------------
 
@@ -104,7 +111,7 @@ data TrackInfo = TrackInfo { _album_artist     ∷ Artist
 $(deriveJSON defaultOptions 'TrackInfo)
 
 instance Printable TrackInfo where
-  print ti = P.lazyUtf8 (encode ti)
+  print ti = P.lazyUtf8 (encodePretty ti)
 
 --------------------
 

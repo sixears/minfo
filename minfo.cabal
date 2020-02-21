@@ -70,8 +70,8 @@ library
   -- other-extensions:
 
   -- Other library packages from which modules are imported.
-  build-depends:       aeson, base, base-unicode-symbols, bytestring
-                     , data-textual, lens, mtl, optparse-applicative
+  build-depends:       aeson, aeson-pretty, base, base-unicode-symbols
+                     , bytestring, data-textual, lens, mtl, optparse-applicative
                      , scientific, tasty, tasty-hunit, text, text-printer
                      , vector, yaml
 

@@ -1,11 +1,12 @@
-{-# LANGUAGE DeriveGeneric       #-}
-{-# LANGUAGE InstanceSigs        #-}
+{-# LANGUAGE DeriveGeneric         #-}
+{-# LANGUAGE FlexibleInstances     #-}
+{-# LANGUAGE InstanceSigs          #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE NoImplicitPrelude   #-}
-{-# LANGUAGE OverloadedStrings   #-}
-{-# LANGUAGE QuasiQuotes         #-}
-{-# LANGUAGE TypeApplications    #-}
-{-# LANGUAGE UnicodeSyntax       #-}
+{-# LANGUAGE NoImplicitPrelude     #-}
+{-# LANGUAGE OverloadedStrings     #-}
+{-# LANGUAGE QuasiQuotes           #-}
+{-# LANGUAGE TypeApplications      #-}
+{-# LANGUAGE UnicodeSyntax         #-}
 
 module MInfo.Types.Info
   ( Info( Info )
@@ -25,16 +26,17 @@ import Data.Aeson.Types  ( Value( Object ), (.:), withObject )
 
 -- base --------------------------------
 
-import Data.Either    ( Either( Left, Right ) )
-import Data.Eq        ( Eq )
-import Data.Function  ( ($) )
-import Data.List      ( replicate )
-import Data.Maybe     ( Maybe( Just, Nothing ) )
-import Data.String    ( String )
-import GHC.Generics   ( Generic )
-import System.Exit    ( ExitCode )
-import System.IO      ( IO )
-import Text.Show      ( Show )
+import Data.Either      ( Either( Left, Right ) )
+import Data.Eq          ( Eq )
+import Data.Function    ( ($) )
+import Data.List        ( replicate )
+import Data.Maybe       ( Maybe( Just, Nothing ) )
+import Data.String      ( String )
+import GHC.Generics     ( Generic )
+import Numeric.Natural  ( Natural )
+import System.Exit      ( ExitCode )
+import System.IO        ( IO )
+import Text.Show        ( Show )
 
 -- base-unicode-symbols ----------------
 
@@ -139,10 +141,10 @@ instance FlatTracks Info where
   flatTracks ∷ Info → [Track]
   flatTracks = Tracks.flatTracks ∘ _tracks
 
-instance TrackIndex Info ℕ where
+instance TrackIndex Info Natural where
   track = track ∘ _tracks
 
-instance TrackIndex Info (ℕ,ℕ) where
+instance TrackIndex Info (Natural,Natural) where
   track = track ∘ _tracks
 
 instance FromJSON Info where

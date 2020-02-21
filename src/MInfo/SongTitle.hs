@@ -1,10 +1,12 @@
 {-# LANGUAGE NoImplicitPrelude   #-}
 {-# LANGUAGE OverloadedStrings   #-}
+{-# LANGUAGE QuasiQuotes         #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeApplications    #-}
 {-# LANGUAGE UnicodeSyntax       #-}
 
 module MInfo.SongTitle
-  ( lName, flacName, liveName, mp3Name, songTitle
+  ( lName, flacName, flacNames, liveName, mp3Name, mp3Names, songTitle
 
   , tests
   )

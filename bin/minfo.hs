@@ -7,12 +7,14 @@
 {-# LANGUAGE TypeApplications   #-}
 {-# LANGUAGE UnicodeSyntax      #-}
 
+import Prelude  ( (-) )
+
 -- base --------------------------------
 
 import Control.Monad  ( forM_, mapM_, return )
 import Data.Foldable  ( Foldable )
 import Data.Function  ( ($) )
-import Data.Maybe     ( Maybe( Nothing ) )
+import Data.Maybe     ( Maybe( Just, Nothing ), maybeToList )
 import Data.Word      ( Word8 )
 import System.IO      ( IO )
 import Text.Show      ( Show( show ) )
@@ -61,15 +63,17 @@ import YamlPlus.Error  ( AsYamlParseError )
 --                     local imports                      --
 ------------------------------------------------------------
 
-import MInfo.Errors          ( YamlFPathIOParseInfoFPCError )
-import MInfo.Options         ( OptsOpts( OptsOpts )
-                             , RunMode( ModeFlacList, ModeMp3List
-                                      , ModeTrackCount, ModeWrite )
-                             , optsParse, runMode
-                             )
-
-import MInfo.Types.Info      ( Info
-                             , blankInfo, flacNames, mp3Names, trackCount )
+import MInfo.Errors           ( YamlFPathIOParseInfoFPCError )
+import MInfo.Options          ( OptsOpts( OptsOpts )
+                              , RunMode( ModeFlacList, ModeMp3List
+                                       , ModeTrackCount, ModeTrackInfo
+                                       , ModeWrite
+                                       )
+                              , optsParse, runMode
+                              )
+import MInfo.SongTitle        ( flacNames, mp3Names )
+import MInfo.Types.Info       ( Info, blankInfo, trackCount )
+import MInfo.Types.TrackInfo  ( fromInfo )
 
 --------------------------------------------------------------------------------
 
@@ -103,6 +107,8 @@ main = doMain @YamlFPathIOParseInfoFPCError @Word8 $ do
     ModeTrackCount fn → pInfo  ((:[]) ∘ show ∘ trackCount) fn
     ModeFlacList   fn → pInfo' flacNames fn
     ModeMp3List    fn → pInfo' mp3Names fn
+    ModeTrackInfo  fn x (Just y) → pInfo (\ i → maybeToList $ fromInfo i (x-1,y-1)) fn
+    ModeTrackInfo  fn x Nothing  → pInfo (\ i → maybeToList $ fromInfo i (x-1)) fn
 
   return 0
 

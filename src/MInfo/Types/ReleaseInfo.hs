@@ -1,6 +1,7 @@
 {-# LANGUAGE InstanceSigs      #-}
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE QuasiQuotes       #-}
 {-# LANGUAGE UnicodeSyntax     #-}
 
 module MInfo.Types.ReleaseInfo
