@@ -105,7 +105,8 @@ import YamlPlus.Error  ( YamlParseError )
 
 import MInfo.Types  ( Artist, HasLiveDate( liveDate )
                     , HasLiveLocation( liveLocation ), HasLiveType( liveType )
-                    , LiveLocation, LiveType( Demo, Live, NotLive, Session )
+                    , LiveLocation, LiveType( Demo, Live, LiveVocal, NotLive
+                                            , Session )
                     , TrackTitle, TrackVersion
                     )
 
@@ -245,7 +246,7 @@ _track2 ∷ Track
 _track2 = Track Nothing (Just "Mercy in You") Nothing Session Nothing
            (Just $ [dateImpreciseRange|1993-07-29|])
 _track3 ∷ Track
-_track3 = Track Nothing (Just "I Feel You") Nothing Live Nothing
+_track3 = Track Nothing (Just "I Feel You") Nothing LiveVocal Nothing
            (Just $ [dateImpreciseRange|1993-07-29|])
 
 _track4 ∷ Track

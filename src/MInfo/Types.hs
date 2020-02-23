@@ -159,7 +159,7 @@ instance ToJSON Catno where
 
 ------------------------------------------------------------
 
-data LiveType = NotLive | Live | Session | Demo
+data LiveType = NotLive | Live | LiveVocal | Session | Demo
   deriving (Eq, Show)
 
 instance Semigroup LiveType where
@@ -168,16 +168,18 @@ instance Semigroup LiveType where
 
 instance Printable LiveType where
   print NotLive = P.text ""
-  print Live    = "Live"
-  print Session = "Session"
-  print Demo    = "Demo"
+  print Live      = "Live"
+  print LiveVocal = "Live Vocal"
+  print Session   = "Session"
+  print Demo      = "Demo"
 
 instance FromJSON LiveType where
-  parseJSON (String "Live")    = return Live
-  parseJSON (String "Session") = return Session
-  parseJSON (String "Demo")    = return Demo
-  parseJSON (String t)         = fail $ [fmt|unrecognized live type '%t'|] t
-  parseJSON invalid    = typeMismatch "String" invalid
+  parseJSON (String "Live")       = return Live
+  parseJSON (String "Live Vocal") = return LiveVocal
+  parseJSON (String "Session")    = return Session
+  parseJSON (String "Demo")       = return Demo
+  parseJSON (String t)            = fail $ [fmt|unrecognized live type '%t'|] t
+  parseJSON invalid               = typeMismatch "String" invalid
 
 instance ToJSON LiveType where
   toJSON l = String (toText l)

@@ -210,7 +210,7 @@ t3 = BS.intercalate "\n" [ "-"
                          , "    live_date: 1993-07-29"
                          , "-"
                          , "  - title: I Feel You"
-                         , "    live_type: Live"
+                         , "    live_type: Live Vocal"
                          , "    live_date: 1993-07-29"
                          ]
 

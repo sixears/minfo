@@ -15,7 +15,7 @@ where
 
 -- aeson -------------------------------
 
-import Data.Aeson.TH  ( defaultOptions, deriveJSON )
+import Data.Aeson.TH  ( defaultOptions, fieldLabelModifier, deriveJSON )
 
 -- aeson-pretty ------------------------
 
@@ -25,6 +25,7 @@ import Data.Aeson.Encode.Pretty  ( encodePretty )
 
 import Data.Eq        ( Eq )
 import Data.Function  ( ($) )
+import Data.List      ( drop )
 import Data.Maybe     ( Maybe( Just, Nothing ) )
 import Data.String    ( String )
 import GHC.Generics   ( Generic )
@@ -79,7 +80,8 @@ import qualified  MInfo.Types.ReleaseInfo  as  ReleaseInfo
 import MInfo.SongTitle          ( songTitle )
 import MInfo.Types              ( Artist, HasLiveDate( liveDate )
                                 , HasLiveLocation( liveLocation ), LiveLocation
-                                , LiveType( Demo, Live, NotLive, Session )
+                                , LiveType( Demo, Live, LiveVocal, NotLive
+                                          , Session )
                                 , Source, SourceVersion, TrackTitle
                                 , TrackVersion
                                 , liveType
@@ -108,7 +110,7 @@ data TrackInfo = TrackInfo { _album_artist     ∷ Artist
                            }
   deriving (Eq, Generic, Show)
 
-$(deriveJSON defaultOptions 'TrackInfo)
+$(deriveJSON defaultOptions { fieldLabelModifier = drop 1 }  'TrackInfo)
 
 instance Printable TrackInfo where
   print ti = P.lazyUtf8 (encodePretty ti)
@@ -223,9 +225,9 @@ fromInfoTests =
                                  Just [dateImprecise|2009-01-01|]
                            , _artist           = Just "Various Artists"
                            , _song_title       =
-                                 Just "I Feel You  [Live 1993-07-29]"
+                                 Just "I Feel You  [Live Vocal 1993-07-29]"
                            , _version          = Nothing
-                           , _live_type        = Live
+                           , _live_type        = LiveVocal
                            , _live_location    = Nothing
                            , _live_date        =
                                Just [dateImpreciseRange|1993-07-29|]
