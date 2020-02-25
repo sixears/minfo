@@ -17,7 +17,7 @@ where
 import Control.Applicative  ( pure )
 import Control.Monad        ( return, sequence )
 import Data.Either          ( Either( Right ) )
-import Data.Function        ( ($) ) 
+import Data.Function        ( ($) )
 import Data.Functor         ( fmap )
 import Data.List            ( zip )
 import Data.List.NonEmpty   ( NonEmpty( (:|) ) )
@@ -261,7 +261,6 @@ flacNames ∷ (AsInfoError ε, AsFPathComponentError ε, MonadError ε η) ⇒
              Info → η [RelFile]
 flacNames = fmap (⊙ [pc|flac|]) ⩺ fileNames
 
-
 --------------------
 
 flacNamesTests ∷ TestTree
@@ -352,7 +351,7 @@ tests = testGroup "MInfo.SongTitle"
                   [ lNameTests, liveNameTests, songTitleTests
                          , fileNameTests, mp3NamesTests, flacNameTests
                          , flacNamesTests ]
-                
+
 ----------------------------------------
 
 _test ∷ IO ExitCode

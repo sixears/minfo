@@ -67,6 +67,10 @@ import Test.Tasty.HUnit  ( testCase )
 
 import TastyPlus  ( (≟), runTestsP, runTestsReplay, runTestTree )
 
+-- text --------------------------------
+
+import Data.Text  ( Text )
+
 -- text-printer ------------------------
 
 import qualified  Text.Printer  as  P
@@ -77,7 +81,7 @@ import qualified  Text.Printer  as  P
 
 import qualified  MInfo.Types.ReleaseInfo  as  ReleaseInfo
 
-import MInfo.SongTitle          ( songTitle )
+import MInfo.SongTitle          ( liveName, songTitle )
 import MInfo.Types              ( Artist, HasLiveDate( liveDate )
                                 , HasLiveLocation( liveLocation ), LiveLocation
                                 , LiveType( Demo, Live, LiveVocal, NotLive
@@ -106,6 +110,7 @@ data TrackInfo = TrackInfo { _album_artist     ∷ Artist
                            , _live_type        ∷ LiveType
                            , _live_location    ∷ Maybe LiveLocation
                            , _live_date        ∷ Maybe DateImpreciseRange
+                           , _live_version     ∷ Maybe Text
                            , _title            ∷ Maybe TrackTitle
                            }
   deriving (Eq, Generic, Show)
@@ -128,14 +133,15 @@ fromInfo info n =
                       , _release          = rinfo ⊣ release
                       , _original_release = rinfo ⊣ original_release
                       , _artist           = tinfo ⊣ artist ∤ Just album_artist
-                      , _song_title       = songTitle info tinfo
+                      , _title            = songTitle info tinfo
                       , _version          = tinfo ⊣ version
                       , _live_type        =
                             (tinfo ⊣ liveType) ◇ (rinfo ⊣ liveType)
                       , _live_location    =
                             tinfo ⊣ liveLocation ∤ rinfo ⊣ liveLocation
                       , _live_date        = tinfo ⊣ liveDate ∤ rinfo ⊣ liveDate
-                      , _title            = tinfo ⊣ title
+                      , _live_version     = liveName rinfo tinfo
+                      , _song_title       = tinfo ⊣ title
                       }
 
 newtype P = P (Maybe TrackInfo)
@@ -160,12 +166,13 @@ fromInfoTests =
                          , _original_release = Nothing
                          , _release          = Nothing
                          , _artist           = Just "Depeche Mode"
-                         , _song_title       = Just std
+                         , _title            = Just std
                          , _version          = Nothing
                          , _live_type        = Live
                          , _live_location    = Just "Hamburg"
                          , _live_date        = Just ldate
-                         , _title            = Just "Something to Do"
+                         , _live_version     = Just "Live Hamburg 1984-12-14"
+                         , _song_title       = Just "Something to Do"
                          }
       tinfo5_3_2 = TrackInfo { _album_artist     = "Depeche Mode"
                              , _album            = Just "Sounds of the Universe"
@@ -175,14 +182,15 @@ fromInfoTests =
                              , _original_release =
                                    Just [dateImprecise|2009-01-01|]
                              , _artist           = Just "Depeche Mode"
-                             , _song_title       =
+                             , _title            =
                                    Just "Stories of Old  [Session 2008-12-08]"
                              , _version          = Nothing
                              , _live_type        = Session
                              , _live_location    = Nothing
                              , _live_date        =
                                    Just[dateImpreciseRange|2008-12-08|]
-                             , _title            = Just "Stories of Old"
+                             , _live_version     = Just "Session 2008-12-08"
+                             , _song_title       = Just "Stories of Old"
                              }
       tinfo5_2_21 = TrackInfo { _album_artist     = "Depeche Mode"
                               , _album            =
@@ -193,13 +201,14 @@ fromInfoTests =
                               , _original_release =
                                     Just [dateImprecise|2009-01-01|]
                               , _artist           = Just "Depeche Mode"
-                              , _song_title       =
+                              , _title            =
                                     Just "Jezebel  (SixTøes Remix)"
                               , _version          = Just "SixTøes Remix"
                               , _live_type        = NotLive
                               , _live_location    = Nothing
                               , _live_date        = Nothing
-                              , _title            = Just "Jezebel"
+                              , _live_version     = Nothing
+                              , _song_title       = Just "Jezebel"
                               }
       tinfo7_0 = TrackInfo { _album_artist     = "Various Artists"
                            , _album            = Just "Compilation"
@@ -208,14 +217,15 @@ fromInfoTests =
                            , _original_release =
                                  Just [dateImprecise|2009-01-01|]
                            , _artist           = Just "Tricky"
-                           , _song_title       =
+                           , _title            =
                                  Just "Judas  [Demo 1993-07-29]"
                            , _version          = Nothing
                            , _live_type        = Demo
                            , _live_location    = Nothing
                            , _live_date        =
                                Just [dateImpreciseRange|1993-07-29|]
-                           , _title            = Just "Judas"
+                           , _live_version     = Just "Demo 1993-07-29"
+                           , _song_title       = Just "Judas"
                            }
       tinfo7_2 = TrackInfo { _album_artist     = "Various Artists"
                            , _album            = Just "Compilation"
@@ -224,14 +234,15 @@ fromInfoTests =
                            , _original_release =
                                  Just [dateImprecise|2009-01-01|]
                            , _artist           = Just "Various Artists"
-                           , _song_title       =
+                           , _title            =
                                  Just "I Feel You  [Live Vocal 1993-07-29]"
                            , _version          = Nothing
                            , _live_type        = LiveVocal
                            , _live_location    = Nothing
                            , _live_date        =
                                Just [dateImpreciseRange|1993-07-29|]
-                           , _title            = Just "I Feel You"
+                           , _live_version     = Just "Live Vocal 1993-07-29"
+                           , _song_title       = Just "I Feel You"
                            }
    in testGroup "MInfo.Types.TrackInfo"
                 [ testCase "tinfo1"      $ p tinfo1     ≟ pInfo _info1 (0∷ℕ)
@@ -251,36 +262,6 @@ fromInfoTests =
 -- TEST VARIOUS ARTISTS
 -- RELEASE DATE (TDRL http://id3.org/id3v2.4.0-frames)
 -- TSOA, TSOT, TSOP
-
-{-
-  TSOA
-   The 'Album sort order' frame defines a string which should be used
-   instead of the album name (TALB) for sorting purposes. E.g. an album
-   named "A Soundtrack" might preferably be sorted as "Soundtrack".
-
-  TSOP
-   The 'Performer sort order' frame defines a string which should be
-   used instead of the performer (TPE2) for sorting purposes.
-
-  TSOT
-   The 'Title sort order' frame defines a string which should be used
-   instead of the title (TIT2) for sorting purposes.
-
-  TDOR
-   The 'Original release time' frame contains a timestamp describing
-   when the original recording of the audio was released. Timestamp
-   format is described in the ID3v2 structure document [ID3v2-strct].
-
-  TDRC
-   The 'Recording time' frame contains a timestamp describing when the
-   audio was recorded. Timestamp format is described in the ID3v2
-   structure document [ID3v2-strct].
-
-  TDRL
-   The 'Release time' frame contains a timestamp describing when the
-   audio was first released. Timestamp format is described in the ID3v2
-   structure document [ID3v2-strct].
--}
 
 tests ∷ TestTree
 tests = testGroup "MInfo.Types.TrackInfo" [ fromInfoTests ]
