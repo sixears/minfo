@@ -103,13 +103,13 @@ import MInfo.Types              ( HasLiveDate( liveDate )
                                 , MultiDisc( MultiDisc, SingleDisc )
                                 , TrackTitle( TrackTitle )
                                 )
-import MInfo.Types.Info         ( Info, tracks
+import MInfo.Types.Info         ( Info
                                 , _info1, _info6 )
 import MInfo.Types.ReleaseInfo  ( HasReleaseInfo( releaseInfo )
                                 , ReleaseInfo( ReleaseInfo ), _rinfo2 )
 import MInfo.Types.Track        ( Track( Track )
                                 , title, version, _track4, _track5 )
-import MInfo.Types.Tracks       ( unTracks )
+import MInfo.Types.Tracks       ( unTracks, tracks )
 
 --------------------------------------------------------------------------------
 

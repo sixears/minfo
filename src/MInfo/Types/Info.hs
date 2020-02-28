@@ -10,7 +10,7 @@
 
 module MInfo.Types.Info
   ( Info( Info )
-  , blankInfo, flatTracks, _info6, releaseInfo, trackCount, track, tracks
+  , blankInfo, flatTracks, _info6, releaseInfo, trackCount, track
 
   , tests
   -- test data
@@ -36,7 +36,7 @@ import GHC.Generics     ( Generic )
 import Numeric.Natural  ( Natural )
 import System.Exit      ( ExitCode )
 import System.IO        ( IO )
-import Text.Show        ( Show )
+import Text.Show        ( Show( show ) )
 
 -- base-unicode-symbols ----------------
 
@@ -52,13 +52,9 @@ import Data.Textual  ( Printable( print ), toText )
 import DateImprecise.DateImprecise       ( dateImprecise )
 import DateImprecise.DateImpreciseRange  ( DateImpreciseRange )
 
--- fluffy ------------------------------
-
-import Fluffy.Foldable  ( length )
-
 -- lens --------------------------------
 
-import Control.Lens.Lens  ( Lens', lens )
+import Control.Lens.Lens    ( Lens', lens )
 
 -- more-unicode ------------------------
 
@@ -77,11 +73,11 @@ import Test.Tasty.HUnit  ( (@=?), testCase )
 
 -- tasty-plus --------------------------
 
-import TastyPlus  ( (≟), assertListEqR, runTestsP, runTestsReplay, runTestTree )
+import TastyPlus  ( (≟), assertListEqR', runTestsP, runTestsReplay,runTestTree )
 
 -- text --------------------------------
 
-import Data.Text  ( intercalate )
+import Data.Text  ( intercalate, pack )
 
 -- text-printer ------------------------
 
@@ -117,7 +113,7 @@ import MInfo.Types.ReleaseInfo  ( HasReleaseInfo( releaseInfo )
                                 )
 import MInfo.Types.Track        ( Track( Track )
                                 , blankTrack, _track4, _track5 )
-import MInfo.Types.Tracks       ( FlatTracks( flatTracks )
+import MInfo.Types.Tracks       ( HasTracks( flatTracks, trackCount )
                                 , Tracks( Tracks, unTracks )
                                 , TrackIndex( track )
                                 , _ts1, _ts2, _ts3, _ts4, _ts5
@@ -134,12 +130,8 @@ instance HasReleaseInfo Info where
   releaseInfo ∷ Lens' Info ReleaseInfo
   releaseInfo = lens _releaseInfo (\ i r → i { _releaseInfo = r })
 
-tracks ∷ Lens' Info Tracks
-tracks = lens _tracks (\ i ts → i { _tracks = ts })
-
-instance FlatTracks Info where
-  flatTracks ∷ Info → [Track]
-  flatTracks = Tracks.flatTracks ∘ _tracks
+instance HasTracks Info where
+  tracks = lens _tracks (\ i ts → i { _tracks = ts })
 
 instance TrackIndex Info Natural where
   track = track ∘ _tracks
@@ -177,10 +169,10 @@ infoFromJSONTests =
             Info erinfo etrcks = expected
             nme t = name ⊕ ": " ⊕ t
          in ю [ [ testCase      (nme "release info") $ Right erinfo @=? rinfo ]
-                , assertListEqR (nme "tracks")
+                , assertListEqR' (pack ∘ show) (nme "tracks")
                                 (Tracks.flatTracks ⊳ trcks)
                                 (Tracks.flatTracks etrcks)
-                , assertListEqR (nme "flat tracks")
+                , assertListEqR' (pack ∘ show) (nme "flat tracks")
                                 (unTracks ⊳trcks) (unTracks etrcks)
                 , [ testCase (nme "info") $
                       Right _info2 @=? unYaml @YamlParseError TestData.info2T
@@ -200,7 +192,10 @@ infoFromJSONTests =
                 )
 
 instance ToJSON Info where
-  toJSON (Info r ts) = object (("tracks",toJSON ts) : releaseInfoFields r)
+  toJSON (Info r ts) =
+    case unTracks ts of
+      [ts'] → object (("tracks", toJSON ts') : releaseInfoFields r)
+      _     → object (("tracks", toJSON ts)  : releaseInfoFields r)
 
 instance Printable Info where
   print i = P.text $ pyaml i
@@ -221,31 +216,28 @@ infoPrintableTests =
    in testGroup "Printable" [ testCase "blank 2" $ exp ≟ (toText $ blankInfo 2)
                             ]
 
-trackCount ∷ Info → ℕ
-trackCount = length ∘ flatTracks
-
 trackCountTests ∷ TestTree
 trackCountTests =
   testGroup "trackCount"
             [ testCase "info1" $
                     Right  2
-                @=? trackCount ⊳ (unYaml @YamlParseError TestData.info1T)
+                @=? trackCount ⊳ (unYaml @YamlParseError @Info TestData.info1T)
             , testCase "_info2" $
                     Right 19
-                @=? trackCount ⊳ (unYaml @YamlParseError TestData.info2T)
+                @=? trackCount ⊳ (unYaml @YamlParseError @Info TestData.info2T)
             , testCase "_info3" $
                     Right 12
-                @=? trackCount ⊳ (unYaml @YamlParseError TestData.info3T)
+                @=? trackCount ⊳ (unYaml @YamlParseError @Info TestData.info3T)
             , testCase "_info4" $
                     Right 39
-                @=? trackCount ⊳ (unYaml @YamlParseError TestData.info4T)
+                @=? trackCount ⊳ (unYaml @YamlParseError @Info TestData.info4T)
             , testCase "info5" $
                     Right 65
-                @=? trackCount ⊳ (unYaml @YamlParseError TestData.info5T)
+                @=? trackCount ⊳ (unYaml @YamlParseError @Info TestData.info5T)
 
             , testCase "info6" $
                     Right  4
-                @=? trackCount ⊳ (unYaml @YamlParseError TestData.info6T)
+                @=? trackCount ⊳ (unYaml @YamlParseError @Info TestData.info6T)
             ]
 
 --------------------------------------------------------------------------------

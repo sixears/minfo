@@ -4,17 +4,21 @@
 {-# LANGUAGE OverloadedStrings     #-}
 {-# LANGUAGE QuasiQuotes           #-}
 {-# LANGUAGE ScopedTypeVariables   #-}
+{-# LANGUAGE TupleSections         #-}
 {-# LANGUAGE TypeApplications      #-}
 {-# LANGUAGE TypeFamilies          #-}
 {-# LANGUAGE UnicodeSyntax         #-}
 
 module MInfo.Types.Tracks
-  ( FlatTracks( flatTracks ), Tracks( Tracks, unTracks ), TrackIndex( track )
-
+  ( HasTracks( flatTracks, trackCount, tracks ), Tracks( Tracks, unTracks )
+  , TrackIndex( track )
+  
   , tests
   , _ts1, _ts2, _ts3, _ts4, _ts5
   )
 where
+
+import Prelude  ( (-) )
 
 -- aeson -------------------------------
 
@@ -26,8 +30,9 @@ import Control.Applicative  ( pure )
 import Control.Monad        ( return, sequence )
 import Data.Either          ( Either( Right ) )
 import Data.Eq              ( Eq )
-import Data.Function        ( ($) )
-import Data.Functor         ( fmap )
+import Data.Function        ( ($), id )
+import Data.Functor         ( Functor, fmap )
+import Data.List            ( filter, zip )
 import Data.Maybe           ( Maybe( Just, Nothing ) )
 import Data.String          ( String )
 import GHC.Exts             ( fromList, toList )
@@ -38,6 +43,8 @@ import Text.Show            ( Show )
 
 -- base-unicode-symbols ----------------
 
+import Data.Bool.Unicode      ( (∧) )
+import Data.Eq.Unicode        ( (≡) )
 import Data.Function.Unicode  ( (∘) )
 import Data.Monoid.Unicode    ( (⊕) )
 
@@ -54,14 +61,24 @@ import DateImprecise.DateImpreciseRange  ( dateImpreciseRange )
 
 import Data.Textual  ( Printable( print ), toText )
 
+-- fluffy ------------------------------
+
+import Fluffy.Foldable  ( length )
+
 -- index -------------------------------
 
 import Index ( HasIndex( Elem, Indexer, index ), (!!) )
 
+-- lens --------------------------------
+
+import Control.Lens.Getter  ( view )
+import Control.Lens.Lens    ( Lens' )
+import Control.Lens.Tuple   ( _4 )
+
 -- more-unicode ------------------------
 
-import Data.MoreUnicode.Functor  ( (⊳) )
-import Data.MoreUnicode.Monad    ( (≫) )
+import Data.MoreUnicode.Functor  ( (⊳), (⩺) )
+import Data.MoreUnicode.Lens     ( (⊣) )
 import Data.MoreUnicode.Monoid   ( ю )
 import Data.MoreUnicode.Natural  ( ℕ )
 
@@ -113,7 +130,7 @@ newtype Tracks = Tracks { unTracks ∷ [[Track]] }
 ----------------------------------------
 
 instance Printable Tracks where
-  print tss = P.text ∘ unlines $ toText ⊳ flatTracks tss
+  print tss = P.text ∘ unlines $ toText ∘ view _4 ⊳ flatTracks tss
 
 ----------------------------------------
 
@@ -145,45 +162,75 @@ instance ToJSON Tracks where
 
 ----------------------------------------
 
-class FlatTracks α where
-  flatTracks ∷ α → [Track]
+class HasTracks τ where
+  tracks ∷ Lens' τ Tracks
+  {- | List of all the tracks, each preceded by total trackid, discid, and
+       number-of-track-in-disc-id. -}
+  flatTracks ∷ τ → [(ℕ,ℕ,ℕ,Track)]
+  flatTracks ts =
+    let indexn ∷ [α] → [(ℕ,α)]
+        indexn = zip [1..]
+        indexnn ∷ [[α]] → [(ℕ, [(ℕ,α)])]
+        indexnn = indexn ∘ fmap indexn
+        unroll (a,(b,c)) = (a,b,c)
+        unroll2 (a,(b,c,d)) = (a,b,c,d)
+        unrolls ∷ Functor ψ ⇒ (α, ψ (β,γ)) → ψ (α,β,γ)
+        unrolls (x,ys) = unroll ⊳ (x,) ⊳ ys
+     in unroll2 ⩺ indexn ∘ ю $ unrolls ⊳ (indexnn (unTracks $ ts ⊣ tracks))
+  trackCount ∷ τ → ℕ
+  trackCount = length ∘ flatTracks
 
-instance FlatTracks Tracks where
-  flatTracks (Tracks tss) = ю tss
+instance HasTracks Tracks where
+  tracks = id
 
 ------------------------------------------------------------
 
 instance HasIndex Tracks where
   type Elem Tracks = Track
   type Indexer Tracks = ℕ
-  index i ts = flatTracks ts !! i
+  index i ts = view _4 ⊳ flatTracks ts !! i
 
 {- | `Tracks` may be indexed either by a single ℕ (i.e., index into
      `flatTracks`), or by a pair of ℕ (disc, then trackid). -}
 class TrackIndex τ ι where
-  track ∷ τ → ι → Maybe Track
+  {- | If present, returns the DiscID (1-based), Track-on-Disc-ID (1-based),
+       Total TrackID (1-based), and the Track. -}
+  track ∷ τ → ι → Maybe (ℕ, ℕ, ℕ, Track)
 
 instance TrackIndex Tracks Natural where
-  track ts n = ts !! n
+  track ts n = flatTracks ts !! n
 
 instance TrackIndex Tracks (Natural,Natural) where
-  track (Tracks tss) (d,i) = tss !! d ≫ index i
+  track ts (d,i) =
+    case filter (\(_,d',i',_)→ d ≡ d'-1 ∧ i ≡ i'-1 ) (flatTracks ts) of
+      x:_ → Just x
+      []  → Nothing
   
 hasIndexTests ∷ TestTree
 hasIndexTests =
   testGroup "hasIndex" [ testCase "_track1" $ Just _track1 @=? _ts1 !! 0
                        , testCase "_track2" $ Just _track2 @=? _ts1 !! 1
                        , testCase "_track3" $ Just _track3 @=? index 2 _ts1
-                       , testCase "-" $ Nothing @=? index 3 _ts1
+                       , testCase "-"       $ Nothing @=? index 3 _ts1
+
+                       , testCase "_track1(1)" $
+                             Just (1,1,1,_track1) @=? track _ts1 (0∷ℕ)
+                       , testCase "_track2(1)" $
+                             Just (2,1,2,_track2) @=? track _ts1 (1∷ℕ)
+                       , testCase "_track3(1)" $
+                             Just (3,2,1,_track3) @=? track _ts1 (2∷ℕ)
+                       , testCase "-(1 (1))"  $ Nothing @=? track _ts1 (3∷ℕ)
+
                        , testCase "_track1(2)" $
-                           Just _track1 @=? track _ts1 (0∷ℕ,0∷ℕ)
+                             Just (1,1,1,_track1) @=? track _ts1 (0∷ℕ,0∷ℕ)
                        , testCase "_track2(2)" $
-                           Just _track2 @=? track _ts1 (0∷ℕ,1∷ℕ)
-                       , testCase "-(2)"  $
-                           Nothing @=? track _ts1 (0∷ℕ,2∷ℕ)
+                             Just (2,1,2,_track2) @=? track _ts1 (0∷ℕ,1∷ℕ)
+                       , testCase "-(2 (0))"  $
+                             Nothing @=? track _ts1 (0∷ℕ,2∷ℕ)
                        , testCase "_track3(2)" $
-                           Just _track3 @=? track _ts1 (1∷ℕ,0∷ℕ)
-                       , testCase "-(3)"  $ Nothing @=? track _ts1 (1∷ℕ,1∷ℕ)
+                             Just (3,2,1,_track3) @=? track _ts1 (1∷ℕ,0∷ℕ)
+                       , testCase "-(2 (1))"  $
+                             Nothing @=? track _ts1 (1∷ℕ,1∷ℕ)
                        ]
 
 --------------------------------------------------------------------------------
@@ -351,7 +398,7 @@ _ts5 = let mkTrack t = Track Nothing (Just t) Nothing NotLive Nothing Nothing
                               , "Sun and the Moon and the Stars,The"
                               , "Ghost"
                               , "Esque"
-                              , "Oh Well"
+                              , "Oh Well" -- 19
                               ]
                   ,   (mkTrackD ⊳ [ "Little 15"
                                   , "Clean"
@@ -366,7 +413,7 @@ _ts5 = let mkTrack t = Track Nothing (Just t) Nothing NotLive Nothing Nothing
                                   , "Peace"
                                   , "Jezebel"
                                   , "Come Back"
-                                  , "In Chains"
+                                  , "In Chains" -- 14
                                   ]
                       )
                   ,   (mkTrack' ⊳ [ ("Oh Well","Single Edit")
@@ -381,7 +428,7 @@ _ts5 = let mkTrack t = Track Nothing (Just t) Nothing NotLive Nothing Nothing
                                   , ("In Chains",
                                      "Minilogue's Air Extend Remix")
                                   , ("Martyr","Sound for the Universe Mix")
-                                  , ("Hole to Feed","Demo")
+                                  , ("Hole to Feed","Demo") -- 10
                                   , ("Wrong","Extended Remix Edit")
                                   , ("Wrong","Frankie's Bromantic Club Mix")
                                   , ("Come Back","Studio Session 2 Mix")
@@ -392,7 +439,7 @@ _ts5 = let mkTrack t = Track Nothing (Just t) Nothing NotLive Nothing Nothing
                                   , ("Wrong","Peter Rauhofer Vocal Mix")
                                   , ("In Chains","Minilogue's Earth Remix")
                                   , ("Little Soul",
-                                     "Thomas Fehlman Ambient Mix")
+                                     "Thomas Fehlman Ambient Mix") -- 20
                                   , ("Wrong","Magda's Scallop Funk Remix")
                                   , ("Jezebel","SixTøes Remix")
                                   , ("Wrong","Trentemøller Remix")
@@ -402,7 +449,7 @@ _ts5 = let mkTrack t = Track Nothing (Just t) Nothing NotLive Nothing Nothing
                                   , ("Oh Well","Black Light Odyssey Dub")
                                   , ("Sun and the Moon and the Stars,The",
                                      "Electronic Periodic's Microdrum Mix")
-                                  , ("Oh Well","Black Light Odyssey Remix")
+                                  , ("Oh Well","Black Light Odyssey Remix") --28
                                   ]
                       )
                   ,   (mkTrackS ⊳ [ "Corrupt"
