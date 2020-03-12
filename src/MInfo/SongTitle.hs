@@ -318,15 +318,17 @@ mp3NamesTests =
 trackL ∷ Track
 trackL = Track Nothing (Just "live track") Nothing
                Live (Just "Hammersmith Odeon")
-               (Just [dateImpreciseRange|1970-01-01|])
+               (Just [dateImpreciseRange|1970-01-01|]) Nothing Nothing
 
 trackL' ∷ Track
 trackL' = Track Nothing (Just "Live Track") Nothing
                 NotLive Nothing (Just [dateImpreciseRange|1990-02-02|])
+                Nothing Nothing
 
 trackS ∷ Track
 trackS = Track Nothing (Just "Sesh") (Just "Acoustic")
                Session Nothing (Just [dateImpreciseRange|1980-01-01|])
+               Nothing Nothing
 
 releaseInfo6 ∷ ReleaseInfo
 releaseInfo6 = ReleaseInfo ("artie") (Just "123X")

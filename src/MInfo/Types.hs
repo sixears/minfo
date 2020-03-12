@@ -11,7 +11,9 @@
 
 module MInfo.Types
   ( Artist, Catno, HasLiveDate( liveDate ), HasLiveLocation( liveLocation )
-  , HasLiveType( liveType ), LiveLocation, LiveType(..), MultiDisc(..), Source
+  , HasLiveType( liveType ), HasMaybeSource( source )
+  , HasMaybeSourceVersion( sourceVersion ), LiveLocation, LiveType(..)
+  , MultiDisc(..), Source
   , SourceVersion, TrackTitle( TrackTitle ), TrackVersion
 
   , tests )
@@ -102,6 +104,9 @@ newtype Source = Source Text
 instance Printable Source where
   print (Source t) = P.text t
 
+class HasMaybeSource α where
+  source ∷ Lens' α (Maybe Source)
+
 ------------------------------------------------------------
 
 newtype SourceVersion = SourceVersion Text
@@ -109,6 +114,9 @@ newtype SourceVersion = SourceVersion Text
 
 instance Printable SourceVersion where
   print (SourceVersion t) = P.text t
+
+class HasMaybeSourceVersion α where
+  sourceVersion ∷ Lens' α (Maybe SourceVersion)
 
 ------------------------------------------------------------
 

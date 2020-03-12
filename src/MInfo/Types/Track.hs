@@ -15,7 +15,8 @@
 
 module MInfo.Types.Track
   ( Track( Track )
-  , artist, blankTrack, liveDate, liveLocation, liveType, title, version
+  , album, album_version, artist, blankTrack, liveDate, liveLocation, liveType
+  , title, version
 
   , tests
   , _track1, _track2, _track3, _track4, _track5
@@ -28,6 +29,7 @@ import Data.Aeson.Types  ( (.:?), (.!=), withObject )
 
 -- base --------------------------------
 
+import Control.Monad  ( return )
 import Data.Either    ( Either( Right ) )
 import Data.Eq        ( Eq )
 import Data.Function  ( ($) )
@@ -63,7 +65,7 @@ import Control.Lens.Lens    ( Lens', lens )
 
 -- more-unicode ------------------------
 
-import Data.MoreUnicode.Applicative  ( (⊵) )
+import Data.MoreUnicode.Applicative  ( (⊵), (∤) )
 import Data.MoreUnicode.Functor      ( (⊳) )
 import Data.MoreUnicode.Monoid       ( ю )
 import Data.MoreUnicode.Natural      ( ℕ )
@@ -107,7 +109,7 @@ import MInfo.Types  ( Artist, HasLiveDate( liveDate )
                     , HasLiveLocation( liveLocation ), HasLiveType( liveType )
                     , LiveLocation, LiveType( Demo, Live, LiveVocal, NotLive
                                             , Session )
-                    , TrackTitle, TrackVersion
+                    , Source, SourceVersion, TrackTitle, TrackVersion
                     )
 
 --------------------------------------------------------------------------------
@@ -118,17 +120,25 @@ data Track = Track { _artist        ∷ Maybe Artist
                    , _live_type     ∷ LiveType
                    , _live_location ∷ Maybe LiveLocation
                    , _live_date     ∷ Maybe DateImpreciseRange
+                   , _album         ∷ Maybe Source
+                   , _album_version ∷ Maybe SourceVersion
                    }
   deriving (Eq, Generic, Show)
 
 artist        ∷ Lens' Track (Maybe Artist)
-artist        = lens _artist (\ t a → t { _artist = a })
+artist        = lens _artist        (\ t a → t { _artist = a })
 
 title         ∷ Lens' Track (Maybe TrackTitle)
-title         = lens _title (\ r t → r { _title = t })
+title         = lens _title         (\ r t → r { _title = t })
 
 version       ∷ Lens' Track (Maybe TrackVersion)
-version       = lens _version       (\ r v → r { _version = v })
+version       = lens _version       (\ t v → t { _version = v })
+
+album         ∷ Lens' Track (Maybe Source)
+album         = lens _album         (\ t a → t { _album = a })
+
+album_version ∷ Lens' Track (Maybe SourceVersion)
+album_version = lens _album_version (\ t v → t { _album_version = v })
 
 instance HasLiveType Track where
   liveType   ∷ Lens' Track LiveType
@@ -144,12 +154,16 @@ instance HasLiveDate Track where
 
 instance FromJSON Track where
   parseJSON = withObject "Track" $ \ v →
-    Track ⊳ v .:? "artist"
+    Track ⊳ do a ← v .:? "artist"
+               s ← v .:? "artists"
+               return $ a ∤ s
           ⊵ v .:? "title"
           ⊵ v .:? "version"
           ⊵ v .:? "live_type" .!= NotLive
           ⊵ v .:? "live_location"
           ⊵ v .:? "live_date"
+          ⊵ v .:? "album"
+          ⊵ v .:? "album_version"
 
 trackFromJSONTests ∷ TestTree
 trackFromJSONTests =
@@ -157,21 +171,30 @@ trackFromJSONTests =
       t0 = BS.intercalate "\n" [ "title: Condemnation" ]
       t1 ∷ ByteString
       t1 = BS.intercalate "\n" [ "title: Judas"
+                               , "artist: Depeche"
                                , "live_type: Live"
                                , "live_date: 1993-07-29"
                                ]
+      t6 ∷ ByteString
+      t6 = BS.intercalate "\n" [ "title: Two Minute Warning"
+                               , "artists: DM"
+                               , "album: My Album"
+                               , "album_version: AVersion"
+                               ]
       e0 ∷ Track
       e0 = Track Nothing (Just "Condemnation") Nothing NotLive Nothing Nothing
+                 Nothing Nothing
       e1 ∷ Track
-      e1 = Track Nothing (Just "Judas") Nothing Live Nothing
-                 (Just $ [dateImpreciseRange|1993-07-29|])
+      e1 = Track (Just "Depeche") (Just "Judas") Nothing Live Nothing
+                 (Just $ [dateImpreciseRange|1993-07-29|]) Nothing Nothing
    in testGroup "trackFromJSON"
                 [ testCase "t0" $ Right e0 @=? unYaml @YamlParseError t0
                 , testCase "t1" $ Right e1 @=? unYaml @YamlParseError t1
+                , testCase "t6" $ Right _track6 @=? unYaml @YamlParseError t6
                 ]
 
 instance ToJSON Track where
-  toJSON (Track a t v y l d) =
+  toJSON (Track a t v y l d _ _) =
     let maybel k x = maybe [] (\ x' → [ k .= toJSON x' ]) x
         fields = ю [ maybel "artist" a
                    , [ "title" .= t ]
@@ -190,32 +213,33 @@ yquote ∷ Text → Text
 yquote t = "\"" ⊕ t ⊕ "\""
 
 instance Printable Track where
-  print (Track a t v y l d) = let toj ∷ Show α ⇒ Maybe α → Text
-                                  toj Nothing  = "~"
-                                  toj (Just x) = toText (show x)
-                                  toj' ∷ Printable α ⇒ Maybe α → Text
-                                  toj' Nothing  = "~"
-                                  toj' (Just x) = yquote $ toText x
-                                  tot ∷ Show α ⇒ Text → Maybe α → Text
-                                  tot i x = i ⊕ ": " ⊕ toj x
-                                  tot' ∷ Printable α ⇒ Text → Maybe α → Text
-                                  tot' i x = i ⊕ ": " ⊕ toj' x
-                                  tom ∷ Show α ⇒ Text → Maybe α → [Text]
-                                  tom _ Nothing  = []
-                                  tom i (Just x) = [ tot i (Just x) ]
-                                  tom' ∷ Printable α ⇒ Text → Maybe α → [Text]
-                                  tom' _ Nothing  = []
-                                  tom' i (Just x) = [ tot' i (Just x) ]
-                                  unl ∷ [Text] → Text
-                                  unl = dropEnd 1 ∘ unlines
-                               in P.text ∘ unl $ (tom "artist" (toText ⊳ a))
-                                               ⊕ [tot' "title" t]
-                                               ⊕ (tom "version" v)
-                                               ⊕ case y of
-                                                   NotLive → []
-                                                   _ → ["live_type: "⊕ toText y]
-                                               ⊕ (tom' "live_location" l)
-                                               ⊕ (tom "live_date" d)
+  print (Track a t v y l d _ _) =
+    let toj ∷ Show α ⇒ Maybe α → Text
+        toj Nothing  = "~"
+        toj (Just x) = toText (show x)
+        toj' ∷ Printable α ⇒ Maybe α → Text
+        toj' Nothing  = "~"
+        toj' (Just x) = yquote $ toText x
+        tot ∷ Show α ⇒ Text → Maybe α → Text
+        tot i x = i ⊕ ": " ⊕ toj x
+        tot' ∷ Printable α ⇒ Text → Maybe α → Text
+        tot' i x = i ⊕ ": " ⊕ toj' x
+        tom ∷ Show α ⇒ Text → Maybe α → [Text]
+        tom _ Nothing  = []
+        tom i (Just x) = [ tot i (Just x) ]
+        tom' ∷ Printable α ⇒ Text → Maybe α → [Text]
+        tom' _ Nothing  = []
+        tom' i (Just x) = [ tot' i (Just x) ]
+        unl ∷ [Text] → Text
+        unl = dropEnd 1 ∘ unlines
+     in P.text ∘ unl $ (tom "artist" (toText ⊳ a))
+                     ⊕ [tot' "title" t]
+                     ⊕ (tom "version" v)
+                     ⊕ case y of
+                         NotLive → []
+                         _ → ["live_type: "⊕ toText y]
+                     ⊕ (tom' "live_location" l)
+                     ⊕ (tom "live_date" d)
 
 trackPrintableTests ∷ TestTree
 trackPrintableTests =
@@ -225,12 +249,13 @@ trackPrintableTests =
                             , "live_location: \"Hammersmith Odeon\""
                             ]
       t1 = Track (Just "Depeche Mode") (Just "Can't Get Enough") Nothing
-                 Live (Just "Hammersmith Odeon") Nothing
+                 Live (Just "Hammersmith Odeon") Nothing Nothing Nothing
    in testGroup "Printable" [ testCase "t1" $ e1 ≟ toText t1
                             ]
 
 blankTrack ∷ Track
-blankTrack = Track Nothing Nothing Nothing NotLive Nothing Nothing
+blankTrack = Track Nothing Nothing Nothing NotLive Nothing Nothing Nothing
+                   Nothing
 
 instance Printable [Track] where
   print ts = P.text $ intercalate "\n" (toText ⊳ ts)
@@ -241,20 +266,25 @@ instance Printable [Track] where
 
 _track1 ∷ Track
 _track1 = Track (Just "Tricky") (Just "Judas") Nothing Demo Nothing
-           (Just $ [dateImpreciseRange|1993-07-29|])
+                (Just $ [dateImpreciseRange|1993-07-29|]) Nothing Nothing
 _track2 ∷ Track
 _track2 = Track Nothing (Just "Mercy in You") Nothing Session Nothing
-           (Just $ [dateImpreciseRange|1993-07-29|])
+                (Just $ [dateImpreciseRange|1993-07-29|]) Nothing Nothing
 _track3 ∷ Track
 _track3 = Track Nothing (Just "I Feel You") Nothing LiveVocal Nothing
-           (Just $ [dateImpreciseRange|1993-07-29|])
+                (Just $ [dateImpreciseRange|1993-07-29|]) Nothing Nothing
 
 _track4 ∷ Track
 _track4 = Track Nothing (Just "Something to Do") Nothing NotLive Nothing Nothing
+                Nothing Nothing
 
 _track5 ∷ Track
 _track5 = Track Nothing (Just "Two Minute Warning") Nothing
-                NotLive Nothing Nothing
+                NotLive Nothing Nothing Nothing Nothing
+
+_track6 ∷ Track
+_track6 = Track (Just "DM") (Just "Two Minute Warning") Nothing
+                NotLive Nothing Nothing (Just "My Album") (Just "AVersion")
 
 ------------------------------------------------------------
 

@@ -1,3 +1,7 @@
+1.0.1.4 2020-03-12
+==================
+- add handling for disc names, and 'artists'
+
 1.0.1.3 2020-02-28
 ==================
 - add track_count/discid/track_in_disc/track_total_id

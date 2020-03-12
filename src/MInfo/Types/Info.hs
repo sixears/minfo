@@ -14,7 +14,7 @@ module MInfo.Types.Info
 
   , tests
   -- test data
-  , _info1, _info5, _info7
+  , _info1, _info5, _info7, _info8
   )
 where
 
@@ -30,7 +30,7 @@ import Data.Either      ( Either( Left, Right ) )
 import Data.Eq          ( Eq )
 import Data.Function    ( ($) )
 import Data.List        ( replicate )
-import Data.Maybe       ( Maybe( Just, Nothing ) )
+import Data.Maybe       ( Maybe )
 import Data.String      ( String )
 import GHC.Generics     ( Generic )
 import Numeric.Natural  ( Natural )
@@ -49,7 +49,6 @@ import Data.Textual  ( Printable( print ), toText )
 
 -- date-imprecise ----------------------
 
-import DateImprecise.DateImprecise       ( dateImprecise )
 import DateImprecise.DateImpreciseRange  ( DateImpreciseRange )
 
 -- lens --------------------------------
@@ -102,21 +101,19 @@ import qualified  MInfo.Types.Tracks       as  Tracks
 
 import MInfo.Types              ( HasLiveDate( liveDate )
                                 , HasLiveLocation( liveLocation )
-                                , HasLiveType( liveType ), LiveLocation
-                                , LiveType( NotLive )
+                                , HasLiveType( liveType ), LiveLocation,LiveType
                                 )
 import MInfo.Types.ReleaseInfo  ( HasReleaseInfo( releaseInfo )
-                                , ReleaseInfo( ReleaseInfo )
+                                , ReleaseInfo
                                 , blankReleaseInfo, releaseInfoFields
                                 , _rinfo1, _rinfo2, _rinfo3, _rinfo4, _rinfo5
-                                , _rinfo7
+                                , _rinfo6, _rinfo7
                                 )
-import MInfo.Types.Track        ( Track( Track )
-                                , blankTrack, _track4, _track5 )
+import MInfo.Types.Track        ( blankTrack, _track4, _track5 )
 import MInfo.Types.Tracks       ( HasTracks( flatTracks, trackCount )
                                 , Tracks( Tracks, unTracks )
                                 , TrackIndex( track )
-                                , _ts1, _ts2, _ts3, _ts4, _ts5
+                                , _ts1, _ts2, _ts3, _ts4, _ts5, _ts6, _ts8
                                 )
 
 --------------------------------------------------------------------------------
@@ -188,6 +185,7 @@ infoFromJSONTests =
                    , checkInfo "_info4" TestData.info4T _info4
                    , checkInfo "_info5" TestData.info5T _info5
                    , checkInfo "_info6" TestData.info6T _info6
+                   , checkInfo "_info8 (discnames)" TestData.info8T _info8
                    ]
                 )
 
@@ -272,28 +270,14 @@ _info5 = Info _rinfo5 _ts5
 --------------------
 
 _info6 ∷ Info
-_info6 = Info (ReleaseInfo ("Depeche Mode") Nothing
-                           (Just ([dateImprecise|2009-04-17|]))
-                           Nothing (Just "Sounds of the Universe")
-                           (Just "Deluxe Box Set") NotLive Nothing Nothing)
-              (Tracks [ [ Track Nothing (Just "In Chains") Nothing
-                                NotLive Nothing Nothing
-                        , Track Nothing (Just "Hole to Feed") Nothing
-                                NotLive Nothing Nothing
-                        ]
-                      , [ Track Nothing
-                                (Just "Wrong") (Just "Trentemøller Remix")
-                                NotLive Nothing Nothing
-                        , Track Nothing
-                                (Just "Perfect")
-                                (Just "Drone Mix")
-                                NotLive Nothing Nothing
-                        ]
-                      ])
+_info6 = Info _rinfo6 _ts6
 
 
 _info7 ∷ Info
 _info7 = Info _rinfo7 _ts1
+
+_info8 ∷ Info
+_info8 = Info _rinfo6 _ts8
 
 ------------------------------------------------------------
 

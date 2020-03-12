@@ -361,3 +361,32 @@ info6T =
   , "      version: Drone Mix"
   , ""
   ]
+
+info8T ∷ ByteString
+info8T =
+  intercalate "\n" [ "---"
+  , "artist: Depeche Mode"
+  , "release: 2009-04-17"
+  , "source: Sounds of the Universe"
+  , "source_version: Deluxe Box Set"
+  , "discnames:"
+  , "  - "
+  , "  - title: Remixen"
+  , "    version: R"
+  , "tracks:"
+  , "  -"
+  , "    - title: 'In Chains'"
+  , "    - title: 'Hole to Feed'"
+  , "      album: Bonus"
+  , "      album_version: BB"
+  , "  -"
+  , "    discname: Remixes"
+  , "    tracks:"
+  , "      - title: 'Wrong'"
+  , "        version: Trentem\195\184ller Remix"
+  , "      - title: 'Perfect'"
+  , "        version: Drone Mix"
+  , "        album: Bonus"
+  , "        album_version: BB"
+  , ""
+  ]

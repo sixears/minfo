@@ -14,7 +14,7 @@ module MInfo.Types.Tracks
   , TrackIndex( track )
   
   , tests
-  , _ts1, _ts2, _ts3, _ts4, _ts5
+  , _ts1, _ts2, _ts3, _ts4, _ts5, _ts6, _ts8
   )
 where
 
@@ -22,7 +22,8 @@ import Prelude  ( (-) )
 
 -- aeson -------------------------------
 
-import Data.Aeson.Types  ( Value( Array ), typeMismatch )
+import Data.Aeson.Types  ( Parser, Value( Array, Object )
+                         , (.:), (.:?), typeMismatch )
 
 -- base --------------------------------
 
@@ -39,7 +40,7 @@ import GHC.Exts             ( fromList, toList )
 import Numeric.Natural      ( Natural )
 import System.Exit          ( ExitCode )
 import System.IO            ( IO )
-import Text.Show            ( Show )
+import Text.Show            ( Show( show ) )
 
 -- base-unicode-symbols ----------------
 
@@ -73,14 +74,16 @@ import Index ( HasIndex( Elem, Indexer, index ), (!!) )
 
 import Control.Lens.Getter  ( view )
 import Control.Lens.Lens    ( Lens' )
+import Control.Lens.Setter  ( ASetter )
 import Control.Lens.Tuple   ( _4 )
 
 -- more-unicode ------------------------
 
-import Data.MoreUnicode.Functor  ( (⊳), (⩺) )
-import Data.MoreUnicode.Lens     ( (⊣) )
-import Data.MoreUnicode.Monoid   ( ю )
-import Data.MoreUnicode.Natural  ( ℕ )
+import Data.MoreUnicode.Applicative  ( (⊵), (∤) )
+import Data.MoreUnicode.Functor      ( (⊳), (⩺) )
+import Data.MoreUnicode.Lens         ( (⊣), (⊧) )
+import Data.MoreUnicode.Monoid       ( ю )
+import Data.MoreUnicode.Natural      ( ℕ )
 
 -- tasty -------------------------------
 
@@ -92,7 +95,7 @@ import Test.Tasty.HUnit  ( (@=?), testCase )
 
 -- tasty-plus --------------------------
 
-import TastyPlus  ( runTestsP, runTestsReplay, runTestTree )
+import TastyPlus  ( assertListEqR, runTestsP, runTestsReplay, runTestTree )
 
 -- text --------------------------------
 
@@ -120,7 +123,8 @@ import YamlPlus.Error  ( YamlParseError )
 ------------------------------------------------------------
 
 import MInfo.Types        ( LiveType( Demo, Live, NotLive, Session ) )
-import MInfo.Types.Track  ( Track( Track ), _track1, _track2, _track3 )
+import MInfo.Types.Track  ( Track( Track )
+                          , album, album_version, _track1, _track2, _track3 )
 
 --------------------------------------------------------------------------------
 
@@ -134,15 +138,48 @@ instance Printable Tracks where
 
 ----------------------------------------
 
+-- ⫳
+addMaybe ∷ ASetter σ τ (Maybe α) (Maybe α) → Maybe α → σ → τ
+addMaybe s a = s ⊧ (∤ a)
+
+infixr 4 ⊮
+(⊮) ∷ ASetter σ τ (Maybe α) (Maybe α) → Maybe α → σ → τ
+(⊮) = addMaybe
+
 instance FromJSON Tracks where
-  parseJSON (Array ts) =
-    case ts !? 0 of
-      Nothing        → return $ Tracks [[]]
-      Just (Array _) → Tracks ⊳ (sequence $ parseJSON ⊳ toList ts)
-      Just _         → (Tracks ∘ pure) ⊳ (sequence $ parseJSON ⊳ toList ts)
-  parseJSON invalid = typeMismatch "Array" invalid
+  parseJSON json =
+    let parseTs ∷ Value → Parser [Track]
+        parseTs xs@(Array _) = parseJSON xs
+        parseTs (Object o) = do (ts,d,v) ← (,,) ⊳ (o .:  "tracks")
+                                                ⊵ (o .:? "discname")
+                                                ⊵ (o .:? "discname_version")
+                                return $ (album ⊮ d) ∘ (album_version ⊮ v) ⊳ ts
+        parseTs invalid      = typeMismatch "Array|Object (parseTs)" invalid
+        parseTss ∷ Value → Parser [[Track]]
+        parseTss (Array xs) = sequence $ parseTs ⊳ toList xs
+        parseTss invalid = typeMismatch "Array (parseTss)" invalid
+     in case json of
+          Array ts →
+            case ts !? 0 of
+              Nothing         → return $ Tracks [[]]
+              Just (Array _)  → Tracks ⊳ parseTss (Array ts)
+              Just _          →
+                  (Tracks ∘ pure) ⊳ (sequence $ parseJSON ⊳ toList ts)
+          invalid  → typeMismatch "Array (parseJSON @Tracks)" invalid
 
 --------------------
+
+newtype TrackShow = TrackShow Track
+  deriving (Eq,Show)
+
+instance Printable TrackShow where
+  print (TrackShow t) = P.string $ show t
+
+tracksShow ∷ HasTracks τ ⇒ τ → [TrackShow]
+tracksShow tss = (TrackShow ∘ view _4) ⊳ flatTracks tss
+
+tracksShow' ∷ Tracks → [TrackShow]
+tracksShow' = tracksShow
 
 tracksFromJSONTests ∷ TestTree
 tracksFromJSONTests =
@@ -153,6 +190,11 @@ tracksFromJSONTests =
                 Right (Tracks [[_track1,_track2]]) @=? unYaml @YamlParseError t1
             , testCase "t3" $
                 Right _ts1 @=? unYaml @YamlParseError t3
+            , testGroup "t8" $
+                assertListEqR "t8" (tracksShow' ⊳ unYaml @YamlParseError t8)
+                                   (tracksShow' _ts8)
+            , testCase "t8" $
+                Right _ts8 @=? unYaml @YamlParseError t8
             ]
 
 ----------------------------------------
@@ -246,20 +288,6 @@ t1 = BS.intercalate "\n" [ "- title: Judas"
                          , "  live_type: Session"
                          , "  live_date: 1993-07-29"
                          ]
-t3 ∷ ByteString
-t3 = BS.intercalate "\n" [ "-"
-                         , "  - title: Judas"
-                         , "    artist: Tricky"
-                         , "    live_type: Demo"
-                         , "    live_date: 1993-07-29"
-                         , "  - title: Mercy in You"
-                         , "    live_type: Session"
-                         , "    live_date: 1993-07-29"
-                         , "-"
-                         , "  - title: I Feel You"
-                         , "    live_type: Live Vocal"
-                         , "    live_date: 1993-07-29"
-                         ]
 
 _ts1 ∷ Tracks
 _ts1 = Tracks [[_track1,_track2],[_track3]]
@@ -269,7 +297,7 @@ _ts1 = Tracks [[_track1,_track2],[_track3]]
 _ts2 ∷ Tracks
 _ts2 = let mkTrack t = Track Nothing (Just t) Nothing Live
                        (Just "Stade Couvert Régional, Liévin, France")
-                       (Just [dateImpreciseRange|1993-07-29|])
+                       (Just [dateImpreciseRange|1993-07-29|]) Nothing Nothing
         in Tracks [ mkTrack ⊳ [ "Higher Love"
                               , "World in my Eyes"
                               , "Walking in my Shoes"
@@ -294,8 +322,24 @@ _ts2 = let mkTrack t = Track Nothing (Just t) Nothing Live
 
 ----------
 
+t3 ∷ ByteString
+t3 = BS.intercalate "\n" [ "-"
+                         , "  - title: Judas"
+                         , "    artist: Tricky"
+                         , "    live_type: Demo"
+                         , "    live_date: 1993-07-29"
+                         , "  - title: Mercy in You"
+                         , "    live_type: Session"
+                         , "    live_date: 1993-07-29"
+                         , "-"
+                         , "  - title: I Feel You"
+                         , "    live_type: Live Vocal"
+                         , "    live_date: 1993-07-29"
+                         ]
+
 _ts3 ∷ Tracks
 _ts3 = let mkTrack t = Track Nothing (Just t) Nothing NotLive Nothing Nothing
+                             Nothing Nothing
         in Tracks [ mkTrack ⊳ [ "Walking in my Shoes"
                               , "Halo"
                               , "Stripped"
@@ -315,10 +359,11 @@ _ts3 = let mkTrack t = Track Nothing (Just t) Nothing NotLive Nothing Nothing
 
 _ts4 ∷ Tracks
 _ts4 = let mkTrack t = Track Nothing (Just t) Nothing NotLive Nothing Nothing
+                             Nothing Nothing
            mkTrack' (t,v) = Track Nothing (Just t) (Just v)
-                                  NotLive Nothing Nothing
+                                  NotLive Nothing Nothing Nothing Nothing
            mkTrackD t = Track Nothing (Just t) Nothing
-                              Demo Nothing Nothing
+                              Demo Nothing Nothing Nothing Nothing
         in Tracks [ mkTrack ⊳ [ "In Chains"
                               , "Hole to Feed"
                               , "Wrong"
@@ -373,13 +418,15 @@ _ts4 = let mkTrack t = Track Nothing (Just t) Nothing NotLive Nothing Nothing
 
 _ts5 ∷ Tracks
 _ts5 = let mkTrack t = Track Nothing (Just t) Nothing NotLive Nothing Nothing
+                             Nothing Nothing
            mkTrack' (t,v) = Track Nothing (Just t) (Just v)
-                                  NotLive Nothing Nothing
+                                  NotLive Nothing Nothing Nothing Nothing
            mkTrackD t = Track Nothing (Just t) (Just "Demo")
-                              NotLive Nothing Nothing
+                              NotLive Nothing Nothing Nothing Nothing
            mkTrackS t = Track Nothing (Just t) Nothing
                               Session Nothing
                               (Just [dateImpreciseRange|2008-12-08|])
+                              Nothing Nothing
         in Tracks [ mkTrack ⊳ [ "In Chains"
                               , "Hole to Feed"
                               , "Wrong"
@@ -459,6 +506,57 @@ _ts5 = let mkTrack t = Track Nothing (Just t) Nothing NotLive Nothing Nothing
                                   ]
                       )
                   ]
+
+_ts6 ∷ Tracks
+_ts6 = Tracks [ [ Track Nothing (Just "In Chains") Nothing
+                        NotLive Nothing Nothing Nothing Nothing
+                , Track Nothing (Just "Hole to Feed") Nothing
+                        NotLive Nothing Nothing Nothing Nothing
+                ]
+              , [ Track Nothing
+                        (Just "Wrong") (Just "Trentemøller Remix")
+                        NotLive Nothing Nothing Nothing Nothing
+                , Track Nothing
+                        (Just "Perfect")
+                        (Just "Drone Mix")
+                        NotLive Nothing Nothing Nothing Nothing
+                ]
+              ]
+
+----------
+
+t8 ∷ ByteString
+t8 = BS.intercalate "\n" [ "-"
+                         , "    - title: 'In Chains'"
+                         , "    - title: 'Hole to Feed'"
+                         , "      album: Bonus"
+                         , "      album_version: BB"
+                         , "-"
+                         , "    discname: Remixes"
+                         , "    tracks:"
+                         , "      - title: 'Wrong'"
+                         , "        version: Trentem\195\184ller Remix"
+                         , "      - title: 'Perfect'"
+                         , "        version: Drone Mix"
+                         , "        album: Bonus"
+                         , "        album_version: BB"
+                         ]
+_ts8 ∷ Tracks
+_ts8 = Tracks [ [ Track Nothing (Just "In Chains") Nothing
+                        NotLive Nothing Nothing Nothing Nothing
+                , Track Nothing (Just "Hole to Feed") Nothing
+                        NotLive Nothing Nothing (Just "Bonus") (Just "BB")
+                ]
+              , [ Track Nothing
+                        (Just "Wrong") (Just "Trentemøller Remix")
+                        NotLive Nothing Nothing (Just "Remixes") Nothing
+                , Track Nothing
+                        (Just "Perfect")
+                        (Just "Drone Mix")
+                        NotLive Nothing Nothing (Just "Bonus") (Just "BB")
+                ]
+              ]
+
 
 ------------------------------------------------------------
 

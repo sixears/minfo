@@ -9,7 +9,7 @@ module MInfo.Types.ReleaseInfo
   , artist, blankReleaseInfo, liveDate, liveType, liveLocation
   , original_release, release, releaseInfoFields, source, sourceVersion
 
-  , _rinfo1, _rinfo2, _rinfo3, _rinfo4, _rinfo5, _rinfo7
+  , _rinfo1, _rinfo2, _rinfo3, _rinfo4, _rinfo5, _rinfo6, _rinfo7
   )
 where
 
@@ -58,7 +58,9 @@ import Data.Yaml  ( FromJSON( parseJSON ), ToJSON( toJSON ), (.=), object )
 
 import MInfo.Types  ( Artist, Catno, HasLiveDate( liveDate )
                     , HasLiveLocation( liveLocation ), HasLiveType( liveType )
-                    , LiveLocation, LiveType( Live, NotLive ), Source
+                    , HasMaybeSource( source )
+                    , HasMaybeSourceVersion( sourceVersion ), LiveLocation
+                    , LiveType( Live, NotLive ), Source
                     , SourceVersion
                     )
 
@@ -91,11 +93,13 @@ release = lens _release (\ i r → i { _release = r })
 original_release ∷ Lens' ReleaseInfo (Maybe DateImprecise)
 original_release = lens _original_release (\ i o → i { _original_release = o })
 
-source ∷ Lens' ReleaseInfo (Maybe Source)
-source = lens _source (\ i s → i { _source = s })
+instance HasMaybeSource ReleaseInfo where
+  source ∷ Lens' ReleaseInfo (Maybe Source)
+  source = lens _source (\ i s → i { _source = s })
 
-sourceVersion ∷ Lens' ReleaseInfo (Maybe SourceVersion)
-sourceVersion = lens _source_version (\ i v → i { _source_version = v })
+instance HasMaybeSourceVersion ReleaseInfo where
+  sourceVersion ∷ Lens' ReleaseInfo (Maybe SourceVersion)
+  sourceVersion = lens _source_version (\ i v → i { _source_version = v })
 
 instance HasLiveLocation ReleaseInfo where
   liveLocation ∷ Lens' ReleaseInfo (Maybe LiveLocation)
@@ -212,6 +216,12 @@ _rinfo5 = ReleaseInfo { _artist           = "Depeche Mode"
                       , _live_location    = Nothing
                       , _live_date        = Nothing
                       }
+
+_rinfo6 ∷ ReleaseInfo
+_rinfo6 = ReleaseInfo ("Depeche Mode") Nothing
+                      (Just ([dateImprecise|2009-04-17|]))
+                      Nothing (Just "Sounds of the Universe")
+                      (Just "Deluxe Box Set") NotLive Nothing Nothing
 
 _rinfo7 ∷ ReleaseInfo
 _rinfo7 = ReleaseInfo { _artist           = "Various Artists"

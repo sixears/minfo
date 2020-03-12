@@ -38,6 +38,7 @@ import Text.Show      ( Show )
 -- base-unicode-symbols ----------------
 
 import Data.Function.Unicode  ( (∘) )
+import Data.Monoid.Unicode    ( (⊕) )
 
 -- data-textual ------------------------
 
@@ -85,6 +86,7 @@ import Text.Fmt  ( fmt )
 --                     local imports                      --
 ------------------------------------------------------------
 
+import qualified  MInfo.Types.Track        as  Track
 import qualified  MInfo.Types.ReleaseInfo  as  ReleaseInfo
 
 import MInfo.SongTitle          ( liveName, songTitle )
@@ -96,7 +98,7 @@ import MInfo.Types              ( Artist, HasLiveDate( liveDate )
                                 , TrackVersion
                                 , liveType
                                 )
-import MInfo.Types.Info         ( Info, track, _info1, _info5, _info7 )
+import MInfo.Types.Info         ( Info, track, _info1, _info5, _info7, _info8 )
 import MInfo.Types.ReleaseInfo  ( HasReleaseInfo( releaseInfo )
                                 , original_release, release )
 import MInfo.Types.Track        ( artist, title, version )
@@ -124,6 +126,9 @@ data TrackInfo = TrackInfo { _album_artist     ∷ Artist
                            , _track_total_id   ∷ ℕ
                            , _track_count      ∷ ℕ
                            , _track_in_disc    ∷ ℕ
+                           , _discname         ∷ Maybe Source
+                           , _discversion      ∷ Maybe SourceVersion
+                           , _disctitle        ∷ Maybe Text
                            }
   deriving (Eq, Generic, Show)
 
@@ -131,12 +136,14 @@ $(deriveJSON defaultOptions { fieldLabelModifier = drop 1 }  'TrackInfo)
 
 instance Printable TrackInfo where
   print ti =
-    let key_order = [ "artist", "song_title", "version"
+    let key_order = [ "artist", "song_title", "title", "version"
                     , "live_type", "live_date", "live_location"
-                    , "album_artist", "album", "album_version"
+                    , "album_artist"
+                    , "album", "album_version"
+                    , "discname", "discversion"
                     , "original_release", "release", "track_count"
                     , "discid", "track_in_disc", "track_total_id"
-                    , "title", "album_title", "live_version"
+                    , "album_title", "live_version", "disctitle"
                     ]
         cmp x y = case (elemIndex x key_order, elemIndex y key_order) of
                     (Just a , Just b ) → a `compare` b
@@ -160,27 +167,48 @@ fromInfo info n =
                         (Just a,Just v) → Just $ [fmt|%T  (%T)|] a v
                         (_,_)           → toText ⊳ album
    in track info n ⊲ \ (tracknum, discid, trackid, tinfo) →
-        TrackInfo { _album_artist     = album_artist
-                  , _album            = album
-                  , _album_version    = album_version
-                  , _album_title      = album_title
-                  , _release          = rinfo ⊣ release
-                  , _original_release = rinfo ⊣ original_release
-                  , _artist           = tinfo ⊣ artist ∤ Just album_artist
-                  , _title            = songTitle info tinfo
-                  , _version          = tinfo ⊣ version
-                  , _live_type        =
-                        (tinfo ⊣ liveType) ◇ (rinfo ⊣ liveType)
-                  , _live_location    =
-                        tinfo ⊣ liveLocation ∤ rinfo ⊣ liveLocation
-                  , _live_date        = tinfo ⊣ liveDate ∤ rinfo ⊣ liveDate
-                  , _live_version     = liveName rinfo tinfo
-                  , _song_title       = tinfo ⊣ title
-                  , _discid           = discid
-                  , _track_total_id   = tracknum
-                  , _track_count      = trackCount info
-                  , _track_in_disc    = trackid
-                  }
+        let discname      = tinfo ⊣ Track.album
+            discversion   = tinfo ⊣ Track.album_version
+            disctitle     =
+              case (discname, album, discversion, album_version) of
+                (Nothing,Nothing,_,_)           → Nothing
+                (Nothing,Just a,_,Nothing)      → Just $ toText a
+                (Nothing,Just a,_,Just v)       → Just $ [fmt|%T  (%T)|] a v
+                (Just d,Just a,Nothing,Nothing) → Just $ [fmt|%T  <%T>|] d a
+                (Just d,Nothing,Nothing,_)      → Just $ [fmt|%T|] d
+                (Just d,Nothing,Just c,_)       → Just $ [fmt|%T  (%T)|] d c
+                (Just d,Just a,Just c,Nothing)  →
+                    Just $ [fmt|%T  (%T)  <%T>|] d a c
+                (Just d,Just a,Nothing,Just v)   →
+                    Just $ [fmt|%T  <%T  (%T)>|] d a v
+                (Just d,Just a,Just c,Just v)   →
+                    Just $ [fmt|%T  (%T)  <%T  (%T)>|] d c a v
+
+         in TrackInfo { _album_artist     = album_artist
+                      , _album            = album
+                      , _album_version    = album_version
+                      , _album_title      = album_title
+                      , _release          = rinfo ⊣ release
+                      , _original_release = rinfo ⊣ original_release
+                      , _artist           = tinfo ⊣ artist ∤ Just album_artist
+                      , _title            = songTitle info tinfo
+                      , _version          = tinfo ⊣ version
+                      , _live_type        =
+                            (tinfo ⊣ liveType) ◇ (rinfo ⊣ liveType)
+                      , _live_location    =
+                            tinfo ⊣ liveLocation ∤ rinfo ⊣ liveLocation
+                      , _live_date        = tinfo ⊣ liveDate ∤ rinfo ⊣ liveDate
+                      , _live_version     = liveName rinfo tinfo
+                      , _song_title       = tinfo ⊣ title
+                      , _discid           = discid
+                      , _track_total_id   = tracknum
+                      , _track_count      = trackCount info
+                      , _track_in_disc    = trackid
+
+                      , _discname         = discname
+                      , _discversion      = discversion
+                      , _disctitle        = disctitle
+                      }
 
 newtype P = P (Maybe TrackInfo)
   deriving Eq
@@ -197,7 +225,7 @@ fromInfoTests =
       std     = "Something to Do  [Live Hamburg 1984-12-14]"
       p       ∷ TrackInfo → P
       p ti    = P (Just ti)
---      pInfo   ∷ TrackIndex Info τ ⇒ Info → τ → P
+      pInfo   ∷ TrackIndex Info τ ⇒ Info → τ → P
       pInfo i = P ∘ fromInfo i
       tinfo1 = TrackInfo { _album_artist     = "Depeche Mode"
                          , _album            = Just twwli
@@ -217,6 +245,10 @@ fromInfoTests =
                          , _track_total_id   = 1
                          , _track_in_disc    = 1
                          , _track_count      = 2
+
+                         , _discname         = Nothing
+                         , _discversion      = Nothing
+                         , _disctitle        = Just twwlit
                          }
       tinfo5_3_2 = TrackInfo { _album_artist     = "Depeche Mode"
                              , _album            = Just "Sounds of the Universe"
@@ -241,6 +273,11 @@ fromInfoTests =
                              , _track_total_id   = 64
                              , _track_in_disc    = 3
                              , _track_count      = 65
+
+                             , _discname         = Nothing
+                             , _discversion      = Nothing
+                             , _disctitle        =
+                                 Just "Sounds of the Universe  (Deluxe Box Set)"
                              }
       tinfo5_2_21 = TrackInfo { _album_artist     = "Depeche Mode"
                               , _album            =
@@ -265,6 +302,11 @@ fromInfoTests =
                               , _track_total_id   = 55
                               , _track_in_disc    = 22
                               , _track_count      = 65
+
+                              , _discname         = Nothing
+                              , _discversion      = Nothing
+                              , _disctitle        =
+                                 Just "Sounds of the Universe  (Deluxe Box Set)"
                               }
       tinfo7_0 = TrackInfo { _album_artist     = "Various Artists"
                            , _album            = Just "Compilation"
@@ -287,6 +329,10 @@ fromInfoTests =
                            , _track_in_disc    = 1
                            , _track_total_id   = 1
                            , _track_count      = 3
+
+                           , _discname         = Nothing
+                           , _discversion      = Nothing
+                           , _disctitle        = Just "Compilation"
                            }
       tinfo7_2 = TrackInfo { _album_artist     = "Various Artists"
                            , _album            = Just "Compilation"
@@ -309,7 +355,130 @@ fromInfoTests =
                            , _track_in_disc    = 1
                            , _track_total_id   = 3
                            , _track_count      = 3
+
+                           , _discname         = Nothing
+                           , _discversion      = Nothing
+                           , _disctitle        = Just "Compilation"
                            }
+      tinfo8_0 = TrackInfo  { _album_artist     = "Depeche Mode"
+                            , _album            =
+                                  Just "Sounds of the Universe"
+                            , _album_version    = Just "Deluxe Box Set"
+                            , _album_title      =
+                               Just "Sounds of the Universe  (Deluxe Box Set)"
+                            , _release          =
+                                  Just [dateImprecise|2009-04-17|]
+                            , _original_release = Nothing
+
+                            , _artist           = Just "Depeche Mode"
+                            , _title            = Just "In Chains"
+                            , _version          = Nothing
+                            , _live_type        = NotLive
+                            , _live_location    = Nothing
+                            , _live_date        = Nothing
+                            , _live_version     = Nothing
+                            , _song_title       = Just "In Chains"
+                            , _discid           = 1
+                            , _track_in_disc    = 1
+                            , _track_total_id   = 1
+                            , _track_count      = 4
+
+                            , _discname         = Nothing
+                            , _discversion      = Nothing
+                            , _disctitle        =
+                                 Just "Sounds of the Universe  (Deluxe Box Set)"
+                            }
+      tinfo8_1 = TrackInfo  { _album_artist     = "Depeche Mode"
+                            , _album            =
+                                  Just "Sounds of the Universe"
+                            , _album_version    = Just "Deluxe Box Set"
+                            , _album_title      =
+                               Just "Sounds of the Universe  (Deluxe Box Set)"
+                            , _release          =
+                                  Just [dateImprecise|2009-04-17|]
+                            , _original_release = Nothing
+
+                            , _artist           = Just "Depeche Mode"
+                            , _title            = Just "Hole to Feed"
+                            , _version          = Nothing
+                            , _live_type        = NotLive
+                            , _live_location    = Nothing
+                            , _live_date        = Nothing
+                            , _live_version     = Nothing
+                            , _song_title       = Just "Hole to Feed"
+                            , _discid           = 1
+                            , _track_in_disc    = 2
+                            , _track_total_id   = 2
+                            , _track_count      = 4
+
+                            , _discname         = Just "Bonus"
+                            , _discversion      = Just "BB"
+                            , _disctitle        =
+                                  Just $   "Bonus  (BB)  "
+                                         ⊕ "<Sounds of the Universe  "
+                                         ⊕ "(Deluxe Box Set)>"
+                            }
+      tinfo8_2 = TrackInfo  { _album_artist     = "Depeche Mode"
+                            , _album            =
+                                  Just "Sounds of the Universe"
+                            , _album_version    = Just "Deluxe Box Set"
+                            , _album_title      =
+                               Just "Sounds of the Universe  (Deluxe Box Set)"
+                            , _release          =
+                                  Just [dateImprecise|2009-04-17|]
+                            , _original_release = Nothing
+
+                            , _artist           = Just "Depeche Mode"
+                            , _song_title       = Just "Wrong"
+                            , _title            =
+                                  Just "Wrong  (Trentemøller Remix)"
+                            , _version          = Just "Trentemøller Remix"
+                            , _live_type        = NotLive
+                            , _live_location    = Nothing
+                            , _live_date        = Nothing
+                            , _live_version     = Nothing
+                            , _discid           = 2
+                            , _track_in_disc    = 1
+                            , _track_total_id   = 3
+                            , _track_count      = 4
+
+                            , _discname         = Just "Remixes"
+                            , _discversion      = Nothing
+                            , _disctitle        =
+                                  Just $ "Remixes  " ⊕
+                                         "<Sounds of the Universe  " ⊕
+                                         "(Deluxe Box Set)>"
+                            }
+      tinfo8_3 = TrackInfo  { _album_artist     = "Depeche Mode"
+                            , _album            =
+                                  Just "Sounds of the Universe"
+                            , _album_version    = Just "Deluxe Box Set"
+                            , _album_title      =
+                               Just "Sounds of the Universe  (Deluxe Box Set)"
+                            , _release          =
+                                  Just [dateImprecise|2009-04-17|]
+                            , _original_release = Nothing
+
+                            , _artist           = Just "Depeche Mode"
+                            , _title            = Just "Perfect  (Drone Mix)"
+                            , _song_title       = Just "Perfect"
+                            , _version          = Just "Drone Mix"
+                            , _live_type        = NotLive
+                            , _live_location    = Nothing
+                            , _live_date        = Nothing
+                            , _live_version     = Nothing
+                            , _discid           = 2
+                            , _track_in_disc    = 2
+                            , _track_total_id   = 4
+                            , _track_count      = 4
+
+                            , _discname         = Just "Bonus"
+                            , _discversion      = Just "BB"
+                            , _disctitle        =
+                                  Just $ "Bonus  (BB)  " ⊕
+                                         "<Sounds of the Universe  " ⊕
+                                         "(Deluxe Box Set)>"
+                            }
    in testGroup "MInfo.Types.TrackInfo"
                 [ testCase "tinfo1"      $ p tinfo1     ≟ pInfo _info1 (0∷ℕ)
                 , testCase "tinfo10"     $ P Nothing    ≟ pInfo _info1 (10∷ℕ)
@@ -319,6 +488,10 @@ fromInfoTests =
                 , testCase "tinfo5_4_21" $ P Nothing    ≟ pInfo _info5(4∷ℕ,21∷ℕ)
                 , testCase "tinfo7_0"    $ p tinfo7_0   ≟ pInfo _info7 (0∷ℕ)
                 , testCase "tinfo7_2"    $ p tinfo7_2   ≟ pInfo _info7 (2∷ℕ)
+                , testCase "tinfo8_0"    $ p tinfo8_0   ≟ pInfo _info8 (0∷ℕ)
+                , testCase "tinfo8_1"    $ p tinfo8_1   ≟ pInfo _info8 (1∷ℕ)
+                , testCase "tinfo8_2"    $ p tinfo8_2   ≟ pInfo _info8 (2∷ℕ)
+                , testCase "tinfo8_3"    $ p tinfo8_3   ≟ pInfo _info8 (3∷ℕ)
                 ]
 
 --------------------------------------------------------------------------------
@@ -330,7 +503,7 @@ fromInfoTests =
 -- TSOA, TSOT, TSOP
 
 tests ∷ TestTree
-tests = testGroup "MInfo.Types.TrackInfo" [ fromInfoTests ]
+tests = testGroup "TrackInfo" [ fromInfoTests ]
 
 ----------------------------------------
 
