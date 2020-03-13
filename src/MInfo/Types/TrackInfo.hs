@@ -55,7 +55,7 @@ import DateImprecise.DateImpreciseRange  ( DateImpreciseRange
 -- more-unicode ------------------------
 
 import Data.MoreUnicode.Applicative  ( (∤) )
-import Data.MoreUnicode.Functor      ( (⊲), (⊳) )
+import Data.MoreUnicode.Functor      ( (⊲) )
 import Data.MoreUnicode.Lens         ( (⊣) )
 import Data.MoreUnicode.Natural      ( ℕ )
 import Data.MoreUnicode.Semigroup    ( (◇) )
@@ -134,6 +134,7 @@ data TrackInfo = TrackInfo { _album_artist     ∷ Artist
                            , _discname         ∷ Maybe Source
                            , _discversion      ∷ Maybe SourceVersion
                            , _disctitle        ∷ Maybe Text
+                           , _work             ∷ Maybe Text
                            }
   deriving (Eq, Generic, Show)
 
@@ -170,27 +171,31 @@ fromInfo info n =
       album         = rinfo ⊣ ReleaseInfo.source
       album_version ∷ Maybe SourceVersion
       album_version = rinfo ⊣ ReleaseInfo.sourceVersion
-      album_title   ∷ Maybe Text
-      album_title   = case (album,album_version) of
-                        (Just a,Just v) → Just $ [fmt|%T  (%T)|] a v
-                        (_,_)           → toText ⊳ album
    in track info n ⊲ \ (tracknum, discid, trackid, tinfo) →
         let discname      = tinfo ⊣ Track.album
             discversion   = tinfo ⊣ Track.album_version
-            disctitle     =
+            (album_title,work,disctitle) =
               case (discname, album, discversion, album_version) of
-                (Nothing,Nothing,_,_)           → Nothing
-                (Nothing,Just a,_,Nothing)      → Just $ toText a
-                (Nothing,Just a,_,Just v)       → Just $ [fmt|%T  (%T)|] a v
-                (Just d,Just a,Nothing,Nothing) → Just $ [fmt|%T  <%T>|] d a
-                (Just d,Nothing,Nothing,_)      → Just $ [fmt|%T|] d
-                (Just d,Nothing,Just c,_)       → Just $ [fmt|%T  (%T)|] d c
+                (Nothing,Nothing,_,_)           → (Nothing,Nothing,Nothing)
+                (Nothing,Just a,_,Nothing)      →
+                    (Just $ toText a,Just $ toText a,Just $ toText a)
+                (Nothing,Just a,_,Just v)       →
+                    let t = Just ([fmt|%T  (%T)|] a v) in (t,t,t)
+                (Just d,Just a,Nothing,Nothing) →
+                    (Just (toText d),Just (toText a),Just ([fmt|%T  <%T>|] d a))
+                (Just d,Nothing,Nothing,_)      →
+                    let t = Just (toText d) in (t,t,t)
+                (Just d,Nothing,Just c,_)       →
+                    let t = Just ([fmt|%T  (%T)|] d c) in (t,t,t)
                 (Just d,Just a,Just c,Nothing)  →
-                    Just $ [fmt|%T  (%T)  <%T>|] d a c
+                    (Just ([fmt|%T  (%T)|] d c),Just (toText a),
+                     Just ([fmt|%T  (%T)  <%T>|] d c a))
                 (Just d,Just a,Nothing,Just v)   →
-                    Just $ [fmt|%T  <%T  (%T)>|] d a v
+                    (Just (toText d),Just ([fmt|%T  (%T)|] a v),
+                     Just ([fmt|%T  <%T  (%T)>|] d a v))
                 (Just d,Just a,Just c,Just v)   →
-                    Just $ [fmt|%T  (%T)  <%T  (%T)>|] d c a v
+                    (Just ([fmt|%T  (%T)|] d c),Just ([fmt|%T  (%T)|] a v),
+                     Just ([fmt|%T  (%T)  <%T  (%T)>|] d c a v))
 
          in TrackInfo { _album_artist     = album_artist
                       , _album            = album
@@ -220,6 +225,7 @@ fromInfo info n =
                       , _discname         = discname
                       , _discversion      = discversion
                       , _disctitle        = disctitle
+                      , _work             = work
                       }
 
 newtype P = P (Maybe TrackInfo)
@@ -263,6 +269,7 @@ fromInfoTests =
                          , _discname         = Nothing
                          , _discversion      = Nothing
                          , _disctitle        = Just twwlit
+                         , _work             = Just twwlit
                          }
       tinfo5_3_2 = TrackInfo { _album_artist     = "Depeche Mode"
                              , _album            = Just "Sounds of the Universe"
@@ -293,6 +300,8 @@ fromInfoTests =
                              , _discname         = Nothing
                              , _discversion      = Nothing
                              , _disctitle        =
+                                 Just "Sounds of the Universe  (Deluxe Box Set)"
+                             , _work             =
                                  Just "Sounds of the Universe  (Deluxe Box Set)"
                              }
       tinfo5_2_21 = TrackInfo { _album_artist     = "Depeche Mode"
@@ -325,6 +334,8 @@ fromInfoTests =
                               , _discversion      = Nothing
                               , _disctitle        =
                                  Just "Sounds of the Universe  (Deluxe Box Set)"
+                              , _work             =
+                                 Just "Sounds of the Universe  (Deluxe Box Set)"
                               }
       tinfo7_0 = TrackInfo { _album_artist     = "Various Artists"
                            , _album            = Just "Compilation"
@@ -353,6 +364,7 @@ fromInfoTests =
                            , _discname         = Nothing
                            , _discversion      = Nothing
                            , _disctitle        = Just "Compilation"
+                           , _work             = Just "Compilation"
                            }
       tinfo7_2 = TrackInfo { _album_artist     = "Various Artists"
                            , _album            = Just "Compilation"
@@ -381,6 +393,7 @@ fromInfoTests =
                            , _discname         = Nothing
                            , _discversion      = Nothing
                            , _disctitle        = Just "Compilation"
+                           , _work             = Just "Compilation"
                            }
       tinfo8_0 = TrackInfo  { _album_artist     = "Depeche Mode"
                             , _album            =
@@ -411,13 +424,14 @@ fromInfoTests =
                             , _discversion      = Nothing
                             , _disctitle        =
                                  Just "Sounds of the Universe  (Deluxe Box Set)"
+                            , _work             =
+                                 Just "Sounds of the Universe  (Deluxe Box Set)"
                             }
       tinfo8_1 = TrackInfo  { _album_artist     = "Depeche Mode"
                             , _album            =
                                   Just "Sounds of the Universe"
                             , _album_version    = Just "Deluxe Box Set"
-                            , _album_title      =
-                               Just "Sounds of the Universe  (Deluxe Box Set)"
+                            , _album_title      = Just "Bonus  (BB)"
                             , _release          =
                                   Just [dateImprecise|2009-04-17|]
                             , _original_release = Nothing
@@ -443,13 +457,14 @@ fromInfoTests =
                                   Just $   "Bonus  (BB)  "
                                          ⊕ "<Sounds of the Universe  "
                                          ⊕ "(Deluxe Box Set)>"
+                            , _work             =
+                                 Just "Sounds of the Universe  (Deluxe Box Set)"
                             }
       tinfo8_2 = TrackInfo  { _album_artist     = "Depeche Mode"
                             , _album            =
                                   Just "Sounds of the Universe"
                             , _album_version    = Just "Deluxe Box Set"
-                            , _album_title      =
-                               Just "Sounds of the Universe  (Deluxe Box Set)"
+                            , _album_title      = Just "Remixes"
                             , _release          =
                                   Just [dateImprecise|2009-04-17|]
                             , _original_release = Nothing
@@ -476,13 +491,15 @@ fromInfoTests =
                                   Just $ "Remixes  " ⊕
                                          "<Sounds of the Universe  " ⊕
                                          "(Deluxe Box Set)>"
+                            , _work             =
+                                 Just "Sounds of the Universe  (Deluxe Box Set)"
                             }
       tinfo8_3 = TrackInfo  { _album_artist     = "Depeche Mode"
                             , _album            =
                                   Just "Sounds of the Universe"
                             , _album_version    = Just "Deluxe Box Set"
                             , _album_title      =
-                               Just "Sounds of the Universe  (Deluxe Box Set)"
+                               Just "Bonus  (BB)"
                             , _release          =
                                   Just [dateImprecise|2009-04-17|]
                             , _original_release = Nothing
@@ -508,6 +525,8 @@ fromInfoTests =
                                   Just $ "Bonus  (BB)  " ⊕
                                          "<Sounds of the Universe  " ⊕
                                          "(Deluxe Box Set)>"
+                            , _work             =
+                                 Just "Sounds of the Universe  (Deluxe Box Set)"
                             }
    in testGroup "MInfo.Types.TrackInfo"
                 [ testCase "tinfo1"      $ p tinfo1     ≟ pInfo _info1 (0∷ℕ)
