@@ -14,6 +14,8 @@ module MInfo.Types.TrackInfo
   )
 where
 
+import Prelude  ( (-) )
+
 -- aeson -------------------------------
 
 import Data.Aeson.TH  ( defaultOptions, fieldLabelModifier, deriveJSON )
@@ -102,7 +104,8 @@ import MInfo.Types.Info         ( Info, track, _info1, _info5, _info7, _info8 )
 import MInfo.Types.ReleaseInfo  ( HasReleaseInfo( releaseInfo )
                                 , original_release, release )
 import MInfo.Types.Track        ( artist, title, version )
-import MInfo.Types.Tracks       ( TrackIndex, trackCount )
+import MInfo.Types.Tracks       ( TrackIndex
+                                , discCount, discTrackCount, trackCount )
 
 --------------------------------------------------------------------------------
 
@@ -126,6 +129,8 @@ data TrackInfo = TrackInfo { _album_artist     ∷ Artist
                            , _track_total_id   ∷ ℕ
                            , _track_count      ∷ ℕ
                            , _track_in_disc    ∷ ℕ
+                           , _disc_count       ∷ ℕ
+                           , _tracks_on_disc   ∷ ℕ
                            , _discname         ∷ Maybe Source
                            , _discversion      ∷ Maybe SourceVersion
                            , _disctitle        ∷ Maybe Text
@@ -143,6 +148,9 @@ instance Printable TrackInfo where
                     , "discname", "discversion"
                     , "original_release", "release", "track_count"
                     , "discid", "track_in_disc", "track_total_id"
+
+                    , "disc_count", "tracks_on_disc"
+
                     , "album_title", "live_version", "disctitle"
                     ]
         cmp x y = case (elemIndex x key_order, elemIndex y key_order) of
@@ -204,7 +212,11 @@ fromInfo info n =
                       , _track_total_id   = tracknum
                       , _track_count      = trackCount info
                       , _track_in_disc    = trackid
-
+                      , _disc_count       = discCount info
+                      , _tracks_on_disc   =
+                          case discTrackCount info (discid-1) of
+                            Nothing → 0
+                            Just tc → tc
                       , _discname         = discname
                       , _discversion      = discversion
                       , _disctitle        = disctitle
@@ -245,6 +257,8 @@ fromInfoTests =
                          , _track_total_id   = 1
                          , _track_in_disc    = 1
                          , _track_count      = 2
+                         , _disc_count       = 1
+                         , _tracks_on_disc   = 2
 
                          , _discname         = Nothing
                          , _discversion      = Nothing
@@ -273,6 +287,8 @@ fromInfoTests =
                              , _track_total_id   = 64
                              , _track_in_disc    = 3
                              , _track_count      = 65
+                             , _disc_count       = 4
+                             , _tracks_on_disc   = 4
 
                              , _discname         = Nothing
                              , _discversion      = Nothing
@@ -302,6 +318,8 @@ fromInfoTests =
                               , _track_total_id   = 55
                               , _track_in_disc    = 22
                               , _track_count      = 65
+                              , _disc_count       = 4
+                              , _tracks_on_disc   = 28
 
                               , _discname         = Nothing
                               , _discversion      = Nothing
@@ -329,6 +347,8 @@ fromInfoTests =
                            , _track_in_disc    = 1
                            , _track_total_id   = 1
                            , _track_count      = 3
+                           , _disc_count       = 2
+                           , _tracks_on_disc   = 2
 
                            , _discname         = Nothing
                            , _discversion      = Nothing
@@ -355,6 +375,8 @@ fromInfoTests =
                            , _track_in_disc    = 1
                            , _track_total_id   = 3
                            , _track_count      = 3
+                           , _disc_count       = 2
+                           , _tracks_on_disc   = 1
 
                            , _discname         = Nothing
                            , _discversion      = Nothing
@@ -382,6 +404,8 @@ fromInfoTests =
                             , _track_in_disc    = 1
                             , _track_total_id   = 1
                             , _track_count      = 4
+                            , _disc_count       = 2
+                            , _tracks_on_disc   = 2
 
                             , _discname         = Nothing
                             , _discversion      = Nothing
@@ -410,6 +434,8 @@ fromInfoTests =
                             , _track_in_disc    = 2
                             , _track_total_id   = 2
                             , _track_count      = 4
+                            , _disc_count       = 2
+                            , _tracks_on_disc   = 2
 
                             , _discname         = Just "Bonus"
                             , _discversion      = Just "BB"
@@ -441,6 +467,8 @@ fromInfoTests =
                             , _track_in_disc    = 1
                             , _track_total_id   = 3
                             , _track_count      = 4
+                            , _disc_count       = 2
+                            , _tracks_on_disc   = 2
 
                             , _discname         = Just "Remixes"
                             , _discversion      = Nothing
@@ -471,6 +499,8 @@ fromInfoTests =
                             , _track_in_disc    = 2
                             , _track_total_id   = 4
                             , _track_count      = 4
+                            , _disc_count       = 2
+                            , _tracks_on_disc   = 2
 
                             , _discname         = Just "Bonus"
                             , _discversion      = Just "BB"

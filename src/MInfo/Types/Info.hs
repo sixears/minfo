@@ -110,7 +110,8 @@ import MInfo.Types.ReleaseInfo  ( HasReleaseInfo( releaseInfo )
                                 , _rinfo6, _rinfo7
                                 )
 import MInfo.Types.Track        ( blankTrack, _track4, _track5 )
-import MInfo.Types.Tracks       ( HasTracks( flatTracks, trackCount )
+import MInfo.Types.Tracks       ( HasDiscCount( discCount )
+                                , HasTracks( flatTracks, trackCount )
                                 , Tracks( Tracks, unTracks )
                                 , TrackIndex( track )
                                 , _ts1, _ts2, _ts3, _ts4, _ts5, _ts6, _ts8
@@ -237,6 +238,12 @@ trackCountTests =
                     Right  4
                 @=? trackCount ⊳ (unYaml @YamlParseError @Info TestData.info6T)
             ]
+
+----------------------------------------
+
+instance HasDiscCount Info where
+  discCount ∷ Info → ℕ
+  discCount (Info _ t) = discCount t
 
 --------------------------------------------------------------------------------
 --                                 test data                                  --

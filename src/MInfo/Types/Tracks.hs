@@ -1,4 +1,5 @@
 {-# LANGUAGE FlexibleInstances     #-}
+{-# LANGUAGE InstanceSigs          #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE NoImplicitPrelude     #-}
 {-# LANGUAGE OverloadedStrings     #-}
@@ -10,9 +11,10 @@
 {-# LANGUAGE UnicodeSyntax         #-}
 
 module MInfo.Types.Tracks
-  ( HasTracks( flatTracks, trackCount, tracks ), Tracks( Tracks, unTracks )
-  , TrackIndex( track )
-  
+  ( HasDiscCount( discCount )
+  , HasTracks( flatTracks, discTrackCount, trackCount, tracks )
+  , Tracks( Tracks, unTracks ), TrackIndex( track )
+
   , tests
   , _ts1, _ts2, _ts3, _ts4, _ts5, _ts6, _ts8
   )
@@ -74,14 +76,13 @@ import Index ( HasIndex( Elem, Indexer, index ), (!!) )
 
 import Control.Lens.Getter  ( view )
 import Control.Lens.Lens    ( Lens' )
-import Control.Lens.Setter  ( ASetter )
 import Control.Lens.Tuple   ( _4 )
 
 -- more-unicode ------------------------
 
-import Data.MoreUnicode.Applicative  ( (⊵), (∤) )
+import Data.MoreUnicode.Applicative  ( (⊵) )
 import Data.MoreUnicode.Functor      ( (⊳), (⩺) )
-import Data.MoreUnicode.Lens         ( (⊣), (⊧) )
+import Data.MoreUnicode.Lens         ( (⊣), (⊮) )
 import Data.MoreUnicode.Monoid       ( ю )
 import Data.MoreUnicode.Natural      ( ℕ )
 
@@ -137,14 +138,6 @@ instance Printable Tracks where
   print tss = P.text ∘ unlines $ toText ∘ view _4 ⊳ flatTracks tss
 
 ----------------------------------------
-
--- ⫳
-addMaybe ∷ ASetter σ τ (Maybe α) (Maybe α) → Maybe α → σ → τ
-addMaybe s a = s ⊧ (∤ a)
-
-infixr 4 ⊮
-(⊮) ∷ ASetter σ τ (Maybe α) (Maybe α) → Maybe α → σ → τ
-(⊮) = addMaybe
 
 instance FromJSON Tracks where
   parseJSON json =
@@ -209,7 +202,7 @@ class HasTracks τ where
   {- | List of all the tracks, each preceded by total trackid, discid, and
        number-of-track-in-disc-id. -}
   flatTracks ∷ τ → [(ℕ,ℕ,ℕ,Track)]
-  flatTracks ts =
+  flatTracks tss =
     let indexn ∷ [α] → [(ℕ,α)]
         indexn = zip [1..]
         indexnn ∷ [[α]] → [(ℕ, [(ℕ,α)])]
@@ -218,10 +211,12 @@ class HasTracks τ where
         unroll2 (a,(b,c,d)) = (a,b,c,d)
         unrolls ∷ Functor ψ ⇒ (α, ψ (β,γ)) → ψ (α,β,γ)
         unrolls (x,ys) = unroll ⊳ (x,) ⊳ ys
-     in unroll2 ⩺ indexn ∘ ю $ unrolls ⊳ (indexnn (unTracks $ ts ⊣ tracks))
+     in unroll2 ⩺ indexn ∘ ю $ unrolls ⊳ (indexnn (unTracks $ tss ⊣ tracks))
   trackCount ∷ τ → ℕ
   trackCount = length ∘ flatTracks
-
+  discTrackCount ∷ τ → ℕ → Maybe ℕ
+  discTrackCount tss d = length ⊳ unTracks (tss ⊣ tracks) !! d
+  
 instance HasTracks Tracks where
   tracks = id
 
@@ -247,7 +242,7 @@ instance TrackIndex Tracks (Natural,Natural) where
     case filter (\(_,d',i',_)→ d ≡ d'-1 ∧ i ≡ i'-1 ) (flatTracks ts) of
       x:_ → Just x
       []  → Nothing
-  
+
 hasIndexTests ∷ TestTree
 hasIndexTests =
   testGroup "hasIndex" [ testCase "_track1" $ Just _track1 @=? _ts1 !! 0
@@ -274,6 +269,15 @@ hasIndexTests =
                        , testCase "-(2 (1))"  $
                              Nothing @=? track _ts1 (1∷ℕ,1∷ℕ)
                        ]
+
+----------------------------------------
+
+class HasDiscCount α where
+  discCount ∷ α → ℕ
+
+instance HasDiscCount Tracks where
+  discCount ∷ Tracks → ℕ
+  discCount (Tracks tss) = length tss
 
 --------------------------------------------------------------------------------
 --                                 test data                                  --
@@ -562,7 +566,7 @@ _ts8 = Tracks [ [ Track Nothing (Just "In Chains") Nothing
 
 tests ∷ TestTree
 tests = testGroup "Tracks" [ tracksFromJSONTests, hasIndexTests ]
-                
+
 ----------------------------------------
 
 _test ∷ IO ExitCode
