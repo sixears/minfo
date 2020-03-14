@@ -1,4 +1,8 @@
-1.0.2.0 2020-03-14
+1.0.3.0 2020-03-14
+==================
+- add tests and handling for discnames at releaseinfo level
+
+1.0.2.1 2020-03-14
 ==================
 - fix parsing of string-only song titles
 

@@ -6,22 +6,28 @@
 
 module MInfo.Types.ReleaseInfo
   ( HasReleaseInfo( releaseInfo ), ReleaseInfo( ReleaseInfo )
-  , artist, blankReleaseInfo, liveDate, liveType, liveLocation
+  , artist, blankReleaseInfo, discname, discnames, discversion
+  , liveDate, liveType, liveLocation
   , original_release, release, releaseInfoFields, source, sourceVersion
 
-  , _rinfo1, _rinfo2, _rinfo3, _rinfo4, _rinfo5, _rinfo6, _rinfo7, _rinfo9
+  , _rinfo1, _rinfo2, _rinfo3, _rinfo4, _rinfo5, _rinfo6, _rinfo7, _rinfo8
+  , _rinfo9
   )
 where
 
 -- aeson -------------------------------
 
-import Data.Aeson.Types  ( Value, (.:?), (.:), (.!=), withObject )
+import Data.Aeson.Types  ( Value( Null, Object )
+                         , (.:?), (.:), (.!=), typeMismatch, withObject )
 
 -- base --------------------------------
 
+import Control.Monad  ( join, return )
+import Data.Functor   ( fmap )
 import Data.Maybe     ( Maybe( Just, Nothing ), maybe )
 import Data.Eq        ( Eq )
 import Data.Function  ( ($), id )
+import Data.Tuple     ( fst, snd )
 import Text.Show      ( Show )
 
 -- base-unicode-symbols ----------------
@@ -34,6 +40,10 @@ import DateImprecise.DateImprecise       ( DateImprecise, dateImprecise )
 import DateImprecise.DateImpreciseRange  ( DateImpreciseRange
                                          , dateImpreciseRange )
 
+-- index -------------------------------
+
+import Index ( HasIndex( Elem, Indexer, index ), (!!) )
+
 -- lens --------------------------------
 
 import Control.Lens.Lens    ( Lens', lens )
@@ -42,7 +52,10 @@ import Control.Lens.Lens    ( Lens', lens )
 
 import Data.MoreUnicode.Applicative  ( (⊵) )
 import Data.MoreUnicode.Functor      ( (⊳) )
+import Data.MoreUnicode.Lens         ( (⊣) )
+import Data.MoreUnicode.Monad        ( (≫) )
 import Data.MoreUnicode.Monoid       ( ю )
+import Data.MoreUnicode.Natural      ( ℕ )
 
 -- text --------------------------------
 
@@ -75,6 +88,9 @@ data ReleaseInfo = ReleaseInfo { _artist           ∷ Artist
                                , _live_type        ∷ LiveType
                                , _live_location    ∷ Maybe LiveLocation
                                , _live_date        ∷ Maybe DateImpreciseRange
+                               , _discnames        ∷ [Maybe(Source,
+                                                            Maybe SourceVersion)
+                                                     ]
                                }
   deriving (Eq,Show)
 
@@ -92,6 +108,15 @@ release = lens _release (\ i r → i { _release = r })
 
 original_release ∷ Lens' ReleaseInfo (Maybe DateImprecise)
 original_release = lens _original_release (\ i o → i { _original_release = o })
+
+discnames ∷ Lens' ReleaseInfo [Maybe(Source,Maybe SourceVersion)]
+discnames = lens _discnames (\ i dns → i { _discnames = dns })
+
+discname ∷ ReleaseInfo → ℕ → Maybe Source
+discname r n = fst ⊳ join ((r ⊣ discnames) !! n)
+
+discversion ∷ ReleaseInfo → ℕ → Maybe SourceVersion
+discversion r n = join $ fmap snd $ join ((r ⊣ discnames) !! n)
 
 instance HasMaybeSource ReleaseInfo where
   source ∷ Lens' ReleaseInfo (Maybe Source)
@@ -113,6 +138,20 @@ instance HasLiveType ReleaseInfo where
   liveType ∷ Lens' ReleaseInfo LiveType
   liveType = lens _live_type (\ i y → i { _live_type = y})
 
+data DiscName = DiscName (Maybe (Source,Maybe SourceVersion))
+
+instance FromJSON DiscName where
+  parseJSON (Object o) =
+    let mk ∷ Source → Maybe SourceVersion → DiscName
+        mk s v = DiscName (Just (s,v))
+     in mk ⊳ o .: "title" ⊵ o .:? "version"
+  parseJSON Null = return $ DiscName Nothing
+  parseJSON invalid = typeMismatch "Object (DiscName)" invalid
+
+fromDiscName ∷ DiscName → Maybe (Source,Maybe SourceVersion)
+fromDiscName (DiscName (Just (s,sv))) = Just (s,sv)
+fromDiscName (DiscName Nothing)       = Nothing
+
 instance FromJSON ReleaseInfo where
   parseJSON = withObject "ReleaseInfo" $
     \ v → ReleaseInfo ⊳ v .: "artist"
@@ -124,12 +163,13 @@ instance FromJSON ReleaseInfo where
                       ⊵ v .:? "live_type" .!= NotLive
                       ⊵ v .:? "live_location"
                       ⊵ v .:? "live_date"
+                      ⊵ maybe [] (\ xs → fromDiscName ⊳ xs) ⊳ (v .:? "discnames")
 
 instance ToJSON ReleaseInfo where
   toJSON = object ∘ releaseInfoFields
 
 releaseInfoFields ∷ ReleaseInfo → [(Text,Value)]
-releaseInfoFields (ReleaseInfo a c r o s v t l d) =
+releaseInfoFields (ReleaseInfo a c r o s v t l d ns) =
   ю [ [ "artist" .= a ]
     , [ "catno"  .= c ]
     , maybe [] (\ r' → [ "release"          .= toJSON r' ]) r
@@ -148,7 +188,7 @@ releaseInfoFields (ReleaseInfo a c r o s v t l d) =
 
 blankReleaseInfo ∷ ReleaseInfo
 blankReleaseInfo = ReleaseInfo "" Nothing Nothing Nothing
-                               Nothing Nothing NotLive Nothing Nothing
+                               Nothing Nothing NotLive Nothing Nothing []
 
 --------------------------------------------------------------------------------
 --                                 test data                                  --
@@ -165,6 +205,7 @@ _rinfo1 =
               , _live_type        = Live
               , _live_location    = Just "Hamburg"
               , _live_date        = Just [dateImpreciseRange|1984-12-14|]
+              , _discnames        = []
               }
 
 _rinfo2 ∷ ReleaseInfo
@@ -177,6 +218,7 @@ _rinfo2 = ReleaseInfo { _artist           = "Depeche Mode"
                       , _live_type        = NotLive
                       , _live_location    = Nothing
                       , _live_date        = Nothing
+                      , _discnames        = []
                       }
 
 _rinfo3 ∷ ReleaseInfo
@@ -190,6 +232,7 @@ _rinfo3 =
               , _live_type        = Live
               , _live_location    = Just "Crystal Palace"
               , _live_date        = Just [dateImpreciseRange|1993-07-31|]
+              , _discnames        = []
               }
 
 _rinfo4 ∷ ReleaseInfo
@@ -203,6 +246,7 @@ _rinfo4 = ReleaseInfo { _artist           = "Depeche Mode"
                       , _live_type        = NotLive
                       , _live_location    = Nothing
                       , _live_date        = Nothing
+                      , _discnames        = []
                       }
 
 _rinfo5 ∷ ReleaseInfo
@@ -215,13 +259,14 @@ _rinfo5 = ReleaseInfo { _artist           = "Depeche Mode"
                       , _live_type        = NotLive
                       , _live_location    = Nothing
                       , _live_date        = Nothing
+                      , _discnames        = []
                       }
 
 _rinfo6 ∷ ReleaseInfo
 _rinfo6 = ReleaseInfo ("Depeche Mode") Nothing
                       (Just ([dateImprecise|2009-04-17|]))
                       Nothing (Just "Sounds of the Universe")
-                      (Just "Deluxe Box Set") NotLive Nothing Nothing
+                      (Just "Deluxe Box Set") NotLive Nothing Nothing []
 
 _rinfo7 ∷ ReleaseInfo
 _rinfo7 = ReleaseInfo { _artist           = "Various Artists"
@@ -233,7 +278,15 @@ _rinfo7 = ReleaseInfo { _artist           = "Various Artists"
                       , _live_type        = NotLive
                       , _live_location    = Nothing
                       , _live_date        = Nothing
+                      , _discnames        = []
                       }
+
+_rinfo8 ∷ ReleaseInfo
+_rinfo8 = ReleaseInfo ("Depeche Mode") Nothing
+                      (Just ([dateImprecise|2009-04-17|]))
+                      Nothing (Just "Sounds of the Universe")
+                      (Just "Deluxe Box Set") NotLive Nothing Nothing
+                      [Nothing, Just ("Remixen",Just"R")]
 
 _rinfo9 ∷ ReleaseInfo
 _rinfo9 = ReleaseInfo ("All About Eve") Nothing
@@ -242,5 +295,6 @@ _rinfo9 = ReleaseInfo ("All About Eve") Nothing
                       Nothing
                       Live (Just "Preston Guildhall")
                            (Just ([dateImpreciseRange|1991-11-09|]))
+                      []
 
 -- that's all, folks! ----------------------------------------------------------

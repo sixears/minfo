@@ -107,7 +107,7 @@ import MInfo.Types.ReleaseInfo  ( HasReleaseInfo( releaseInfo )
                                 , ReleaseInfo
                                 , blankReleaseInfo, releaseInfoFields
                                 , _rinfo1, _rinfo2, _rinfo3, _rinfo4, _rinfo5
-                                , _rinfo6, _rinfo7, _rinfo9
+                                , _rinfo6, _rinfo7, _rinfo8, _rinfo9
                                 )
 import MInfo.Types.Track        ( blankTrack, _track4, _track5 )
 import MInfo.Types.Tracks       ( HasDiscCount( discCount )
@@ -284,7 +284,7 @@ _info7 ∷ Info
 _info7 = Info _rinfo7 _ts1
 
 _info8 ∷ Info
-_info8 = Info _rinfo6 _ts8
+_info8 = Info _rinfo8 _ts8
 
 _info9 ∷ Info
 _info9 = Info _rinfo9 _ts9

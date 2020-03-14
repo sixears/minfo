@@ -334,7 +334,7 @@ releaseInfo6 ∷ ReleaseInfo
 releaseInfo6 = ReleaseInfo ("artie") (Just "123X")
                            (Just [dateImprecise|1979-12-31|])
                            Nothing (Just "Elpee") Nothing NotLive Nothing
-                           Nothing
+                           Nothing []
 
 releaseInfol ∷ ReleaseInfo
 releaseInfol = ReleaseInfo ("simon") (Just "124XX")
@@ -343,6 +343,7 @@ releaseInfol = ReleaseInfo ("simon") (Just "124XX")
                            (Just "An LP Title") Nothing
                            Live (Just "Sweden")
                            (Just [dateImpreciseRange|1990|])
+                           []
 
 
 ------------------------------------------------------------

@@ -537,7 +537,6 @@ t8 = BS.intercalate "\n" [ "-"
                          , "      album: Bonus"
                          , "      album_version: BB"
                          , "-"
-                         , "    discname: Remixes"
                          , "    tracks:"
                          , "      - title: 'Wrong'"
                          , "        version: Trentem\195\184ller Remix"
@@ -545,6 +544,10 @@ t8 = BS.intercalate "\n" [ "-"
                          , "        version: Drone Mix"
                          , "        album: Bonus"
                          , "        album_version: BB"
+                         , "-"
+                         , "    discname: Third"
+                         , "    tracks:"
+                         , "      - Jezebel"
                          ]
 _ts8 ∷ Tracks
 _ts8 = Tracks [ [ Track Nothing (Just "In Chains") Nothing
@@ -554,11 +557,15 @@ _ts8 = Tracks [ [ Track Nothing (Just "In Chains") Nothing
                 ]
               , [ Track Nothing
                         (Just "Wrong") (Just "Trentemøller Remix")
-                        NotLive Nothing Nothing (Just "Remixes") Nothing
+                        NotLive Nothing Nothing Nothing Nothing
                 , Track Nothing
                         (Just "Perfect")
                         (Just "Drone Mix")
                         NotLive Nothing Nothing (Just "Bonus") (Just "BB")
+                ]
+              , [ Track Nothing
+                        (Just "Jezebel") Nothing
+                        NotLive Nothing Nothing (Just "Third") Nothing
                 ]
               ]
 

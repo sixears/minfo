@@ -380,7 +380,6 @@ info8T =
   , "      album: Bonus"
   , "      album_version: BB"
   , "  -"
-  , "    discname: Remixes"
   , "    tracks:"
   , "      - title: 'Wrong'"
   , "        version: Trentem\195\184ller Remix"
@@ -388,6 +387,10 @@ info8T =
   , "        version: Drone Mix"
   , "        album: Bonus"
   , "        album_version: BB"
+  , "  -"
+  , "    discname: Third"
+  , "    tracks:"
+  , "      - Jezebel"
   , ""
   ]
 

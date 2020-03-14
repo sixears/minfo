@@ -32,6 +32,7 @@ import Data.List      ( drop, elemIndex )
 import Data.Maybe     ( Maybe( Just, Nothing ) )
 import Data.Ord       ( Ordering( EQ, GT, LT ), compare )
 import Data.String    ( String )
+import Data.Tuple     ( fst )
 import GHC.Generics   ( Generic )
 import System.Exit    ( ExitCode )
 import System.IO      ( IO )
@@ -55,8 +56,9 @@ import DateImprecise.DateImpreciseRange  ( DateImpreciseRange
 -- more-unicode ------------------------
 
 import Data.MoreUnicode.Applicative  ( (∤) )
-import Data.MoreUnicode.Functor      ( (⊲) )
+import Data.MoreUnicode.Functor      ( (⊲), (⊳) )
 import Data.MoreUnicode.Lens         ( (⊣) )
+import Data.MoreUnicode.Monad        ( (≫) )
 import Data.MoreUnicode.Natural      ( ℕ )
 import Data.MoreUnicode.Semigroup    ( (◇) )
 
@@ -102,7 +104,7 @@ import MInfo.Types              ( Artist, HasLiveDate( liveDate )
                                 )
 import MInfo.Types.Info         ( Info, track, _info1, _info5, _info7, _info8 )
 import MInfo.Types.ReleaseInfo  ( HasReleaseInfo( releaseInfo )
-                                , original_release, release )
+                                , discnames, original_release, release )
 import MInfo.Types.Track        ( artist, title, version )
 import MInfo.Types.Tracks       ( TrackIndex
                                 , discCount, discTrackCount, trackCount )
@@ -172,8 +174,10 @@ fromInfo info n =
       album_version ∷ Maybe SourceVersion
       album_version = rinfo ⊣ ReleaseInfo.sourceVersion
    in track info n ⊲ \ (tracknum, discid, trackid, tinfo) →
-        let discname      = tinfo ⊣ Track.album
-            discversion   = tinfo ⊣ Track.album_version
+        let discname      =   tinfo ⊣ Track.album
+                            ∤ ReleaseInfo.discname rinfo (discid-1)
+            discversion   =   tinfo ⊣ Track.album_version
+                            ∤ ReleaseInfo.discversion rinfo (discid-1)
             (album_title,work,disctitle) =
               case (discname, album, discversion, album_version) of
                 (Nothing,Nothing,_,_)           → (Nothing,Nothing,Nothing)
@@ -416,8 +420,8 @@ fromInfoTests =
                             , _discid           = 1
                             , _track_in_disc    = 1
                             , _track_total_id   = 1
-                            , _track_count      = 4
-                            , _disc_count       = 2
+                            , _track_count      = 5
+                            , _disc_count       = 3
                             , _tracks_on_disc   = 2
 
                             , _discname         = Nothing
@@ -447,8 +451,8 @@ fromInfoTests =
                             , _discid           = 1
                             , _track_in_disc    = 2
                             , _track_total_id   = 2
-                            , _track_count      = 4
-                            , _disc_count       = 2
+                            , _track_count      = 5
+                            , _disc_count       = 3
                             , _tracks_on_disc   = 2
 
                             , _discname         = Just "Bonus"
@@ -464,7 +468,7 @@ fromInfoTests =
                             , _album            =
                                   Just "Sounds of the Universe"
                             , _album_version    = Just "Deluxe Box Set"
-                            , _album_title      = Just "Remixes"
+                            , _album_title      = Just "Remixen  (R)"
                             , _release          =
                                   Just [dateImprecise|2009-04-17|]
                             , _original_release = Nothing
@@ -481,14 +485,14 @@ fromInfoTests =
                             , _discid           = 2
                             , _track_in_disc    = 1
                             , _track_total_id   = 3
-                            , _track_count      = 4
-                            , _disc_count       = 2
+                            , _track_count      = 5
+                            , _disc_count       = 3
                             , _tracks_on_disc   = 2
 
-                            , _discname         = Just "Remixes"
-                            , _discversion      = Nothing
+                            , _discname         = Just "Remixen"
+                            , _discversion      = Just "R"
                             , _disctitle        =
-                                  Just $ "Remixes  " ⊕
+                                  Just $ "Remixen  (R)  " ⊕
                                          "<Sounds of the Universe  " ⊕
                                          "(Deluxe Box Set)>"
                             , _work             =
@@ -515,14 +519,47 @@ fromInfoTests =
                             , _discid           = 2
                             , _track_in_disc    = 2
                             , _track_total_id   = 4
-                            , _track_count      = 4
-                            , _disc_count       = 2
+                            , _track_count      = 5
+                            , _disc_count       = 3
                             , _tracks_on_disc   = 2
 
                             , _discname         = Just "Bonus"
                             , _discversion      = Just "BB"
                             , _disctitle        =
                                   Just $ "Bonus  (BB)  " ⊕
+                                         "<Sounds of the Universe  " ⊕
+                                         "(Deluxe Box Set)>"
+                            , _work             =
+                                 Just "Sounds of the Universe  (Deluxe Box Set)"
+                            }
+      tinfo8_4 = TrackInfo  { _album_artist     = "Depeche Mode"
+                            , _album            =
+                                  Just "Sounds of the Universe"
+                            , _album_version    = Just "Deluxe Box Set"
+                            , _album_title      = Just "Third"
+                            , _release          =
+                                  Just [dateImprecise|2009-04-17|]
+                            , _original_release = Nothing
+
+                            , _artist           = Just "Depeche Mode"
+                            , _title            = Just "Jezebel"
+                            , _song_title       = Just "Jezebel"
+                            , _version          = Nothing
+                            , _live_type        = NotLive
+                            , _live_location    = Nothing
+                            , _live_date        = Nothing
+                            , _live_version     = Nothing
+                            , _discid           = 3
+                            , _track_in_disc    = 1
+                            , _track_total_id   = 5
+                            , _track_count      = 5
+                            , _disc_count       = 3
+                            , _tracks_on_disc   = 1
+
+                            , _discname         = Just "Third"
+                            , _discversion      = Nothing
+                            , _disctitle        =
+                                  Just $ "Third  " ⊕
                                          "<Sounds of the Universe  " ⊕
                                          "(Deluxe Box Set)>"
                             , _work             =
@@ -541,6 +578,7 @@ fromInfoTests =
                 , testCase "tinfo8_1"    $ p tinfo8_1   ≟ pInfo _info8 (1∷ℕ)
                 , testCase "tinfo8_2"    $ p tinfo8_2   ≟ pInfo _info8 (2∷ℕ)
                 , testCase "tinfo8_3"    $ p tinfo8_3   ≟ pInfo _info8 (3∷ℕ)
+                , testCase "tinfo8_4"    $ p tinfo8_4   ≟ pInfo _info8 (4∷ℕ)
                 ]
 
 --------------------------------------------------------------------------------
