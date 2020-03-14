@@ -25,7 +25,7 @@ where
 
 -- aeson -------------------------------
 
-import Data.Aeson.Types  ( (.:?), (.!=), withObject )
+import Data.Aeson.Types  ( Value( Object, String ), (.:?), (.!=), typeMismatch )
 
 -- base --------------------------------
 
@@ -109,7 +109,8 @@ import MInfo.Types  ( Artist, HasLiveDate( liveDate )
                     , HasLiveLocation( liveLocation ), HasLiveType( liveType )
                     , LiveLocation, LiveType( Demo, Live, LiveVocal, NotLive
                                             , Session )
-                    , Source, SourceVersion, TrackTitle, TrackVersion
+                    , Source, SourceVersion, TrackTitle( TrackTitle )
+                    , TrackVersion
                     )
 
 --------------------------------------------------------------------------------
@@ -153,17 +154,20 @@ instance HasLiveDate Track where
   liveDate     = lens _live_date     (\ r d → r { _live_date = d })
 
 instance FromJSON Track where
-  parseJSON = withObject "Track" $ \ v →
-    Track ⊳ do a ← v .:? "artist"
-               s ← v .:? "artists"
-               return $ a ∤ s
-          ⊵ v .:? "title"
-          ⊵ v .:? "version"
-          ⊵ v .:? "live_type" .!= NotLive
-          ⊵ v .:? "live_location"
-          ⊵ v .:? "live_date"
-          ⊵ v .:? "album"
-          ⊵ v .:? "album_version"
+  parseJSON json = case json of
+      Object o → Track ⊳ do a ← o .:? "artist"
+                            s ← o .:? "artists"
+                            return $ a ∤ s
+                       ⊵ o .:? "title"
+                       ⊵ o .:? "version"
+                       ⊵ o .:? "live_type" .!= NotLive
+                       ⊵ o .:? "live_location"
+                       ⊵ o .:? "live_date"
+                       ⊵ o .:? "album"
+                       ⊵ o .:? "album_version"
+      String s → return $ Track Nothing (Just $ TrackTitle s) Nothing
+                                NotLive Nothing Nothing Nothing Nothing
+      invalid  → typeMismatch "String|Object (Track)" invalid
 
 trackFromJSONTests ∷ TestTree
 trackFromJSONTests =
@@ -181,6 +185,7 @@ trackFromJSONTests =
                                , "album: My Album"
                                , "album_version: AVersion"
                                ]
+      t9 = BS.intercalate "\n" [ "Shelter from the Rain" ]
       e0 ∷ Track
       e0 = Track Nothing (Just "Condemnation") Nothing NotLive Nothing Nothing
                  Nothing Nothing
@@ -191,6 +196,7 @@ trackFromJSONTests =
                 [ testCase "t0" $ Right e0 @=? unYaml @YamlParseError t0
                 , testCase "t1" $ Right e1 @=? unYaml @YamlParseError t1
                 , testCase "t6" $ Right _track6 @=? unYaml @YamlParseError t6
+                , testCase "t9" $ Right _track9 @=? unYaml @YamlParseError t9
                 ]
 
 instance ToJSON Track where
@@ -285,6 +291,10 @@ _track5 = Track Nothing (Just "Two Minute Warning") Nothing
 _track6 ∷ Track
 _track6 = Track (Just "DM") (Just "Two Minute Warning") Nothing
                 NotLive Nothing Nothing (Just "My Album") (Just "AVersion")
+
+_track9 ∷ Track
+_track9 = Track Nothing (Just "Shelter from the Rain") Nothing
+                NotLive Nothing Nothing Nothing Nothing
 
 ------------------------------------------------------------
 

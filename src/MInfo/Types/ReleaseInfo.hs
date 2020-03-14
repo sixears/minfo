@@ -9,7 +9,7 @@ module MInfo.Types.ReleaseInfo
   , artist, blankReleaseInfo, liveDate, liveType, liveLocation
   , original_release, release, releaseInfoFields, source, sourceVersion
 
-  , _rinfo1, _rinfo2, _rinfo3, _rinfo4, _rinfo5, _rinfo6, _rinfo7
+  , _rinfo1, _rinfo2, _rinfo3, _rinfo4, _rinfo5, _rinfo6, _rinfo7, _rinfo9
   )
 where
 
@@ -234,5 +234,13 @@ _rinfo7 = ReleaseInfo { _artist           = "Various Artists"
                       , _live_location    = Nothing
                       , _live_date        = Nothing
                       }
+
+_rinfo9 ∷ ReleaseInfo
+_rinfo9 = ReleaseInfo ("All About Eve") Nothing
+                      Nothing 
+                      Nothing (Just "Live Preston Guildhall 1991")
+                      Nothing
+                      Live (Just "Preston Guildhall")
+                           (Just ([dateImpreciseRange|1991-11-09|]))
 
 -- that's all, folks! ----------------------------------------------------------

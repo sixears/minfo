@@ -16,7 +16,7 @@ module MInfo.Types.Tracks
   , Tracks( Tracks, unTracks ), TrackIndex( track )
 
   , tests
-  , _ts1, _ts2, _ts3, _ts4, _ts5, _ts6, _ts8
+  , _ts1, _ts2, _ts3, _ts4, _ts5, _ts6, _ts8, _ts9
   )
 where
 
@@ -148,6 +148,7 @@ instance FromJSON Tracks where
                                                 ⊵ (o .:? "discname_version")
                                 return $ (album ⊮ d) ∘ (album_version ⊮ v) ⊳ ts
         parseTs invalid      = typeMismatch "Array|Object (parseTs)" invalid
+
         parseTss ∷ Value → Parser [[Track]]
         parseTss (Array xs) = sequence $ parseTs ⊳ toList xs
         parseTss invalid = typeMismatch "Array (parseTss)" invalid
@@ -157,7 +158,7 @@ instance FromJSON Tracks where
               Nothing         → return $ Tracks [[]]
               Just (Array _)  → Tracks ⊳ parseTss (Array ts)
               Just _          →
-                  (Tracks ∘ pure) ⊳ (sequence $ parseJSON ⊳ toList ts)
+                (Tracks ∘ pure) ⊳ (sequence $ parseJSON ⊳ toList ts)
           invalid  → typeMismatch "Array (parseJSON @Tracks)" invalid
 
 --------------------
@@ -558,6 +559,14 @@ _ts8 = Tracks [ [ Track Nothing (Just "In Chains") Nothing
                         (Just "Perfect")
                         (Just "Drone Mix")
                         NotLive Nothing Nothing (Just "Bonus") (Just "BB")
+                ]
+              ]
+
+----------
+
+_ts9 ∷ Tracks
+_ts9 = Tracks [ [ Track Nothing (Just "Shelter from the Rain") Nothing
+                        NotLive Nothing Nothing Nothing Nothing
                 ]
               ]
 

@@ -390,3 +390,16 @@ info8T =
   , "        album_version: BB"
   , ""
   ]
+
+info9T ∷ ByteString
+info9T =
+  intercalate "\n" [ "---"
+  , "artist: All About Eve"
+  , "live_type: Live"
+  , "live_location: Preston Guildhall"
+  , "live_date: 1991-11-09"
+  , "source: Live Preston Guildhall 1991"
+  , "tracks:"
+  , " - Shelter from the Rain"
+  , ""
+  ]

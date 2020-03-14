@@ -107,14 +107,14 @@ import MInfo.Types.ReleaseInfo  ( HasReleaseInfo( releaseInfo )
                                 , ReleaseInfo
                                 , blankReleaseInfo, releaseInfoFields
                                 , _rinfo1, _rinfo2, _rinfo3, _rinfo4, _rinfo5
-                                , _rinfo6, _rinfo7
+                                , _rinfo6, _rinfo7, _rinfo9
                                 )
 import MInfo.Types.Track        ( blankTrack, _track4, _track5 )
 import MInfo.Types.Tracks       ( HasDiscCount( discCount )
                                 , HasTracks( flatTracks, trackCount )
                                 , Tracks( Tracks, unTracks )
                                 , TrackIndex( track )
-                                , _ts1, _ts2, _ts3, _ts4, _ts5, _ts6, _ts8
+                                , _ts1, _ts2, _ts3, _ts4, _ts5, _ts6, _ts8, _ts9
                                 )
 
 --------------------------------------------------------------------------------
@@ -187,6 +187,7 @@ infoFromJSONTests =
                    , checkInfo "_info5" TestData.info5T _info5
                    , checkInfo "_info6" TestData.info6T _info6
                    , checkInfo "_info8 (discnames)" TestData.info8T _info8
+                   , checkInfo "_info9" TestData.info9T _info9
                    ]
                 )
 
@@ -279,12 +280,14 @@ _info5 = Info _rinfo5 _ts5
 _info6 ∷ Info
 _info6 = Info _rinfo6 _ts6
 
-
 _info7 ∷ Info
 _info7 = Info _rinfo7 _ts1
 
 _info8 ∷ Info
 _info8 = Info _rinfo6 _ts8
+
+_info9 ∷ Info
+_info9 = Info _rinfo9 _ts9
 
 ------------------------------------------------------------
 
