@@ -1,3 +1,7 @@
+1.0.3.1 2020-09-17
+==================
+- use optparse-plus 1.0.2.0
+
 1.0.3.0 2020-03-14
 ==================
 - add tests and handling for discnames at releaseinfo level

@@ -32,7 +32,6 @@ import Data.List      ( drop, elemIndex )
 import Data.Maybe     ( Maybe( Just, Nothing ) )
 import Data.Ord       ( Ordering( EQ, GT, LT ), compare )
 import Data.String    ( String )
-import Data.Tuple     ( fst )
 import GHC.Generics   ( Generic )
 import System.Exit    ( ExitCode )
 import System.IO      ( IO )
@@ -56,9 +55,8 @@ import DateImprecise.DateImpreciseRange  ( DateImpreciseRange
 -- more-unicode ------------------------
 
 import Data.MoreUnicode.Applicative  ( (∤) )
-import Data.MoreUnicode.Functor      ( (⊲), (⊳) )
+import Data.MoreUnicode.Functor      ( (⊲) )
 import Data.MoreUnicode.Lens         ( (⊣) )
-import Data.MoreUnicode.Monad        ( (≫) )
 import Data.MoreUnicode.Natural      ( ℕ )
 import Data.MoreUnicode.Semigroup    ( (◇) )
 
@@ -104,7 +102,7 @@ import MInfo.Types              ( Artist, HasLiveDate( liveDate )
                                 )
 import MInfo.Types.Info         ( Info, track, _info1, _info5, _info7, _info8 )
 import MInfo.Types.ReleaseInfo  ( HasReleaseInfo( releaseInfo )
-                                , discnames, original_release, release )
+                                , original_release, release )
 import MInfo.Types.Track        ( artist, title, version )
 import MInfo.Types.Tracks       ( TrackIndex
                                 , discCount, discTrackCount, trackCount )

@@ -42,7 +42,7 @@ import DateImprecise.DateImpreciseRange  ( DateImpreciseRange
 
 -- index -------------------------------
 
-import Index ( HasIndex( Elem, Indexer, index ), (!!) )
+import Index ( (!!) )
 
 -- lens --------------------------------
 
@@ -53,7 +53,6 @@ import Control.Lens.Lens    ( Lens', lens )
 import Data.MoreUnicode.Applicative  ( (⊵) )
 import Data.MoreUnicode.Functor      ( (⊳) )
 import Data.MoreUnicode.Lens         ( (⊣) )
-import Data.MoreUnicode.Monad        ( (≫) )
 import Data.MoreUnicode.Monoid       ( ю )
 import Data.MoreUnicode.Natural      ( ℕ )
 
@@ -169,7 +168,7 @@ instance ToJSON ReleaseInfo where
   toJSON = object ∘ releaseInfoFields
 
 releaseInfoFields ∷ ReleaseInfo → [(Text,Value)]
-releaseInfoFields (ReleaseInfo a c r o s v t l d ns) =
+releaseInfoFields (ReleaseInfo a c r o s v t l d _) =
   ю [ [ "artist" .= a ]
     , [ "catno"  .= c ]
     , maybe [] (\ r' → [ "release"          .= toJSON r' ]) r
