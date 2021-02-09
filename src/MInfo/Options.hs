@@ -30,9 +30,10 @@ import Text.Show               ( Show( show ) )
 
 -- base-unicode-symbols ----------------
 
-import Data.Bool.Unicode    ( (∧) )
-import Data.Eq.Unicode      ( (≡) )
-import Data.Monoid.Unicode  ( (⊕) )
+import Data.Bool.Unicode      ( (∧) )
+import Data.Eq.Unicode        ( (≡), (≢) )
+import Data.Function.Unicode  ( (∘) )
+import Data.Monoid.Unicode    ( (⊕) )
 
 -- data-textual ------------------------
 
@@ -82,7 +83,7 @@ import OptParsePlus  ( parseOpts )
 
 -- text --------------------------------
 
-import Data.Text  ( Text, all, length, take, drop )
+import Data.Text  ( Text, all, drop, length, take, takeWhile )
 
 --------------------------------------------------------------------------------
 
@@ -99,7 +100,7 @@ isDiscDir d = let t = toText (basename d)
                   allDigits x  = all isDigit x
                   -- safe version of Text.init
                   init x = take (length x - 1) x
-               in "Disc " ≡ take 5 t ∧ allDigits (init $ drop 5 t)
+               in "Disc " ≡ take 5 t ∧ allDigits (takeWhile (≢ ' ') ∘ init $ drop 5 t)
 
 info_yaml_P ∷ MonadReader OptsOpts η ⇒ η (Parser Text)
 info_yaml_P = do
