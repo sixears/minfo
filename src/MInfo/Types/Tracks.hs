@@ -64,10 +64,6 @@ import DateImprecise.DateImpreciseRange  ( dateImpreciseRange )
 
 import Data.Textual  ( Printable( print ), toText )
 
--- fluffy ------------------------------
-
-import Fluffy.Foldable  ( length )
-
 -- index -------------------------------
 
 import Index ( HasIndex( Elem, Indexer, index ), (!!) )
@@ -85,6 +81,10 @@ import Data.MoreUnicode.Functor      ( (⊳), (⩺) )
 import Data.MoreUnicode.Lens         ( (⊣), (⊮) )
 import Data.MoreUnicode.Monoid       ( ю )
 import Data.MoreUnicode.Natural      ( ℕ )
+
+-- natural -----------------------------
+
+import Natural  ( length )
 
 -- tasty -------------------------------
 
@@ -217,7 +217,7 @@ class HasTracks τ where
   trackCount = length ∘ flatTracks
   discTrackCount ∷ τ → ℕ → Maybe ℕ
   discTrackCount tss d = length ⊳ unTracks (tss ⊣ tracks) !! d
-  
+
 instance HasTracks Tracks where
   tracks = id
 

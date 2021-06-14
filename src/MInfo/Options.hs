@@ -45,7 +45,6 @@ import FPath.AbsDir            ( AbsDir )
 import FPath.AbsFile           ( AbsFile )
 import FPath.Basename          ( basename )
 import FPath.Error.FPathError  ( AsFPathError )
-import FPath.IO                ( pResolve )
 
 -- lens --------------------------------
 
@@ -56,6 +55,10 @@ import Control.Lens.Lens    ( Lens', lens )
 
 import MonadError           ( MonadError )
 import MonadError.IO.Error  ( AsIOError )
+
+-- monadio-plus ------------------------
+
+import MonadIO.FPath  ( pResolve )
 
 -- more-unicode ------------------------
 
@@ -163,7 +166,7 @@ newtype OptsOpts = OptsOpts { _cwd ∷ AbsDir }
 
 cwd ∷ Lens' OptsOpts AbsDir
 cwd = lens _cwd (\ o d → o { _cwd = d })
-  
+
 data Options' = Options' RunMode'
   deriving Show
 

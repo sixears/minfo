@@ -51,9 +51,9 @@ import Data.MoreUnicode.Monoid       ( ю )
 import Data.MoreUnicode.Natural      ( ℕ )
 import Data.MoreUnicode.Semigroup    ( (◇) )
 
--- fluffy ------------------------------
+-- natural -----------------------------
 
-import Fluffy.Foldable  ( length )
+import Natural  ( length )
 
 -- fpath -------------------------------
 
