@@ -12,8 +12,9 @@ where
 
 import Control.Exception    ( Exception )
 import Data.Either          ( Either( Left, Right ) )
-import Data.Eq              ( Eq )
-import Data.Function        ( ($), id )
+import Data.Eq              ( Eq( (==) ) )
+import Data.Function        ( ($), (&), id )
+import GHC.Stack            ( CallStack, HasCallStack, callStack )
 import Text.Show            ( Show )
 
 -- base-unicode-symbols ----------------
@@ -31,14 +32,23 @@ import FPath.Error.FPathComponentError
                                ( AsFPathComponentError( _FPathComponentError )
                                , FPathComponentError )
 
+-- has-callstack -----------------------
+
+import HasCallstack  ( HasCallstack( callstack ) )
+
 -- lens --------------------------------
 
+import Control.Lens.Lens    ( lens )
 import Control.Lens.Prism   ( Prism', prism )
 import Control.Lens.Review  ( (#) )
 
 -- monaderror-io -----------------------
 
 import MonadError.IO.Error  ( AsIOError( _IOError ) )
+
+-- more-unicode ------------------------
+
+import Data.MoreUnicode.Lens  ( (⊣), (⊢) )
 
 -- mtl ---------------------------------
 
@@ -62,13 +72,20 @@ import YamlPlus.Error  ( AsYamlParseError( _YamlParseError ), YamlParseError )
 
 --------------------------------------------------------------------------------
 
-data InfoError = IllegalFileName Text
-  deriving (Eq,Show)
+data InfoError = IllegalFileName Text CallStack
+  deriving Show
 
 instance Exception InfoError
 
+instance Eq InfoError where
+  IllegalFileName t _ == IllegalFileName t' _ = t == t'
+
+instance HasCallstack InfoError where
+  callstack = lens (\ (IllegalFileName _ cs) → cs)
+                   (\ (IllegalFileName t _) cs → IllegalFileName t cs)
+
 instance Printable InfoError where
-  print (IllegalFileName t) = P.text $ [fmt|Illegal file name: '%t'|] t
+  print (IllegalFileName t _) = P.text $ [fmt|Illegal file name: '%t'|] t
 
 class AsInfoError ε where
   _InfoError :: Prism' ε InfoError
@@ -76,8 +93,9 @@ class AsInfoError ε where
 instance AsInfoError InfoError where
   _InfoError = id
 
-throwIllegalFileName :: (AsInfoError ε, MonadError ε η) ⇒ Text → η α
-throwIllegalFileName t = throwError $ (_InfoError #) (IllegalFileName t)
+throwIllegalFileName ∷ (AsInfoError ε, MonadError ε η,HasCallStack) ⇒ Text → η α
+throwIllegalFileName t =
+  throwError $ (_InfoError #) (IllegalFileName t callStack)
 
 ------------------------------------------------------------
 
@@ -86,6 +104,18 @@ data InfoFPCError = IFPCInfoError             InfoError
   deriving (Eq,Show)
 
 instance Exception InfoFPCError
+
+instance HasCallstack  InfoFPCError where
+  callstack = lens (\ case (IFPCInfoError             ie  ) → ie   ⊣ callstack
+                           (IFPCFPathComponenentError fpce) → fpce ⊣ callstack
+                   )
+                   (\ e cs →
+                       case e of
+                         (IFPCInfoError ie) →
+                           IFPCInfoError $ ie & callstack ⊢ cs
+                         (IFPCFPathComponenentError fpce) →
+                           IFPCFPathComponenentError $ fpce & callstack ⊢ cs
+                   )
 
 instance Printable InfoFPCError where
   print (IFPCInfoError e)             = print e
@@ -132,6 +162,21 @@ data YamlFPathIOParseInfoFPCError = YFIPIFPCParseError   YamlParseError
                                   | YFIPIFPCInfoFPCError InfoFPCError
                                   | YFIPIFPCFPathIOError FPathIOError
   deriving (Eq,Show)
+
+instance HasCallstack  YamlFPathIOParseInfoFPCError where
+  callstack = lens (\ case (YFIPIFPCParseError   ype) → ype ⊣ callstack
+                           (YFIPIFPCInfoFPCError ife) → ife ⊣ callstack
+                           (YFIPIFPCFPathIOError fpe) → fpe ⊣ callstack
+                   )
+                   (\ fpioe cs →
+                       case fpioe of
+                         (YFIPIFPCParseError ype) →
+                           YFIPIFPCParseError $ ype & callstack ⊢ cs
+                         (YFIPIFPCInfoFPCError ife) →
+                           YFIPIFPCInfoFPCError $ ife & callstack ⊢ cs
+                         (YFIPIFPCFPathIOError fpe) →
+                           YFIPIFPCFPathIOError $ fpe & callstack ⊢ cs
+                   )
 
 _YFIPIFPCInfoFPCError ∷ Prism' YamlFPathIOParseInfoFPCError InfoFPCError
 _YFIPIFPCInfoFPCError = prism YFIPIFPCInfoFPCError

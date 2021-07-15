@@ -10,7 +10,7 @@ name:                minfo
 -- PVP summary:      +-+------- breaking API changes
 --                   | | +----- non-breaking API additions
 --                   | | | +--- code changes with no API change
-version:             1.0.3.3
+version:             1.0.3.4
 
 -- A short (one-line) description of the package.
 synopsis:            manage info.yaml
@@ -77,16 +77,17 @@ library
 
                      , date-imprecise       >= 1.0.0.3
                      , fpath                >= 1.1.4.2
+                     , has-callstack        >= 1.0.1.0
                      , index                >= 1.0.0.0
-                     , monaderror-io        >= 1.1.0.1
-                     , monadio-plus         >= 1.4.9.0
-                     , more-unicode         >= 0.0.11.0
+                     , monaderror-io        >= 1.1.1.0
+                     , monadio-plus         >= 1.4.12.0
+                     , more-unicode         >= 0.0.15.0
                      , natural              >= 0.0.1.0
-                     , non-empty-containers >= 1.4.0.0
+                     , non-empty-containers >= 1.4.2.0
                      , optparse-plus        >= 1.0.2.0
-                     , tasty-plus           >= 1.5.0.1
-                     , tfmt                 >= 0.2.2.0
-                     , yaml-plus            >= 1.0.0.3
+                     , tasty-plus           >= 1.5.0.2
+                     , tfmt                 >= 0.2.4.0
+                     , yaml-plus            >= 1.0.1.0
 
   -- Directories containing source files.
   hs-source-dirs:      src

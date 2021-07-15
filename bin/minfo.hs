@@ -29,13 +29,13 @@ import Data.Textual  ( Printable )
 
 -- exited ------------------------------
 
-import Exited  ( doMain )
+import Exited  ( CallstackOnError( CallstackOnError )
+               , ProfCallstackOnError( ProfCallstackOnError ), doMainCS )
 
 -- fpath -------------------------------
 
 import FPath.AbsFile  ( AbsFile )
 import FPath.File     ( File( FileA ) )
-import FPath.IO       ( getCwd )
 
 -- monaderror-io -----------------------
 
@@ -43,7 +43,8 @@ import MonadError  ( ѥ )
 
 -- monadio-plus ------------------------
 
-import MonadIO  ( MonadIO, say )
+import MonadIO        ( MonadIO, say )
+import MonadIO.FPath  ( getCwd )
 
 -- more-unicode ------------------------
 
@@ -97,7 +98,7 @@ pInfo' f fn = do
 
 
 main ∷ IO ()
-main = doMain @YamlFPathIOParseInfoFPCError @Word8 $ do
+main = doMainCS @YamlFPathIOParseInfoFPCError @Word8 (CallstackOnError, ProfCallstackOnError) $ do
   cwd ← getCwd
 
   let summary = "read & write info.yaml"

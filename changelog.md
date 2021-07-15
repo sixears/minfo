@@ -1,3 +1,7 @@
+1.0.3.4 2021-07-15
+==================
+- use MInfo.FPath rather than FPath.IO; add callstack to exceptions
+
 1.0.3.3 2021-06-14
 ==================
 - no more fluffy
