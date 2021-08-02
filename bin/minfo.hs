@@ -102,7 +102,7 @@ main = doMainCS @YamlFPathIOParseInfoFPCError @Word8 (CallstackOnError, ProfCall
   cwd ← getCwd
 
   let summary = "read & write info.yaml"
-  opts ← optsParse Nothing summary (OptsOpts cwd)
+  opts ← optsParse summary (OptsOpts cwd)
   case opts ⊣ runMode of
     ModeWrite      tc → say $ blankInfo tc
     ModeTrackCount fn → pInfo  ((:[]) ∘ show ∘ trackCount) fn

@@ -209,8 +209,8 @@ runMode ∷ Lens' Options RunMode
 runMode = lens _runMode (\ o r → o { _runMode = r })
 
 optsParse ∷ (MonadIO μ, AsFPathError ε, AsIOError ε, MonadError ε μ) ⇒
-            Maybe Text → Text → OptsOpts → μ Options
-optsParse progn descn o =
-  parseOpts progn (progDesc $ toString descn) (parseOptions o) ≫ resolve
+            Text → OptsOpts → μ Options
+optsParse descn o =
+  parseOpts (progDesc $ toString descn) (parseOptions o) ≫ resolve
 
 -- that's all, folks! ----------------------------------------------------------

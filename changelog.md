@@ -1,3 +1,7 @@
+1.0.3.5 2021-08-01
+==================
+- use optparse-plus 1.1.0.0
+
 1.0.3.4 2021-07-15
 ==================
 - use MInfo.FPath rather than FPath.IO; add callstack to exceptions
