@@ -17,18 +17,20 @@ where
 
 -- aeson -------------------------------
 
+import Data.Aeson.Key    ( fromText, toText )
 import Data.Aeson.Types  ( Value( Null, Object )
                          , (.:?), (.:), (.!=), typeMismatch, withObject )
 
 -- base --------------------------------
 
-import Control.Monad  ( join, return )
-import Data.Functor   ( fmap )
-import Data.Maybe     ( Maybe( Just, Nothing ), maybe )
-import Data.Eq        ( Eq )
-import Data.Function  ( ($), id )
-import Data.Tuple     ( fst, snd )
-import Text.Show      ( Show )
+import Control.Monad   ( join, return )
+import Data.Bifunctor  ( first )
+import Data.Functor    ( fmap )
+import Data.Maybe      ( Maybe( Just, Nothing ), maybe )
+import Data.Eq         ( Eq )
+import Data.Function   ( ($), id )
+import Data.Tuple      ( fst, snd )
+import Text.Show       ( Show )
 
 -- base-unicode-symbols ----------------
 
@@ -165,10 +167,11 @@ instance FromJSON ReleaseInfo where
                       ⊵ maybe [] (\ xs → fromDiscName ⊳ xs) ⊳ (v .:? "discnames")
 
 instance ToJSON ReleaseInfo where
-  toJSON = object ∘ releaseInfoFields
+  toJSON = object ∘ fmap (first fromText) ∘ releaseInfoFields
 
 releaseInfoFields ∷ ReleaseInfo → [(Text,Value)]
 releaseInfoFields (ReleaseInfo a c r o s v t l d _) =
+  fmap (first toText) $
   ю [ [ "artist" .= a ]
     , [ "catno"  .= c ]
     , maybe [] (\ r' → [ "release"          .= toJSON r' ]) r
@@ -289,7 +292,7 @@ _rinfo8 = ReleaseInfo ("Depeche Mode") Nothing
 
 _rinfo9 ∷ ReleaseInfo
 _rinfo9 = ReleaseInfo ("All About Eve") Nothing
-                      Nothing 
+                      Nothing
                       Nothing (Just "Live Preston Guildhall 1991")
                       Nothing
                       Live (Just "Preston Guildhall")

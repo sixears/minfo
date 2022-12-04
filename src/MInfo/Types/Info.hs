@@ -22,13 +22,16 @@ import Prelude  ( fromIntegral )
 
 -- aeson -------------------------------
 
+import Data.Aeson.Key    ( fromText )
 import Data.Aeson.Types  ( Value( Object ), (.:), withObject )
 
 -- base --------------------------------
 
+import Data.Bifunctor   ( first )
 import Data.Either      ( Either( Left, Right ) )
 import Data.Eq          ( Eq )
 import Data.Function    ( ($) )
+import Data.Functor     ( fmap )
 import Data.List        ( replicate )
 import Data.Maybe       ( Maybe )
 import Data.String      ( String )
@@ -194,8 +197,10 @@ infoFromJSONTests =
 instance ToJSON Info where
   toJSON (Info r ts) =
     case unTracks ts of
-      [ts'] → object (("tracks", toJSON ts') : releaseInfoFields r)
-      _     → object (("tracks", toJSON ts)  : releaseInfoFields r)
+      [ts'] → object (fmap (first fromText) $
+                        ("tracks", toJSON ts') : releaseInfoFields r)
+      _     → object (fmap (first fromText) $
+                        ("tracks", toJSON ts)  : releaseInfoFields r)
 
 instance Printable Info where
   print i = P.text $ pyaml i
